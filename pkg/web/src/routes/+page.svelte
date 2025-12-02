@@ -29,8 +29,11 @@ async function checkSentryEnabled() {
 	try {
 		const res = await fetch(`${PUBLIC_BACKEND_ENDPOINT}/api/config`);
 		const config = await res.json();
-		sentryEnabled = !!config.sentry_dsn;
-		sentryDsn = config.sentry_dsn || '';
+		// Replace host.docker.internal with localhost for browser access
+		// (backend uses host.docker.internal to reach Grafault from Docker container)
+		const dsn = config.sentry_dsn?.replace('host.docker.internal', 'localhost') || '';
+		sentryEnabled = !!dsn;
+		sentryDsn = dsn;
 	} catch {
 		sentryEnabled = false;
 		sentryDsn = '';
@@ -79,7 +82,8 @@ async function sendBackendError(errorType: string) {
 }
 
 // Frontend error templates with hardcoded source locations
-// These point to real file paths in the repository
+// These use REPOSITORY-RELATIVE paths (like real Sentry/error tracking SDKs)
+// The VS Code integration in Grafault will prepend the configured workspace root
 const frontendErrorTemplates: Record<string, {
 	type: string;
 	message: string;
@@ -282,9 +286,9 @@ async function sendFrontendError(errorType: string) {
 				integrations: ['BrowserTracing', 'Breadcrumbs'],
 			},
 			tags: {
-				'service.name': 'quickpizza-frontend',
 				'error.source': 'frontend-test-button',
 				'error.type': errorType,
+				'repository.url': 'https://github.com/grafana/mobile-o11y-demo',
 			},
 			extra: {
 				userTriggered: true,

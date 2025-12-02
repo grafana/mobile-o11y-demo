@@ -36,7 +36,9 @@ function setupFaro(config: Record<string, string>) {
 }
 
 function setupSentry(config: Record<string, string>) {
-	const dsn = config.sentry_dsn;
+	// Replace host.docker.internal with localhost for browser access
+	// (backend uses host.docker.internal to reach Grafault from Docker container)
+	const dsn = config.sentry_dsn?.replace('host.docker.internal', 'localhost');
 	const environment = config.sentry_environment || 'development';
 	const release = config.sentry_release || '1.0.0';
 

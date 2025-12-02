@@ -1716,10 +1716,10 @@ func buildErrorEnvelope(eventID string, timestamp time.Time, serviceName, errorT
 			"service":        serviceName,
 		},
 		"tags": map[string]string{
-			"service.name":  serviceName,
-			"endpoint":      "/api/test-sentry-error",
-			"error_type":    errorType,
-			"test_endpoint": "true",
+			"endpoint":       "/api/test-sentry-error",
+			"error_type":     errorType,
+			"test_endpoint":  "true",
+			"repository.url": "https://github.com/grafana/mobile-o11y-demo",
 		},
 	}
 

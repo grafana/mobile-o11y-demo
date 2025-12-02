@@ -84,7 +84,8 @@ Future<void> _sendBackendError(String errorType) async {
 }
 
 /// Mobile error templates with hardcoded source locations
-/// These point to real file paths in the repository
+/// These use REPOSITORY-RELATIVE paths (like real Sentry/error tracking SDKs)
+/// The VS Code integration in Grafault will prepend the configured workspace root
 class _MobileErrorTemplate {
   final String type;
   final String message;
@@ -97,6 +98,8 @@ class _MobileErrorTemplate {
   });
 }
 
+/// Error templates use repository-relative paths (standard Sentry format)
+/// Examples: 'lib/screens/home_screen.dart', 'src/components/App.tsx'
 final Map<String, _MobileErrorTemplate> _mobileErrorTemplates = {
   'TypeError': _MobileErrorTemplate(
     type: 'NoSuchMethodError',
@@ -228,8 +231,8 @@ final Map<String, _MobileErrorTemplate> _mobileErrorTemplates = {
 
 /// Send mobile error directly to Grafault with hardcoded source info
 Future<void> _sendMobileError(String errorType) async {
-  final sentryDsn = ConfigService.sentryDsn;
-  if (sentryDsn.isEmpty) {
+  final rawDsn = ConfigService.sentryDsn;
+  if (rawDsn.isEmpty) {
     throw Exception('Sentry DSN not configured');
   }
 
@@ -237,6 +240,10 @@ Future<void> _sendMobileError(String errorType) async {
   if (template == null) {
     throw Exception('Unknown error type: $errorType');
   }
+
+  // Replace host.docker.internal with localhost for mobile access
+  // (backend uses host.docker.internal to reach Grafault from Docker container)
+  final sentryDsn = rawDsn.replaceAll('host.docker.internal', 'localhost');
 
   // Parse DSN: http://token@host/stackId
   final dsnUri = Uri.parse(sentryDsn);
@@ -285,9 +292,9 @@ Future<void> _sendMobileError(String errorType) async {
       'integrations': ['FlutterError', 'LoadContextsIntegration'],
     },
     'tags': {
-      'service.name': 'quickpizza-mobile',
       'error.source': 'mobile-test-button',
       'error.type': errorType,
+      'repository.url': 'https://github.com/grafana/mobile-o11y-demo',
     },
     'extra': {'userTriggered': true, 'timestamp': timestamp.toIso8601String()},
     'contexts': {
