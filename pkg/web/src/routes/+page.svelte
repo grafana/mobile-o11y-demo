@@ -1,7 +1,6 @@
 <script lang="ts">
 // biome-ignore assist/source/organizeImports: organized by hand
 import { faro } from '@grafana/faro-web-sdk';
-import * as Sentry from '@sentry/svelte';
 import {
 	PUBLIC_BACKEND_ENDPOINT,
 	PUBLIC_BACKEND_WS_ENDPOINT,
@@ -10,14 +9,20 @@ import { onMount } from 'svelte';
 import { Confetti } from 'svelte-confetti';
 import { wsVisitorIDStore, userTokenStore } from '../lib/stores';
 import ToggleConfetti from '../lib/ToggleConfetti.svelte';
-import { sendErrorWithContext, getAvailableErrorTypes } from '../lib/sentryWithContext';
-
 // Track if Sentry is enabled (loaded from config)
 let sentryEnabled = false;
+let sentryDsn = '';
 
-// Available error types for the dropdown
-let errorTypes: string[] = [];
-let selectedErrorType = 'TypeError';
+// All error types - backend (Go) and frontend (JS)
+const errorTypes = [
+	{ value: 'backend:panic', label: 'Backend: Panic', source: 'backend' },
+	{ value: 'backend:error', label: 'Backend: Error', source: 'backend' },
+	{ value: 'backend:context', label: 'Backend: Context', source: 'backend' },
+	{ value: 'frontend:TypeError', label: 'Frontend: TypeError', source: 'frontend' },
+	{ value: 'frontend:ReferenceError', label: 'Frontend: ReferenceError', source: 'frontend' },
+	{ value: 'frontend:RangeError', label: 'Frontend: RangeError', source: 'frontend' },
+];
+let selectedErrorType = 'backend:panic';
 
 // Check if Sentry is configured via backend config
 async function checkSentryEnabled() {
@@ -25,24 +30,306 @@ async function checkSentryEnabled() {
 		const res = await fetch(`${PUBLIC_BACKEND_ENDPOINT}/api/config`);
 		const config = await res.json();
 		sentryEnabled = !!config.sentry_dsn;
-		if (sentryEnabled) {
-			errorTypes = getAvailableErrorTypes();
-			selectedErrorType = errorTypes[0] || 'TypeError';
-		}
+		sentryDsn = config.sentry_dsn || '';
 	} catch {
 		sentryEnabled = false;
+		sentryDsn = '';
 	}
 }
 
-// Send a test error to Sentry with source context
-function sendTestSentryError() {
-	sendErrorWithContext(selectedErrorType as any);
-	faro.api.pushEvent('Sentry Test Error Sent', { 
-		timestamp: new Date().toISOString(),
-		errorType: selectedErrorType,
-		hasContext: true
-	});
-	alert(`Test ${selectedErrorType} error with source context sent to Sentry!`);
+// Send test error - routes to backend or frontend based on selection
+async function sendTestError() {
+	const [source, errorType] = selectedErrorType.split(':');
+	
+	if (source === 'backend') {
+		await sendBackendError(errorType);
+	} else {
+		await sendFrontendError(errorType);
+	}
+}
+
+// Send a test error to backend API
+async function sendBackendError(errorType: string) {
+	try {
+		const response = await fetch(
+			`${PUBLIC_BACKEND_ENDPOINT}/api/test-sentry-error?type=${errorType}`,
+			{ method: 'GET' }
+		);
+		
+		let responseData;
+		try {
+			responseData = await response.json();
+		} catch {
+			responseData = { message: 'Error sent to backend' };
+		}
+		
+		if (response.status === 500 || response.ok) {
+			faro.api.pushEvent('Test Error Sent', { 
+				timestamp: new Date().toISOString(),
+				errorType,
+				source: 'backend',
+			});
+			alert(responseData.message || `Backend ${errorType} error sent! Check Grafault.`);
+		} else {
+			alert(`Failed: ${response.status} ${responseData.error || response.statusText}`);
+		}
+	} catch (error) {
+		alert(`Failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+	}
+}
+
+// Frontend error templates with hardcoded source locations
+// These point to real file paths in the repository
+const frontendErrorTemplates: Record<string, {
+	type: string;
+	message: string;
+	frames: Array<{
+		filename: string;
+		function: string;
+		lineno: number;
+		colno: number;
+		context_line: string;
+		pre_context: string[];
+		post_context: string[];
+	}>;
+}> = {
+	TypeError: {
+		type: 'TypeError',
+		message: "Cannot read properties of null (reading 'userName') - QuickPizza frontend error",
+		frames: [
+			{
+				filename: 'pkg/web/src/routes/+page.svelte',
+				function: 'getUserDisplayName',
+				lineno: 245,
+				colno: 12,
+				context_line: "    const displayName = user.profile.userName.toUpperCase();",
+				pre_context: [
+					"// Get user display name from profile",
+					"function getUserDisplayName(user: User | null) {",
+					"    // This will throw if user is null",
+				],
+				post_context: [
+					"    return displayName;",
+					"}",
+					"",
+				],
+			},
+			{
+				filename: 'pkg/web/src/routes/+page.svelte',
+				function: 'handlePizzaRequest',
+				lineno: 312,
+				colno: 8,
+				context_line: "        const userName = getUserDisplayName(currentUser);",
+				pre_context: [
+					"async function handlePizzaRequest() {",
+					"    try {",
+					"        // Get user name for the request",
+				],
+				post_context: [
+					"        await requestPizza(userName);",
+					"    } catch (error) {",
+					"        console.error('Failed to request pizza:', error);",
+				],
+			},
+		],
+	},
+	ReferenceError: {
+		type: 'ReferenceError',
+		message: "pizzaConfig is not defined - QuickPizza frontend error",
+		frames: [
+			{
+				filename: 'pkg/web/src/routes/+page.svelte',
+				function: 'loadPizzaConfiguration',
+				lineno: 178,
+				colno: 15,
+				context_line: "    const toppings = pizzaConfig.defaultToppings;",
+				pre_context: [
+					"// Load pizza configuration",
+					"function loadPizzaConfiguration() {",
+					"    // pizzaConfig should be defined but isn't",
+				],
+				post_context: [
+					"    return { toppings, sauce: pizzaConfig.sauce };",
+					"}",
+					"",
+				],
+			},
+			{
+				filename: 'pkg/web/src/routes/+page.svelte',
+				function: 'initializePizzaBuilder',
+				lineno: 156,
+				colno: 4,
+				context_line: "    const config = loadPizzaConfiguration();",
+				pre_context: [
+					"",
+					"async function initializePizzaBuilder() {",
+					"    // Initialize the pizza builder with config",
+				],
+				post_context: [
+					"    setPizzaDefaults(config);",
+					"    return config;",
+					"}",
+				],
+			},
+		],
+	},
+	RangeError: {
+		type: 'RangeError',
+		message: "Maximum call stack size exceeded - QuickPizza frontend error",
+		frames: [
+			{
+				filename: 'pkg/web/src/routes/+page.svelte',
+				function: 'calculatePizzaPrice',
+				lineno: 289,
+				colno: 12,
+				context_line: "    return calculatePizzaPrice(toppings); // Recursive call without base case",
+				pre_context: [
+					"// Calculate pizza price based on toppings",
+					"function calculatePizzaPrice(toppings: string[]) {",
+					"    // Bug: infinite recursion",
+				],
+				post_context: [
+					"}",
+					"",
+					"// This function should have a base case",
+				],
+			},
+			{
+				filename: 'pkg/web/src/routes/+page.svelte',
+				function: 'onPizzaSubmit',
+				lineno: 425,
+				colno: 8,
+				context_line: "        const price = calculatePizzaPrice(selectedToppings);",
+				pre_context: [
+					"async function onPizzaSubmit() {",
+					"    const selectedToppings = getSelectedToppings();",
+					"    // Calculate the total price",
+				],
+				post_context: [
+					"    await submitOrder(price);",
+					"}",
+					"",
+				],
+			},
+		],
+	},
+};
+
+// Send frontend error directly to Grafault with hardcoded source info
+async function sendFrontendError(errorType: string) {
+	if (!sentryDsn) {
+		alert('Sentry DSN not configured');
+		return;
+	}
+
+	const template = frontendErrorTemplates[errorType];
+	if (!template) {
+		alert(`Unknown error type: ${errorType}`);
+		return;
+	}
+
+	try {
+		// Parse DSN: http://token@host/stackId
+		const dsnUrl = new URL(sentryDsn);
+		const projectToken = dsnUrl.username;
+		const host = dsnUrl.host;
+		const stackId = dsnUrl.pathname.replace('/', '');
+
+		if (!projectToken || !stackId) {
+			alert('Invalid Sentry DSN format');
+			return;
+		}
+
+		// Generate event ID
+		const eventId = crypto.randomUUID().replace(/-/g, '');
+		const timestamp = new Date();
+
+		// Build envelope header
+		const header = {
+			event_id: eventId,
+			sent_at: timestamp.toISOString(),
+			sdk: { name: 'sentry.javascript.svelte', version: '9.47.1' },
+			trace: { environment: 'development' },
+		};
+
+		// Build event data with hardcoded stack trace
+		const eventData = {
+			event_id: eventId,
+			platform: 'javascript',
+			timestamp: timestamp.getTime() / 1000,
+			environment: 'development',
+			release: '1.0.0',
+			exception: [{
+				type: template.type,
+				value: template.message,
+				stacktrace: {
+					frames: template.frames.map(frame => ({
+						filename: frame.filename,
+						function: frame.function,
+						lineno: frame.lineno,
+						colno: frame.colno,
+						in_app: true,
+						context_line: frame.context_line,
+						pre_context: frame.pre_context,
+						post_context: frame.post_context,
+					})),
+				},
+				mechanism: { type: 'generic', handled: true },
+			}],
+			sdk: {
+				name: 'sentry.javascript.svelte',
+				version: '9.47.1',
+				integrations: ['BrowserTracing', 'Breadcrumbs'],
+			},
+			tags: {
+				'service.name': 'quickpizza-frontend',
+				'error.source': 'frontend-test-button',
+				'error.type': errorType,
+			},
+			extra: {
+				userTriggered: true,
+				timestamp: timestamp.toISOString(),
+				browser: navigator.userAgent,
+			},
+			contexts: {
+				browser: {
+					name: navigator.userAgent.includes('Chrome') ? 'Chrome' : 'Browser',
+				},
+			},
+		};
+
+		// Build envelope (newline-delimited JSON)
+		const envelope = [
+			JSON.stringify(header),
+			JSON.stringify({ type: 'event' }),
+			JSON.stringify(eventData),
+		].join('\n');
+
+		// Send to Grafault
+		const endpoint = `${dsnUrl.protocol}//${host}/api/${stackId}/envelope/?sentry_key=${projectToken}`;
+		const response = await fetch(endpoint, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/x-sentry-envelope',
+				'X-Sentry-Auth': `Sentry sentry_version=7, sentry_client=sentry.javascript.svelte/9.47.1, sentry_key=${projectToken}`,
+			},
+			body: envelope,
+		});
+
+		if (response.ok) {
+			faro.api.pushEvent('Test Error Sent', {
+				timestamp: timestamp.toISOString(),
+				errorType,
+				source: 'frontend',
+			});
+			alert(`Frontend ${errorType} sent to Grafault! Check errors list.`);
+		} else {
+			const text = await response.text();
+			alert(`Failed to send error: ${response.status} ${text}`);
+		}
+	} catch (error) {
+		alert(`Failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+	}
 }
 
 const defaultRestrictions = {
@@ -482,25 +769,25 @@ async function getTools() {
 				>
 			</p>
 		</div>
-		{#if sentryEnabled}
-			<div class="flex justify-center items-center mt-4 gap-2">
-				<select
-					bind:value={selectedErrorType}
-					class="bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded-lg px-2 py-1.5"
-				>
-					{#each errorTypes as errorType}
-						<option value={errorType}>{errorType}</option>
-					{/each}
-				</select>
-				<button
-					type="button"
-					on:click={sendTestSentryError}
-					class="text-white bg-purple-600 hover:bg-purple-700 font-medium rounded-lg text-xs px-3 py-1.5 text-center"
-					title="Send test error with source context to Sentry"
-				>
-					Test Sentry Error (with context)
-				</button>
-			</div>
-		{/if}
+	{#if sentryEnabled}
+		<div class="flex justify-center items-center mt-4 gap-2">
+			<select
+				bind:value={selectedErrorType}
+				class="bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded-lg px-2 py-1.5"
+			>
+				{#each errorTypes as errorType}
+					<option value={errorType.value}>{errorType.label}</option>
+				{/each}
+			</select>
+			<button
+				type="button"
+				on:click={sendTestError}
+				class="text-white bg-purple-600 hover:bg-purple-700 font-medium rounded-lg text-xs px-3 py-1.5 text-center"
+				title="Send test error to Grafault"
+			>
+				🐛 Test Error
+			</button>
+		</div>
+	{/if}
 	</footer>
 {/if}

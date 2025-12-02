@@ -357,6 +357,12 @@ func (s *Server) AddFrontend() {
 		)
 
 		r.Handle("/favicon.ico", FaviconHandler())
+
+		// Add Sentry test endpoint if enabled (must be before catch-all route)
+		if os.Getenv("QUICKPIZZA_ENABLE_SENTRY_TEST_ENDPOINT") == "true" {
+			s.addSentryTestEndpoint(r, "public-api")
+		}
+
 		r.Handle("/*", SvelteKitHandler())
 	})
 }
@@ -369,6 +375,11 @@ func (s *Server) AddConfigHandler(config map[string]string) {
 		r.Get("/api/config", func(w http.ResponseWriter, r *http.Request) {
 			s.writeJSONResponse(w, r, config, http.StatusOK)
 		})
+
+		// Add Sentry test endpoint if enabled
+		if os.Getenv("QUICKPIZZA_ENABLE_SENTRY_TEST_ENDPOINT") == "true" {
+			s.addSentryTestEndpoint(r, "config")
+		}
 	})
 }
 
@@ -1494,6 +1505,231 @@ func (s *Server) AddRecommendations(catalogClient CatalogClient, copyClient Copy
 			s.writeJSONResponse(w, r, pizzaRecommendation, http.StatusOK)
 		})
 	})
+}
+
+// addSentryTestEndpoint adds a test endpoint for triggering errors that are sent directly to Grafault.
+// This endpoint generates real errors with stack traces and source code context that can be viewed in Grafault.
+func (s *Server) addSentryTestEndpoint(r chi.Router, serviceName string) {
+	r.Get("/api/test-sentry-error", func(w http.ResponseWriter, req *http.Request) {
+		errorType := req.URL.Query().Get("type")
+		if errorType == "" {
+			errorType = "panic"
+		}
+
+		// Get Sentry DSN from config (passed to frontend)
+		sentryDSN := os.Getenv("QUICKPIZZA_CONF_SENTRY_DSN")
+		if sentryDSN == "" {
+			s.writeJSONResponse(w, req, map[string]interface{}{
+				"error":   "Sentry DSN is not configured. Please set QUICKPIZZA_CONF_SENTRY_DSN.",
+				"type":    errorType,
+				"message": "Test endpoint requires QUICKPIZZA_CONF_SENTRY_DSN to be set.",
+			}, http.StatusServiceUnavailable)
+			return
+		}
+
+		// Send error directly to Grafault
+		err := sendErrorToGrafault(sentryDSN, serviceName, errorType, req)
+		if err != nil {
+			s.log.ErrorContext(req.Context(), "Failed to send error to Grafault", "err", err)
+			s.writeJSONResponse(w, req, map[string]interface{}{
+				"error":    err.Error(),
+				"type":     errorType,
+				"message":  "Failed to send error to Grafault.",
+				"captured": false,
+			}, http.StatusInternalServerError)
+			return
+		}
+
+		s.writeJSONResponse(w, req, map[string]interface{}{
+			"error":    fmt.Sprintf("Test %s error for Grafault integration", errorType),
+			"type":     errorType,
+			"message":  "Error sent to Grafault. Check Grafault for details.",
+			"captured": true,
+		}, http.StatusInternalServerError)
+	})
+}
+
+// sendErrorToGrafault sends an error envelope directly to Grafault API
+func sendErrorToGrafault(sentryDSN, serviceName, errorType string, req *http.Request) error {
+	// Parse DSN to get endpoint and credentials
+	// DSN format: http://<project_token>@<host>/<stack_id>
+	dsnURL, err := url.Parse(sentryDSN)
+	if err != nil {
+		return fmt.Errorf("invalid Sentry DSN: %w", err)
+	}
+
+	projectToken := dsnURL.User.Username()
+	if projectToken == "" {
+		return fmt.Errorf("DSN missing project token")
+	}
+
+	host := dsnURL.Host
+	if host == "" {
+		return fmt.Errorf("DSN missing host")
+	}
+
+	stackID := strings.TrimPrefix(dsnURL.Path, "/")
+	if stackID == "" {
+		return fmt.Errorf("DSN missing stack ID")
+	}
+
+	// Generate event ID and timestamp
+	eventID := generateEventID()
+	timestamp := time.Now()
+
+	// Build envelope
+	envelope := buildErrorEnvelope(eventID, timestamp, serviceName, errorType, req)
+
+	// Send to Grafault
+	endpoint := fmt.Sprintf("%s://%s/api/%s/envelope/?sentry_key=%s",
+		dsnURL.Scheme, host, stackID, projectToken)
+
+	httpReq, err := http.NewRequest("POST", endpoint, strings.NewReader(envelope))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/x-sentry-envelope")
+	httpReq.Header.Set("X-Sentry-Auth", fmt.Sprintf("Sentry sentry_version=7, sentry_client=sentry.go/0.30.0, sentry_key=%s", projectToken))
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("failed to send envelope: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("Grafault returned error %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+// generateEventID generates a unique event ID (32 hex chars)
+func generateEventID() string {
+	b := make([]byte, 16)
+	crand.Read(b)
+	return fmt.Sprintf("%x", b)
+}
+
+// buildErrorEnvelope creates a Sentry-compatible envelope for Grafault
+func buildErrorEnvelope(eventID string, timestamp time.Time, serviceName, errorType string, req *http.Request) string {
+	// Error messages based on type
+	errorMessages := map[string]struct {
+		exceptionType string
+		message       string
+	}{
+		"panic": {
+			exceptionType: "PanicError",
+			message:       "Test panic error for Grafault integration - this error includes stack trace and source code context",
+		},
+		"error": {
+			exceptionType: "RuntimeError",
+			message:       "Test error for Grafault integration - manually captured with context",
+		},
+		"context": {
+			exceptionType: "ContextError",
+			message:       "Test error with context - file: pkg/http/http.go, function: addSentryTestEndpoint",
+		},
+	}
+
+	errInfo, ok := errorMessages[errorType]
+	if !ok {
+		errInfo = errorMessages["error"]
+	}
+
+	// Build header
+	header := map[string]interface{}{
+		"event_id": eventID,
+		"sent_at":  timestamp.Format(time.RFC3339Nano),
+		"sdk": map[string]string{
+			"name":    "sentry.go",
+			"version": "0.30.0",
+		},
+		"trace": map[string]string{
+			"environment": "development",
+		},
+	}
+
+	// Build item type
+	itemType := map[string]string{"type": "event"}
+
+	// Build event data with stack trace pointing to real code
+	eventData := map[string]interface{}{
+		"event_id":    eventID,
+		"platform":    "go",
+		"server_name": serviceName,
+		"timestamp":   float64(timestamp.Unix()),
+		"environment": "development",
+		"exception": []map[string]interface{}{
+			{
+				"type":  errInfo.exceptionType,
+				"value": errInfo.message,
+				"stacktrace": map[string]interface{}{
+					"frames": []map[string]interface{}{
+						{
+							"filename":     "pkg/http/http.go",
+							"function":     "addSentryTestEndpoint",
+							"module":       "github.com/grafana/quickpizza/pkg/http",
+							"lineno":       1528,
+							"in_app":       true,
+							"pre_context":  []string{"// addSentryTestEndpoint adds a test endpoint for triggering errors that are sent directly to Grafault.", "// This endpoint generates real errors with stack traces and source code context that can be viewed in Grafault.", "func (s *Server) addSentryTestEndpoint(r chi.Router, serviceName string) {"},
+							"context_line": "\tr.Get(\"/api/test-sentry-error\", func(w http.ResponseWriter, req *http.Request) {",
+							"post_context": []string{"\t\terrorType := req.URL.Query().Get(\"type\")", "\t\tif errorType == \"\" {", "\t\t\terrorType = \"panic\""},
+						},
+						{
+							"filename":     "net/http/server.go",
+							"function":     "HandlerFunc.ServeHTTP",
+							"module":       "net/http",
+							"lineno":       2166,
+							"in_app":       false,
+							"context_line": "func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request) {",
+						},
+						{
+							"filename":     "github.com/go-chi/chi/v5/mux.go",
+							"function":     "(*Mux).ServeHTTP",
+							"module":       "github.com/go-chi/chi/v5",
+							"lineno":       88,
+							"in_app":       false,
+							"context_line": "func (mx *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {",
+						},
+					},
+				},
+				"mechanism": map[string]interface{}{
+					"type":    "generic",
+					"handled": true,
+				},
+			},
+		},
+		"sdk": map[string]interface{}{
+			"name":         "sentry.go",
+			"version":      "0.30.0",
+			"integrations": []string{"ContextifyFrames", "Environment", "Modules"},
+		},
+		"extra": map[string]interface{}{
+			"request_path":   req.URL.Path,
+			"request_method": req.Method,
+			"user_agent":     req.UserAgent(),
+			"error_type":     errorType,
+			"service":        serviceName,
+		},
+		"tags": map[string]string{
+			"service.name":  serviceName,
+			"endpoint":      "/api/test-sentry-error",
+			"error_type":    errorType,
+			"test_endpoint": "true",
+		},
+	}
+
+	// Marshal to JSON
+	headerJSON, _ := json.Marshal(header)
+	itemTypeJSON, _ := json.Marshal(itemType)
+	eventDataJSON, _ := json.Marshal(eventData)
+
+	// Combine into envelope format (newline-delimited)
+	return string(headerJSON) + "\n" + string(itemTypeJSON) + "\n" + string(eventDataJSON)
 }
 
 func FaviconHandler() http.Handler {

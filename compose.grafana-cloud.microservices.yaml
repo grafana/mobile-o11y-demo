@@ -39,10 +39,10 @@ services:
       # enable Faro integration
       QUICKPIZZA_CONF_FARO_URL: "${QUICKPIZZA_CONF_FARO_URL:-}"
       QUICKPIZZA_CONF_FARO_APP_NAME: "${QUICKPIZZA_CONF_FARO_APP_NAME:-}"
-      # enable Sentry Integration
-      QUICKPIZZA_CONF_SENTRY_DSN: "${QUICKPIZZA_CONF_SENTRY_DSN:-}"
-      QUICKPIZZA_CONF_SENTRY_ENVIRONMENT: "${QUICKPIZZA_CONF_SENTRY_ENVIRONMENT:-}"
-      QUICKPIZZA_CONF_SENTRY_RELEASE: "${QUICKPIZZA_CONF_SENTRY_RELEASE:-}"
+      # enable Sentry Integration (reads from SENTRY_* env vars defined in .env)
+      QUICKPIZZA_CONF_SENTRY_DSN: "${SENTRY_DSN:-}"
+      QUICKPIZZA_CONF_SENTRY_ENVIRONMENT: "${SENTRY_ENVIRONMENT:-}"
+      QUICKPIZZA_CONF_SENTRY_RELEASE: "${SENTRY_RELEASE:-}"
       DEPLOYMENT_ENVIRONMENT: ${DEPLOYMENT_ENVIRONMENT:-development}
     depends_on:
       - catalog
@@ -78,10 +78,12 @@ services:
       # enable Faro integration
       QUICKPIZZA_CONF_FARO_URL: "${QUICKPIZZA_CONF_FARO_URL:-}"
       QUICKPIZZA_CONF_FARO_APP_NAME: "${QUICKPIZZA_CONF_FARO_APP_NAME:-}"
-      # enable Sentry Integration
-      QUICKPIZZA_CONF_SENTRY_DSN: "${QUICKPIZZA_CONF_SENTRY_DSN:-}"
-      QUICKPIZZA_CONF_SENTRY_ENVIRONMENT: "${QUICKPIZZA_CONF_SENTRY_ENVIRONMENT:-}"
-      QUICKPIZZA_CONF_SENTRY_RELEASE: "${QUICKPIZZA_CONF_SENTRY_RELEASE:-}"
+      # enable Sentry/Grafault Integration (for frontend)
+      QUICKPIZZA_CONF_SENTRY_DSN: "${SENTRY_DSN:-}"
+      QUICKPIZZA_CONF_SENTRY_ENVIRONMENT: "${SENTRY_ENVIRONMENT:-}"
+      QUICKPIZZA_CONF_SENTRY_RELEASE: "${SENTRY_RELEASE:-}"
+      # Enable test endpoint (set to "true" to enable /api/test-sentry-error endpoint)
+      QUICKPIZZA_ENABLE_SENTRY_TEST_ENDPOINT: "${QUICKPIZZA_ENABLE_SENTRY_TEST_ENDPOINT:-false}"
   copy:
     image: ${QUICKPIZZA_IMAGE:-ghcr.io/grafana/quickpizza-local:latest}
     container_name: copy
@@ -107,6 +109,10 @@ services:
       QUICKPIZZA_ENABLE_PUBLIC_API_SERVICE: "1"
       QUICKPIZZA_OTEL_SERVICE_INSTANCE_ID: "public-api"
       QUICKPIZZA_OTEL_SERVICE_NAME: "public-api"
+      # enable Sentry/Grafault Integration (for frontend config and test endpoint)
+      QUICKPIZZA_CONF_SENTRY_DSN: "${SENTRY_DSN:-}"
+      # Enable test endpoint (set to "true" to enable /api/test-sentry-error endpoint)
+      QUICKPIZZA_ENABLE_SENTRY_TEST_ENDPOINT: "${QUICKPIZZA_ENABLE_SENTRY_TEST_ENDPOINT:-false}"
 
   recommendations:
     image: ${QUICKPIZZA_IMAGE:-ghcr.io/grafana/quickpizza-local:latest}

@@ -534,32 +534,45 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               child: const Text('Love it!'),
             ),
-            // Test Sentry button - sends a test error with source context
+            // Test Error button - sends real frontend and backend errors with source context
             if (ConfigService.isSentryEnabled) ...[
               const SizedBox(width: 16),
               PopupMenuButton<String>(
-                onSelected: (errorType) async {
+                onSelected: (errorTypeValue) async {
                   try {
-                    await sendErrorWithContext(errorType);
+                    await sendTestError(errorTypeValue);
+                    final parts = errorTypeValue.split(':');
+                    final source = parts[0];
+                    final errorType = parts[1];
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
-                            '$errorType error with context sent to Sentry!',
+                            '$source $errorType error sent! Check Grafault.',
                           ),
-                          backgroundColor: Colors.orange,
+                          backgroundColor: Colors.purple,
                         ),
                       );
                     }
-                    debugPrint('$errorType error with context sent to Sentry');
+                    debugPrint('$errorTypeValue error sent');
                   } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Failed to send error: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
                     debugPrint('Failed to send error: $e');
                   }
                 },
                 itemBuilder: (context) => getAvailableErrorTypes()
                     .map(
-                      (type) =>
-                          PopupMenuItem<String>(value: type, child: Text(type)),
+                      (type) => PopupMenuItem<String>(
+                        value: type.value,
+                        child: Text(type.label),
+                      ),
                     )
                     .toList(),
                 child: Container(
@@ -568,7 +581,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     vertical: 12,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.orange,
+                    color: Colors.purple,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Row(
@@ -576,7 +589,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       Icon(Icons.bug_report, size: 18, color: Colors.white),
                       SizedBox(width: 8),
-                      Text('Test Issue', style: TextStyle(color: Colors.white)),
+                      Text('Test Error', style: TextStyle(color: Colors.white)),
                       Icon(Icons.arrow_drop_down, color: Colors.white),
                     ],
                   ),
