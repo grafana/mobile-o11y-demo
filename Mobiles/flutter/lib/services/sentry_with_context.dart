@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'config_service.dart';
+import '../core/application_layer/o11y/traces/o11y_traces.dart';
 
 /// Error type definition with source (backend/mobile) and type
 class ErrorType {
@@ -73,14 +74,47 @@ Future<void> _sendBackendError(String errorType) async {
   final baseUrl = ConfigService.baseUrl;
   final url = Uri.parse('$baseUrl/api/test-sentry-error?type=$errorType');
 
-  final response = await http.get(url);
+  // Create a span for this API call to ensure we have trace context
+  await o11yTraces.startSpan(
+    'test-sentry-error-$errorType',
+    (span) async {
+      // Build headers with trace context for distributed tracing
+      final headers = <String, String>{'Content-Type': 'application/json'};
 
-  // 500 is expected - error was captured
-  if (response.statusCode != 200 && response.statusCode != 500) {
-    throw Exception(
-      'Failed to send error: ${response.statusCode} ${response.reasonPhrase}',
-    );
-  }
+      // Extract traceId from the active span we just created
+      try {
+        final traceId = span.traceId;
+        final spanId = span.spanId;
+
+        // W3C Trace Context format: traceparent header
+        // Format: version-traceid-parentid-traceflags
+        // version: 00 (current version)
+        // traceflags: 01 (sampled)
+        final traceIdHex = traceId.toString().padLeft(32, '0').substring(0, 32);
+        final spanIdHex = spanId.toString().padLeft(16, '0').substring(0, 16);
+        headers['traceparent'] = '00-$traceIdHex-$spanIdHex-01';
+
+        // Also add sentry-trace header for Sentry compatibility
+        headers['sentry-trace'] = '$traceIdHex-$spanIdHex-1';
+      } catch (e) {
+        // Faro API might not be available - continue without trace context
+      }
+
+      final response = await http.get(url, headers: headers);
+
+      // 500 is expected - error was captured
+      if (response.statusCode != 200 && response.statusCode != 500) {
+        throw Exception(
+          'Failed to send error: ${response.statusCode} ${response.reasonPhrase}',
+        );
+      }
+    },
+    attributes: {
+      'error.type': errorType,
+      'http.method': 'GET',
+      'http.url': url.toString(),
+    },
+  );
 }
 
 /// Mobile error templates with hardcoded source locations
@@ -263,6 +297,29 @@ Future<void> _sendMobileError(String errorType) async {
       .substring(0, 32);
   final timestamp = DateTime.now();
 
+  // Try to extract traceId from Faro active span
+  Map<String, dynamic> traceContext = {};
+  try {
+    final activeSpan = o11yTraces.getActiveSpan();
+    if (activeSpan != null) {
+      // Try to access traceId and spanId from the span
+      // Faro Span exposes these as properties
+      final spanId = activeSpan.spanId;
+      final traceId = activeSpan.traceId;
+
+      // Convert to hex strings (32 chars for traceId, 16 chars for spanId)
+      final traceIdHex = traceId.toString().padLeft(32, '0').substring(0, 32);
+      final spanIdHex = spanId.toString().padLeft(16, '0').substring(0, 16);
+
+      traceContext = {
+        'trace': {'trace_id': traceIdHex, 'span_id': spanIdHex},
+      };
+    }
+  } catch (e) {
+    // Faro API might not be available or have different structure
+    // Silently continue without trace context
+  }
+
   // Build envelope header
   final header = {
     'event_id': eventId,
@@ -300,6 +357,7 @@ Future<void> _sendMobileError(String errorType) async {
     'contexts': {
       'app': {'app_name': 'QuickPizza', 'app_version': '1.0.0'},
       'device': {'family': 'mobile'},
+      ...traceContext,
     },
   };
 

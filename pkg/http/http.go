@@ -1656,6 +1656,37 @@ func buildErrorEnvelope(eventID string, timestamp time.Time, serviceName, errorT
 	// Build item type
 	itemType := map[string]string{"type": "event"}
 
+	// Extract traceId from sentry-trace header if present
+	// Format: traceId-spanId-sampled (e.g., "44ecd994daf44a2bbc6d3e57292a29d3-9c299dafb6245c41-1")
+	var traceContext map[string]interface{}
+	sentryTrace := req.Header.Get("sentry-trace")
+	if sentryTrace != "" {
+		parts := strings.Split(sentryTrace, "-")
+		if len(parts) >= 2 {
+			traceID := parts[0]
+			spanID := parts[1]
+			// Ensure traceId is 32 chars and spanId is 16 chars (pad if needed, truncate if too long)
+			if len(traceID) < 32 {
+				traceID = strings.Repeat("0", 32-len(traceID)) + traceID
+			}
+			if len(traceID) > 32 {
+				traceID = traceID[:32]
+			}
+			if len(spanID) < 16 {
+				spanID = strings.Repeat("0", 16-len(spanID)) + spanID
+			}
+			if len(spanID) > 16 {
+				spanID = spanID[:16]
+			}
+			traceContext = map[string]interface{}{
+				"trace": map[string]string{
+					"trace_id": traceID,
+					"span_id":  spanID,
+				},
+			}
+		}
+	}
+
 	// Build event data with stack trace pointing to real code
 	eventData := map[string]interface{}{
 		"event_id":    eventID,
@@ -1721,6 +1752,11 @@ func buildErrorEnvelope(eventID string, timestamp time.Time, serviceName, errorT
 			"test_endpoint":  "true",
 			"repository.url": "https://github.com/grafana/mobile-o11y-demo",
 		},
+	}
+
+	// Add trace context if available (extracted from sentry-trace header)
+	if traceContext != nil {
+		eventData["contexts"] = traceContext
 	}
 
 	// Marshal to JSON

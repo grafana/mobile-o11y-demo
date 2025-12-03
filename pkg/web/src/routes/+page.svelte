@@ -1,6 +1,7 @@
 <script lang="ts">
 // biome-ignore assist/source/organizeImports: organized by hand
 import { faro } from '@grafana/faro-web-sdk';
+import { trace, context } from '@opentelemetry/api';
 import {
 	PUBLIC_BACKEND_ENDPOINT,
 	PUBLIC_BACKEND_WS_ENDPOINT,
@@ -53,12 +54,73 @@ async function sendTestError() {
 
 // Send a test error to backend API
 async function sendBackendError(errorType: string) {
+	let span: any = null;
+	
 	try {
+		// Build headers with trace context for distributed tracing
+		const headers: Record<string, string> = {
+			'Content-Type': 'application/json',
+		};
+
+		// Try to get OpenTelemetry tracer and create a span
+		try {
+			const tracer = trace.getTracer('quickpizza-web', '1.0.0');
+			span = tracer.startSpan(`test-sentry-error-${errorType}`, {
+				attributes: {
+					'error.type': errorType,
+					'http.method': 'GET',
+					'http.url': `${PUBLIC_BACKEND_ENDPOINT}/api/test-sentry-error`,
+				},
+			});
+
+			// Extract traceId and spanId from OpenTelemetry span context
+			const spanContext = span.spanContext();
+			if (spanContext.isValid()) {
+				const traceId = spanContext.traceId;
+				const spanId = spanContext.spanId;
+				
+				// OpenTelemetry returns traceId and spanId as hex strings
+				// Convert to hex strings (32 chars for traceId, 16 chars for spanId)
+				let traceIdHex: string;
+				let spanIdHex: string;
+				
+				if (typeof traceId === 'string') {
+					// Already a string - pad to 32 chars
+					traceIdHex = traceId.padStart(32, '0').substring(0, 32);
+				} else {
+					// Convert bytes to hex string
+					const bytes = new Uint8Array(traceId);
+					traceIdHex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('').padStart(32, '0').substring(0, 32);
+				}
+				
+				if (typeof spanId === 'string') {
+					// Already a string - pad to 16 chars
+					spanIdHex = spanId.padStart(16, '0').substring(0, 16);
+				} else {
+					// Convert bytes to hex string
+					const bytes = new Uint8Array(spanId);
+					spanIdHex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('').padStart(16, '0').substring(0, 16);
+				}
+				
+				// W3C Trace Context format: traceparent header
+				// Format: version-traceid-parentid-traceflags
+				headers['traceparent'] = `00-${traceIdHex}-${spanIdHex}-01`;
+				
+				// Also add sentry-trace header for Sentry compatibility
+				// Format: traceId-spanId-sampled
+				// Backend will extract this and include in contexts.trace
+				headers['sentry-trace'] = `${traceIdHex}-${spanIdHex}-1`;
+			}
+		} catch (otelError) {
+			// OpenTelemetry might not be available - continue without trace context
+			console.debug('OpenTelemetry not available, continuing without trace context:', otelError);
+		}
+
 		const response = await fetch(
 			`${PUBLIC_BACKEND_ENDPOINT}/api/test-sentry-error?type=${errorType}`,
-			{ method: 'GET' }
+			{ method: 'GET', headers }
 		);
-		
+
 		let responseData;
 		try {
 			responseData = await response.json();
@@ -67,6 +129,9 @@ async function sendBackendError(errorType: string) {
 		}
 		
 		if (response.status === 500 || response.ok) {
+			if (span) {
+				span.setStatus({ code: 1 }); // OK
+			}
 			faro.api.pushEvent('Test Error Sent', { 
 				timestamp: new Date().toISOString(),
 				errorType,
@@ -74,10 +139,21 @@ async function sendBackendError(errorType: string) {
 			});
 			alert(responseData.message || `Backend ${errorType} error sent! Check Grafault.`);
 		} else {
+			if (span) {
+				span.setStatus({ code: 2, message: `HTTP ${response.status}` }); // ERROR
+			}
 			alert(`Failed: ${response.status} ${responseData.error || response.statusText}`);
 		}
 	} catch (error) {
+		if (span) {
+			span.setStatus({ code: 2, message: error instanceof Error ? error.message : 'Unknown error' }); // ERROR
+			span.recordException(error instanceof Error ? error : new Error(String(error)));
+		}
 		alert(`Failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+	} finally {
+		if (span) {
+			span.end();
+		}
 	}
 }
 
@@ -248,6 +324,71 @@ async function sendFrontendError(errorType: string) {
 		const eventId = crypto.randomUUID().replace(/-/g, '');
 		const timestamp = new Date();
 
+		// Try to extract traceId from OpenTelemetry - create a span if needed
+		let traceContext = {};
+		let span: any = null;
+		try {
+			const tracer = trace.getTracer('quickpizza-web', '1.0.0');
+			
+			// Try to get active span first
+			let activeSpan = trace.getActiveSpan();
+			
+			// If no active span, create one for this error event
+			if (!activeSpan) {
+				span = tracer.startSpan(`frontend-error-${errorType}`, {
+					attributes: {
+						'error.type': errorType,
+						'error.source': 'frontend-test-button',
+					},
+				});
+				activeSpan = span;
+			}
+			
+			if (activeSpan) {
+				const spanContext = activeSpan.spanContext();
+				if (spanContext.isValid()) {
+					const traceId = spanContext.traceId;
+					const spanId = spanContext.spanId;
+					
+					// OpenTelemetry returns traceId and spanId as hex strings
+					// Convert to hex strings (32 chars for traceId, 16 chars for spanId)
+					// Ensure they're exactly the right length
+					let traceIdHex: string;
+					let spanIdHex: string;
+					
+					if (typeof traceId === 'string') {
+						// Already a string - pad to 32 chars
+						traceIdHex = traceId.padStart(32, '0').substring(0, 32);
+					} else {
+						// Convert bytes to hex string
+						const bytes = new Uint8Array(traceId);
+						traceIdHex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('').padStart(32, '0').substring(0, 32);
+					}
+					
+					if (typeof spanId === 'string') {
+						// Already a string - pad to 16 chars
+						spanIdHex = spanId.padStart(16, '0').substring(0, 16);
+					} else {
+						// Convert bytes to hex string
+						const bytes = new Uint8Array(spanId);
+						spanIdHex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('').padStart(16, '0').substring(0, 16);
+					}
+					
+					// Ensure traceId is exactly 32 hex characters and spanId is 16 hex characters
+					// Grafault expects: contexts.trace.trace_id (32 chars) and contexts.trace.span_id (16 chars)
+					traceContext = {
+						trace: {
+							trace_id: traceIdHex,
+							span_id: spanIdHex,
+						},
+					};
+				}
+			}
+		} catch (e) {
+			// OpenTelemetry might not be available
+			console.debug('Could not extract traceId from OpenTelemetry:', e);
+		}
+
 		// Build envelope header
 		const header = {
 			event_id: eventId,
@@ -299,6 +440,7 @@ async function sendFrontendError(errorType: string) {
 				browser: {
 					name: navigator.userAgent.includes('Chrome') ? 'Chrome' : 'Browser',
 				},
+				...traceContext,
 			},
 		};
 
@@ -321,6 +463,9 @@ async function sendFrontendError(errorType: string) {
 		});
 
 		if (response.ok) {
+			if (span) {
+				span.setStatus({ code: 1 }); // OK
+			}
 			faro.api.pushEvent('Test Error Sent', {
 				timestamp: timestamp.toISOString(),
 				errorType,
@@ -328,11 +473,22 @@ async function sendFrontendError(errorType: string) {
 			});
 			alert(`Frontend ${errorType} sent to Grafault! Check errors list.`);
 		} else {
+			if (span) {
+				span.setStatus({ code: 2, message: `HTTP ${response.status}` }); // ERROR
+			}
 			const text = await response.text();
 			alert(`Failed to send error: ${response.status} ${text}`);
 		}
 	} catch (error) {
+		if (span) {
+			span.setStatus({ code: 2, message: error instanceof Error ? error.message : 'Unknown error' }); // ERROR
+			span.recordException(error instanceof Error ? error : new Error(String(error)));
+		}
 		alert(`Failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+	} finally {
+		if (span) {
+			span.end();
+		}
 	}
 }
 
