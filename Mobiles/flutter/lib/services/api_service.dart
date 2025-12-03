@@ -25,11 +25,13 @@ class ApiService {
   };
 
   Future<String> getQuote() async {
+    final stopwatch = Stopwatch()..start();
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/api/quotes'),
         headers: _headers,
       );
+      stopwatch.stop();
 
       o11yMetrics.addMeasurement('api.request.duration', {
         'endpoint': 'getQuote',
@@ -63,11 +65,13 @@ class ApiService {
   }
 
   Future<List<String>> getTools() async {
+    final stopwatch = Stopwatch()..start();
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/api/tools'),
         headers: _headers,
       );
+      stopwatch.stop();
 
       o11yMetrics.addMeasurement('api.request.duration', {
         'endpoint': 'getTools',
@@ -104,6 +108,7 @@ class ApiService {
   Future<PizzaRecommendation?> getPizzaRecommendation(
     Restrictions restrictions,
   ) async {
+    final stopwatch = Stopwatch()..start();
     try {
       final url = '$baseUrl/api/pizza';
       final body = jsonEncode(restrictions.toJson());
@@ -113,6 +118,7 @@ class ApiService {
         headers: _headers,
         body: body,
       );
+      stopwatch.stop();
 
       o11yMetrics.addMeasurement('api.request.duration', {
         'endpoint': 'getPizzaRecommendation',
@@ -179,12 +185,15 @@ class ApiService {
   }
 
   Future<bool> ratePizza(int pizzaId, int stars) async {
+    final stopwatch = Stopwatch()..start();
     try {
+      final rating = Rating(id: 0, pizzaId: pizzaId, stars: stars);
       final response = await http.post(
         Uri.parse('$baseUrl/api/ratings'),
         headers: _headers,
         body: jsonEncode(rating.toJson()),
       );
+      stopwatch.stop();
 
       o11yMetrics.addMeasurement('api.request.duration', {
         'endpoint': 'ratePizza',
@@ -246,11 +255,13 @@ class ApiService {
   }
 
   Future<List<Rating>> getRatings() async {
+    final stopwatch = Stopwatch()..start();
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/api/ratings'),
         headers: _headers,
       );
+      stopwatch.stop();
 
       o11yMetrics.addMeasurement('api.request.duration', {
         'endpoint': 'getRatings',
@@ -283,11 +294,13 @@ class ApiService {
   }
 
   Future<bool> deleteRatings() async {
+    final stopwatch = Stopwatch()..start();
     try {
       final response = await http.delete(
         Uri.parse('$baseUrl/api/ratings'),
         headers: _headers,
       );
+      stopwatch.stop();
 
       o11yMetrics.addMeasurement('api.request.duration', {
         'endpoint': 'deleteRatings',
@@ -346,14 +359,16 @@ class ApiService {
   }
 
   Future<bool> login(String username, String password) async {
+    final stopwatch = Stopwatch()..start();
     try {
-        // For mobile apps, we don't use set_cookie=true to avoid CSRF token requirements
-        // The token will be returned in the JSON response and stored in memory
-        final response = await http.post(
+      // For mobile apps, we don't use set_cookie=true to avoid CSRF token requirements
+      // The token will be returned in the JSON response and stored in memory
+      final response = await http.post(
         Uri.parse('$baseUrl/api/users/token/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'username': username, 'password': password}),
       );
+      stopwatch.stop();
 
       o11yMetrics.addMeasurement('api.request.duration', {
         'endpoint': 'login',
