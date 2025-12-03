@@ -3,7 +3,7 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
-  sentry_flutter
+  connectivity_plus
   url_launcher_windows
 )
 
