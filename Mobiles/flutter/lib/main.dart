@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:faro/faro.dart';
 import 'package:flutter/material.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/application_layer/o11y/loggers/o11y_logger.dart';
 import 'core/application_layer/o11y/events/o11y_events.dart';
@@ -18,37 +17,6 @@ void main() async {
 
   // Initialize config service (loads .env file)
   await ConfigService.init();
-
-  // Debug: Print Sentry configuration
-  debugPrint('=== Sentry Configuration ===');
-  debugPrint('Sentry DSN: ${ConfigService.sentryDsn}');
-  debugPrint('Sentry Enabled: ${ConfigService.isSentryEnabled}');
-  debugPrint('============================');
-
-  // Initialize Sentry for error tracking (if enabled)
-  if (ConfigService.isSentryEnabled) {
-    await SentryFlutter.init((options) {
-      options.dsn = ConfigService.sentryDsn;
-      // Set environment (e.g., 'development', 'staging', 'production')
-      options.environment = const String.fromEnvironment(
-        'SENTRY_ENVIRONMENT',
-        defaultValue: 'development',
-      );
-      // Enable performance monitoring
-      options.tracesSampleRate = 1.0;
-      // Enable profiling (requires tracing to be enabled)
-      options.profilesSampleRate = 1.0;
-      // Capture failed HTTP requests
-      options.enableAutoPerformanceTracing = true;
-      // Add release info for better error grouping
-      options.release = '1.0.0+1';
-      // Enable debug mode in development
-      options.debug = true;
-    });
-    debugPrint('Sentry initialized successfully!');
-  } else {
-    debugPrint('Sentry is DISABLED - DSN not configured');
-  }
 
   // Extract token from collector URL
   final collectorUrl = dotenv.env['FARO_COLLECTOR_URL'];
