@@ -616,97 +616,103 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton(
-              onPressed: () => _ratePizza(1),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.grey[400],
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-              ),
-              child: const Text('No thanks'),
-            ),
-            const SizedBox(width: 16),
-            ElevatedButton(
-              onPressed: () => _ratePizza(5),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red[400],
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-              ),
-              child: const Text('Love it!'),
-            ),
-            // Test Error button - sends real frontend and backend errors with source context
-            if (ConfigService.isSentryEnabled) ...[
-              const SizedBox(width: 16),
-              PopupMenuButton<String>(
-                onSelected: (errorTypeValue) async {
-                  try {
-                    await sendTestError(errorTypeValue);
-                    final parts = errorTypeValue.split(':');
-                    final source = parts[0];
-                    final errorType = parts[1];
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            '$source $errorType error sent! Check Grafault.',
-                          ),
-                          backgroundColor: Colors.purple,
-                        ),
-                      );
-                    }
-                    debugPrint('$errorTypeValue error sent');
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Failed to send error: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                    debugPrint('Failed to send error: $e');
-                  }
-                },
-                itemBuilder: (context) => getAvailableErrorTypes()
-                    .map(
-                      (type) => PopupMenuItem<String>(
-                        value: type.value,
-                        child: Text(type.label),
-                      ),
-                    )
-                    .toList(),
-                child: Container(
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                onPressed: () => _ratePizza(1),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey[400],
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
+                    horizontal: 20,
                     vertical: 12,
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.purple,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.bug_report, size: 18, color: Colors.white),
-                      SizedBox(width: 8),
-                      Text('Test Error', style: TextStyle(color: Colors.white)),
-                      Icon(Icons.arrow_drop_down, color: Colors.white),
-                    ],
+                ),
+                child: const Text('No thanks'),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton(
+                onPressed: () => _ratePizza(5),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red[400],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
                   ),
                 ),
+                child: const Text('Love it!'),
               ),
+              // Test Error button - sends real frontend and backend errors with source context
+              if (ConfigService.isSentryEnabled) ...[
+                const SizedBox(width: 12),
+                PopupMenuButton<String>(
+                  onSelected: (errorTypeValue) async {
+                    try {
+                      await sendTestError(errorTypeValue);
+                      final parts = errorTypeValue.split(':');
+                      final source = parts[0];
+                      final errorType = parts[1];
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              '$source $errorType error sent! Check Grafault.',
+                            ),
+                            backgroundColor: Colors.purple,
+                          ),
+                        );
+                      }
+                      debugPrint('$errorTypeValue error sent');
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Failed to send error: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                      debugPrint('Failed to send error: $e');
+                    }
+                  },
+                  itemBuilder: (context) => getAvailableErrorTypes()
+                      .map(
+                        (type) => PopupMenuItem<String>(
+                          value: type.value,
+                          child: Text(type.label),
+                        ),
+                      )
+                      .toList(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.purple,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.bug_report, size: 18, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text(
+                          'Test Error',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        Icon(Icons.arrow_drop_down, color: Colors.white),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
         if (_rateResult != null)
           Padding(

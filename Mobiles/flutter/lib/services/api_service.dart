@@ -124,8 +124,8 @@ class ApiService {
         'endpoint': 'getPizzaRecommendation',
         'status_code': response.statusCode,
         'duration_ms': stopwatch.elapsedMilliseconds,
-        'pizza.vegetarian': restrictions.mustBeVegetarian.toString(),
-        'pizza.max_calories': restrictions.maxCaloriesPerSlice.toString(),
+        'pizza.vegetarian': restrictions.mustBeVegetarian ? 1 : 0,
+        'pizza.max_calories': restrictions.maxCaloriesPerSlice,
       });
 
       if (response.statusCode == 200) {
@@ -199,8 +199,8 @@ class ApiService {
         'endpoint': 'ratePizza',
         'status_code': response.statusCode,
         'duration_ms': stopwatch.elapsedMilliseconds,
-        'pizza.id': pizzaId.toString(),
-        'rating.stars': stars.toString(),
+        'pizza.id': pizzaId,
+        'rating.stars': stars,
       });
 
       if (response.statusCode == 201 || response.statusCode == 200) {
@@ -374,7 +374,6 @@ class ApiService {
         'endpoint': 'login',
         'status_code': response.statusCode,
         'duration_ms': stopwatch.elapsedMilliseconds,
-        'user.username': username,
       });
 
       if (response.statusCode == 200) {

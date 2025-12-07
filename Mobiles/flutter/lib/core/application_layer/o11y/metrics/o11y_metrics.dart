@@ -7,7 +7,22 @@ class O11yMetrics {
   final Faro _faro;
 
   void addMeasurement(String name, Map<String, dynamic> values) {
-    _faro.pushMeasurement(values, name);
+    // Separate numeric values from string metadata
+    // The backend expects only numeric (float64) values in measurements.values
+    final numericValues = <String, dynamic>{};
+
+    for (final entry in values.entries) {
+      final value = entry.value;
+      // Only include numeric types (int, double, num)
+      if (value is num) {
+        numericValues[entry.key] = value;
+      }
+      // Skip string values as they cause "expected float64, got string" errors
+    }
+
+    if (numericValues.isNotEmpty) {
+      _faro.pushMeasurement(numericValues, name);
+    }
   }
 }
 
