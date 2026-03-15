@@ -60,3 +60,4 @@ See `Mobiles/flutter/README.md` for full details:
 - **Flutter widget test:** `test/widget_test.dart` has a pre-existing failure (`QuickPizza app loads`). The other 6 tests pass.
 - **No Android emulator in Cloud VM:** You can build APKs but cannot run the emulator (no KVM/hardware acceleration). Use `flutter build apk --debug` to verify builds.
 - **iOS apps cannot build on Linux:** The native iOS app and Flutter iOS target require macOS + Xcode.
+- **On-device testing (future):** BrowserStack + Appium will be used for testing on real devices. Not set up yet — will be configured separately.
