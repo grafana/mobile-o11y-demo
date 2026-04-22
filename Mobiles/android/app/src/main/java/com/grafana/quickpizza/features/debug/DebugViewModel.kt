@@ -42,11 +42,13 @@ fun computeRestartBanner(
     val savedOtlp = settings.otlpEndpointOverride ?: runtime.otlpEndpoint
     val savedInstanceId = settings.otlpInstanceIdOverride ?: runtime.otlpInstanceId
     val savedApiKey = settings.otlpApiKeyOverride ?: runtime.otlpApiKey
+    val savedDiskBufferingEnabled = !settings.disableDiskBuffering
     val changedFields = listOfNotNull(
         "Backend URL".takeIf { savedBackend != runtime.backendBaseUrl },
         "OTLP endpoint".takeIf { savedOtlp != runtime.otlpEndpoint },
         "OTLP instance ID".takeIf { savedInstanceId != runtime.otlpInstanceId },
         "OTLP API key".takeIf { savedApiKey != runtime.otlpApiKey },
+        "Disk buffering".takeIf { savedDiskBufferingEnabled != runtime.diskBufferingEnabled },
     )
     return if (changedFields.isEmpty()) {
         RestartBannerState.Hidden
@@ -94,6 +96,7 @@ class DebugViewModel @Inject constructor(
     fun setErrorOnIngredients(value: Boolean) = launch { debugSettings.setErrorOnIngredients(value) }
     fun setUseV2PizzaSchema(value: Boolean) = launch { debugSettings.setUseV2PizzaSchema(value) }
     fun setSkipAuthDepInTools(value: Boolean) = launch { debugSettings.setSkipAuthDepInTools(value) }
+    fun setDisableDiskBuffering(value: Boolean) = launch { debugSettings.setDisableDiskBuffering(value) }
 
     fun resetAll() = launch {
         debugSettings.resetAll()

@@ -26,6 +26,7 @@ class OTelService @Inject constructor(
         val snapshot = runtimeConfig.current
         val endpoint = snapshot.otlpEndpoint
         val authHeader = snapshot.otlpAuthHeader
+        val diskBufferingEnabled = snapshot.diskBufferingEnabled
 
         if (endpoint.isEmpty()) {
             Log.w(TAG, "OTLP endpoint not configured — running with noop telemetry")
@@ -40,6 +41,11 @@ class OTelService @Inject constructor(
                         baseHeaders = mapOf("Authorization" to authHeader)
                     }
                 }
+                // SDK default is `enabled = true`. Setting it explicitly keeps
+                // intent visible and lets the debug toggle flip it off for low-latency demos.
+                diskBuffering {
+                    enabled(diskBufferingEnabled)
+                }
                 resource {
                     put(AttributeKey.stringKey("service.name"), "quickpizza-android")
                     put(AttributeKey.stringKey("service.namespace"), "quickpizza")
@@ -48,7 +54,13 @@ class OTelService @Inject constructor(
             }
         }.onFailure { Log.e(TAG, "OTelService initialization failed", it) }.getOrNull()
 
-        if (rum != null) Log.i(TAG, "OTelService initialized, exporting to $endpoint")
+        if (rum != null) {
+            Log.i(
+                TAG,
+                "OTelService initialized, exporting to $endpoint " +
+                    "(diskBuffering=$diskBufferingEnabled)",
+            )
+        }
     }
 
     fun getTracer(instrumentationScope: String = INSTRUMENTATION_SCOPE) =

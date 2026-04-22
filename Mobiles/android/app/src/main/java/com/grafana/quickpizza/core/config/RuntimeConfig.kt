@@ -21,6 +21,13 @@ data class RuntimeConfig(
     val otlpInstanceId: String,
     val otlpApiKey: String,
     val otlpAuthHeader: String?,
+    /**
+     * Whether the OTel-Android SDK was initialized with on-device disk buffering.
+     * Default `true` matches SDK behaviour (writes to disk first, ~30–45s latency).
+     * `false` makes the SDK export over OTLP directly (~1–6s latency) — controlled
+     * by the `Disable disk buffering` debug toggle.
+     */
+    val diskBufferingEnabled: Boolean,
 )
 
 /**
@@ -47,6 +54,7 @@ class RuntimeConfigHolder @Inject constructor(
             otlpInstanceId = instanceId,
             otlpApiKey = apiKey,
             otlpAuthHeader = buildOtlpAuthHeader(instanceId, apiKey),
+            diskBufferingEnabled = !saved.disableDiskBuffering,
         )
     }
 }

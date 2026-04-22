@@ -94,6 +94,8 @@ fun DebugScreen(
 
             ClientDiagnosticsSection(viewModel = viewModel)
 
+            OTelSdkSection(settings = ui.settings, viewModel = viewModel)
+
             ui.lastActionMessage?.let { LastActionCard(message = it) }
         }
     }
@@ -131,6 +133,29 @@ private fun ConfigEntryCard(onClick: () -> Unit) {
                 contentDescription = "Open config",
             )
         }
+    }
+}
+
+@Composable
+private fun OTelSdkSection(settings: DebugSettings, viewModel: DebugViewModel) {
+    SectionHeader("OpenTelemetry SDK")
+    Text(
+        "Tunes the OTel-Android SDK behavior. Read once at app startup — toggling " +
+            "requires a restart for the new value to take effect.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Card(modifier = Modifier.fillMaxWidth()) {
+        // Switch UX is "ON = active override". Disk buffering is enabled by default
+        // in the SDK; flipping this ON disables it and trades offline resilience for
+        // ~30–45s lower end-to-end latency — useful for live demos.
+        ToggleRow(
+            title = "Disable disk buffering",
+            subtitle = "Default: off (SDK buffers to disk, ~30–45s latency). Turn on for " +
+                "near-real-time export (~1–6s) — signals are lost if the app is offline.",
+            checked = settings.disableDiskBuffering,
+            onCheckedChange = viewModel::setDisableDiskBuffering,
+        )
     }
 }
 

@@ -37,6 +37,14 @@ data class DebugSettings(
     val slowIngredients: Boolean = false,
     val useV2PizzaSchema: Boolean = false,
     val skipAuthDepInTools: Boolean = false,
+    /**
+     * When `true`, the OTel-Android SDK is initialized with `diskBuffering { enabled = false }`,
+     * bypassing the on-device file queue and exporting via OTLP directly. Cuts end-to-end
+     * latency from ~30–45s to ~1–6s — useful for live demos where you want to see signals
+     * land in Grafana right after an action. Read once at app startup; toggling requires
+     * a restart.
+     */
+    val disableDiskBuffering: Boolean = false,
 ) {
     val hasActiveOverrides: Boolean
         get() = backendUrlOverride != null ||
@@ -48,7 +56,8 @@ data class DebugSettings(
             slowRecommendations ||
             slowIngredients ||
             useV2PizzaSchema ||
-            skipAuthDepInTools
+            skipAuthDepInTools ||
+            disableDiskBuffering
 
     /**
      * Backend expects:
@@ -82,6 +91,7 @@ private object DebugSettingsKeys {
     val slowIngredients = booleanPreferencesKey("debug_slow_ingredients")
     val useV2PizzaSchema = booleanPreferencesKey("debug_use_v2_pizza_schema")
     val skipAuthDepInTools = booleanPreferencesKey("debug_skip_auth_dep_in_tools")
+    val disableDiskBuffering = booleanPreferencesKey("debug_disable_disk_buffering")
 }
 
 @Singleton
@@ -125,6 +135,7 @@ class DebugSettingsRepository @Inject constructor(
     suspend fun setSlowIngredients(value: Boolean) = updateBoolean(DebugSettingsKeys.slowIngredients, value)
     suspend fun setUseV2PizzaSchema(value: Boolean) = updateBoolean(DebugSettingsKeys.useV2PizzaSchema, value)
     suspend fun setSkipAuthDepInTools(value: Boolean) = updateBoolean(DebugSettingsKeys.skipAuthDepInTools, value)
+    suspend fun setDisableDiskBuffering(value: Boolean) = updateBoolean(DebugSettingsKeys.disableDiskBuffering, value)
 
     /**
      * Persist all URL + OTLP credential overrides atomically. Empty / blank values
@@ -183,5 +194,6 @@ class DebugSettingsRepository @Inject constructor(
         slowIngredients = this[DebugSettingsKeys.slowIngredients] ?: false,
         useV2PizzaSchema = this[DebugSettingsKeys.useV2PizzaSchema] ?: false,
         skipAuthDepInTools = this[DebugSettingsKeys.skipAuthDepInTools] ?: false,
+        disableDiskBuffering = this[DebugSettingsKeys.disableDiskBuffering] ?: false,
     )
 }
