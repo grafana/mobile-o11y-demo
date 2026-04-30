@@ -1,5 +1,7 @@
 package com.quickpizza
 
+import android.os.Handler
+import android.os.Looper
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
@@ -12,12 +14,14 @@ class QuickPizzaCrashModule(
 
   @ReactMethod
   fun crash(variant: String) {
-    when (variant) {
-      "nullPointer" -> {
-        val value: String? = null
-        value!!
+    Handler(Looper.getMainLooper()).post {
+      when (variant) {
+        "nullPointer" -> {
+          val value: String? = null
+          value!!
+        }
+        else -> throw RuntimeException("QuickPizza RN intentional native crash")
       }
-      else -> throw RuntimeException("QuickPizza RN intentional native crash")
     }
   }
 }
