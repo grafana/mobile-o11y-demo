@@ -24,7 +24,7 @@ Grafana 13 or later.
 
 - Grafana 13 or later.
 - A Grafana Cloud stack with OTLP ingest enabled for logs and traces.
-- Native Android or iOS telemetry shaped like the QuickPizza demo apps.
+- Native Android or iOS telemetry collected with the [OpenTelemetry Android SDK](https://github.com/open-telemetry/opentelemetry-android) or [OpenTelemetry Swift](https://github.com/open-telemetry/opentelemetry-swift), shaped like the QuickPizza demo apps.
 - A Loki data source with UID `grafanacloud-logs`.
 - A Tempo data source with UID `grafanacloud-traces`.
 
