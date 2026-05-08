@@ -81,8 +81,8 @@ Common feature set:
 | --- | --- |
 | Flutter | Frontend Observability plugin → `/a/grafana-kowalski-app/apps/<faro-app-id>` on your Grafana Cloud stack |
 | React Native | Frontend Observability plugin → `/a/grafana-kowalski-app/apps/<faro-app-id>` on your Grafana Cloud stack |
-| iOS native | "Android & iOS OTel RUM" dashboard (and an iOS-specific dashboard) on your Grafana Cloud stack |
-| Android native | "Android & iOS OTel RUM" dashboard on your Grafana Cloud stack |
+| iOS native | [Mobile OTel RUM dashboard](./MOBILE_OTEL_RUM_DASHBOARD.md) (and an iOS-specific dashboard) on your Grafana Cloud stack |
+| Android native | [Mobile OTel RUM dashboard](./MOBILE_OTEL_RUM_DASHBOARD.md) on your Grafana Cloud stack |
 
 Underlying datasources on whichever Grafana Cloud stack you target:
 
@@ -95,6 +95,8 @@ Underlying datasources on whichever Grafana Cloud stack you target:
 
 The Frontend Observability plugin queries Loki for Faro-shaped data; the
 "Android & iOS OTel RUM" dashboard queries Tempo + Loki for OTel-shaped data.
+To import and configure the reusable dashboard, see
+[`MOBILE_OTEL_RUM_DASHBOARD.md`](./MOBILE_OTEL_RUM_DASHBOARD.md).
 
 ---
 
