@@ -25,11 +25,11 @@ Grafana 13 or later.
 - Grafana 13 or later.
 - A Grafana Cloud stack with OTLP ingest enabled for logs and traces.
 - Native Android or iOS telemetry collected with the [OpenTelemetry Android SDK](https://github.com/open-telemetry/opentelemetry-android) or [OpenTelemetry Swift](https://github.com/open-telemetry/opentelemetry-swift), shaped like the QuickPizza demo apps.
-- A Loki data source with UID `grafanacloud-logs`.
-- A Tempo data source with UID `grafanacloud-traces`.
+- A Loki data source named `grafanacloud-logs`.
+- A Tempo data source named `grafanacloud-traces`.
 
-Grafana Cloud stacks commonly use these data source UIDs. If your stack or OSS
-Grafana instance uses different UIDs, update the data source references after
+Grafana Cloud stacks commonly use these data source names. If your stack or OSS
+Grafana instance uses different names, update the data source references after
 import.
 
 ## Import the Dashboard
@@ -115,7 +115,7 @@ If the dashboard is empty:
   endpoint.
 - Confirm that the OTLP credentials allow `logs:write` and `traces:write`.
 - Confirm that the dashboard points at the correct Loki and Tempo data source
-  UIDs.
+  names.
 
 For Android, use the Debug tab to emit a debug log, handled exception, ANR, or
 crash event. For iOS, use the Debug tab to emit logs and handled exceptions.

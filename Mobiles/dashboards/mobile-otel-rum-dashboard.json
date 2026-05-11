@@ -59,7 +59,7 @@
                   "showLineNumbers": false,
                   "showMiniMap": false
                 },
-                "content": "<div style=\"background:linear-gradient(135deg,#0d1117,#161b22);border-radius:8px;padding:16px 24px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 12px rgba(0,0,0,0.5);border-left:4px solid #f5a800\"><div style=\"font-size:48px\">📱</div><div><div style=\"font-size:22px;font-weight:700;color:#fff\">Android &amp; iOS OTel App Observability</div><div style=\"font-size:13px;color:rgba(255,255,255,0.75);margin-top:6px\">Observability for mobile apps instrumented with <a href=\"https://github.com/open-telemetry/opentelemetry-android\" target=\"_blank\" style=\"color:#3DDC84;text-decoration:none;font-weight:600\">OpenTelemetry Android</a> and <a href=\"https://github.com/open-telemetry/opentelemetry-swift\" target=\"_blank\" style=\"color:#007AFF;text-decoration:none;font-weight:600\">OpenTelemetry Swift</a></div></div></div>",
+                "content": "<div style=\"background:linear-gradient(135deg,#0d1117,#161b22);border-radius:8px;padding:16px 24px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 12px rgba(0,0,0,0.5);border-left:4px solid #f5a800\"><div style=\"font-size:48px\">\ud83d\udcf1</div><div><div style=\"font-size:22px;font-weight:700;color:#fff\">Android &amp; iOS OTel App Observability</div><div style=\"font-size:13px;color:rgba(255,255,255,0.75);margin-top:6px\">Observability for mobile apps instrumented with <a href=\"https://github.com/open-telemetry/opentelemetry-android\" target=\"_blank\" style=\"color:#3DDC84;text-decoration:none;font-weight:600\">OpenTelemetry Android</a> and <a href=\"https://github.com/open-telemetry/opentelemetry-swift\" target=\"_blank\" style=\"color:#007AFF;text-decoration:none;font-weight:600\">OpenTelemetry Swift</a></div></div></div>",
                 "mode": "html"
               }
             },
@@ -103,10 +103,10 @@
               "transformations": []
             }
           },
-          "description": "Traces from the QuickPizza Android app. Filtered by the selected Session ID — shows all traces when no Session ID is set.",
+          "description": "Traces from the QuickPizza Android app. Filtered by the selected Session ID \u2014 shows all traces when no Session ID is set.",
           "id": 20,
           "links": [],
-          "title": "Traces — $session_id",
+          "title": "Traces \u2014 $session_id",
           "vizConfig": {
             "group": "table",
             "kind": "VizConfig",
@@ -161,15 +161,15 @@
                             "options": {
                               "error": {
                                 "color": "red",
-                                "text": "❌ Error"
+                                "text": "\u274c Error"
                               },
                               "ok": {
                                 "color": "green",
-                                "text": "✅ OK"
+                                "text": "\u2705 OK"
                               },
                               "unset": {
                                 "color": "text",
-                                "text": "— Unset"
+                                "text": "\u2014 Unset"
                               }
                             },
                             "type": "value"
@@ -228,7 +228,7 @@
           "description": "",
           "id": 21,
           "links": [],
-          "title": "Logs — $session_id",
+          "title": "Logs \u2014 $session_id",
           "vizConfig": {
             "group": "logs",
             "kind": "VizConfig",
@@ -280,7 +280,7 @@
                       "spec": {
                         "direction": "backward",
                         "editorMode": "code",
-                        "expr": "{service_name=~\"$service_name\"} | session_id=~\"${session_id}\" | event_name =~ \".+\" | event_name != \"exception\" | event_name != \"device.anr\" | line_format \"[{{.event_name}}]{{if .nav_destination}} {{.nav_previous_destination}} → {{.nav_destination}} ({{.nav_kind}}){{else if .app_screen_name}} → {{.app_screen_name}}{{end}}{{if .app_jank_frame_count}} frames:{{.app_jank_frame_count}} period:{{.app_jank_period}}ms{{end}}\"",
+                        "expr": "{service_name=~\"$service_name\"} | session_id=~\"${session_id}\" | event_name =~ \".+\" | event_name != \"exception\" | event_name != \"device.anr\" | line_format \"[{{.event_name}}]{{if .nav_destination}} {{.nav_previous_destination}} \u2192 {{.nav_destination}} ({{.nav_kind}}){{else if .app_screen_name}} \u2192 {{.app_screen_name}}{{end}}{{if .app_jank_frame_count}} frames:{{.app_jank_frame_count}} period:{{.app_jank_period}}ms{{end}}\"",
                         "instant": false,
                         "queryType": "range",
                         "range": true
@@ -298,7 +298,7 @@
           "description": "",
           "id": 22,
           "links": [],
-          "title": "Events — $session_id",
+          "title": "Events \u2014 $session_id",
           "vizConfig": {
             "group": "logs",
             "kind": "VizConfig",
@@ -365,10 +365,10 @@
               "transformations": []
             }
           },
-          "description": "Non-crash errors and caught exceptions — app continued running after these.",
+          "description": "Non-crash errors and caught exceptions \u2014 app continued running after these.",
           "id": 24,
           "links": [],
-          "title": "Errors & Handled Exceptions — $session_id",
+          "title": "Errors & Handled Exceptions \u2014 $session_id",
           "vizConfig": {
             "group": "logs",
             "kind": "VizConfig",
@@ -438,7 +438,7 @@
           "description": "Uncaught exceptions that caused the app to terminate (event_name=device.crash). Always on the main thread.",
           "id": 25,
           "links": [],
-          "title": "Crashes — $session_id",
+          "title": "Crashes \u2014 $session_id",
           "vizConfig": {
             "group": "logs",
             "kind": "VizConfig",
@@ -595,7 +595,7 @@
           "description": "Click a session ID to load it in the timeline below.",
           "id": 28,
           "links": [],
-          "title": "Sessions — click to select",
+          "title": "Sessions \u2014 click to select",
           "vizConfig": {
             "group": "table",
             "kind": "VizConfig",
@@ -617,7 +617,7 @@
                     {
                       "targetBlank": false,
                       "title": "Select this session",
-                      "url": "/d/rofnlbb?${__url.params:exclude:var-session_id}&var-session_id=${__data.fields.session_id}"
+                      "url": "/d/${__dashboard.uid}?${__url.params:exclude:var-session_id}&var-session_id=${__data.fields.session_id}"
                     }
                   ],
                   "thresholds": {
@@ -863,7 +863,7 @@
           "description": "Metadata for the selected session.",
           "id": 38,
           "links": [],
-          "title": "Session Info — $session_id",
+          "title": "Session Info \u2014 $session_id",
           "vizConfig": {
             "group": "table",
             "kind": "VizConfig",
@@ -929,7 +929,7 @@
                       "spec": {
                         "direction": "forward",
                         "editorMode": "code",
-                        "expr": "{service_name=~\"$service_name\"} | session_id=\"$session_id\" | line_format \"{{if or .event_name .name}}[{{or .event_name .name}}]{{if .nav_destination}} {{.nav_previous_destination}} → {{.nav_destination}} ({{.nav_kind}}){{else if .app_screen_name}} → {{.app_screen_name}}{{end}}{{if .exception_message}} {{.exception_type}}: {{.exception_message}}{{end}}{{if .app_jank_frame_count}} frames:{{.app_jank_frame_count}} period:{{.app_jank_period}}ms{{end}}{{if .metrickit_diagnostic_crash_exception_type}} signal:{{.metrickit_diagnostic_crash_exception_signal}} mach:{{.metrickit_diagnostic_crash_exception_mach_exception_type}} reason:{{.metrickit_diagnostic_crash_exception_code}}{{end}}{{if .metrickit_diagnostic_hang_hang_duration}} hang:{{.metrickit_diagnostic_hang_hang_duration}}{{end}}{{if .metrickit_diagnostic_cpu_exception_total_cpu_time}} cpu:{{.metrickit_diagnostic_cpu_exception_total_cpu_time}} sampled:{{.metrickit_diagnostic_cpu_exception_total_sampled_time}}{{end}}{{if .metrickit_diagnostic_disk_write_exception_total_writes_caused}} writes:{{.metrickit_diagnostic_disk_write_exception_total_writes_caused}}{{end}}{{if .metrickit_diagnostic_app_launch_launch_duration}} launch:{{.metrickit_diagnostic_app_launch_launch_duration}}{{end}}{{else}}{{__line__}}{{end}}\"",
+                        "expr": "{service_name=~\"$service_name\"} | session_id=\"$session_id\" | line_format \"{{if or .event_name .name}}[{{or .event_name .name}}]{{if .nav_destination}} {{.nav_previous_destination}} \u2192 {{.nav_destination}} ({{.nav_kind}}){{else if .app_screen_name}} \u2192 {{.app_screen_name}}{{end}}{{if .exception_message}} {{.exception_type}}: {{.exception_message}}{{end}}{{if .app_jank_frame_count}} frames:{{.app_jank_frame_count}} period:{{.app_jank_period}}ms{{end}}{{if .metrickit_diagnostic_crash_exception_type}} signal:{{.metrickit_diagnostic_crash_exception_signal}} mach:{{.metrickit_diagnostic_crash_exception_mach_exception_type}} reason:{{.metrickit_diagnostic_crash_exception_code}}{{end}}{{if .metrickit_diagnostic_hang_hang_duration}} hang:{{.metrickit_diagnostic_hang_hang_duration}}{{end}}{{if .metrickit_diagnostic_cpu_exception_total_cpu_time}} cpu:{{.metrickit_diagnostic_cpu_exception_total_cpu_time}} sampled:{{.metrickit_diagnostic_cpu_exception_total_sampled_time}}{{end}}{{if .metrickit_diagnostic_disk_write_exception_total_writes_caused}} writes:{{.metrickit_diagnostic_disk_write_exception_total_writes_caused}}{{end}}{{if .metrickit_diagnostic_app_launch_launch_duration}} launch:{{.metrickit_diagnostic_app_launch_launch_duration}}{{end}}{{else}}{{__line__}}{{end}}\"",
                         "instant": false,
                         "queryType": "range",
                         "range": true
@@ -947,7 +947,7 @@
           "description": "All log events for the selected session in chronological order. Shows the user's navigation path and what happened.",
           "id": 39,
           "links": [],
-          "title": "Session Timeline — $session_id",
+          "title": "Session Timeline \u2014 $session_id",
           "vizConfig": {
             "group": "logs",
             "kind": "VizConfig",
@@ -1015,7 +1015,7 @@
           "description": "App Not Responding events (event_name=device.anr). Main thread blocked >5s.",
           "id": 60,
           "links": [],
-          "title": "ANRs — $session_id",
+          "title": "ANRs \u2014 $session_id",
           "vizConfig": {
             "group": "logs",
             "kind": "VizConfig",
@@ -1107,7 +1107,7 @@
               "transformations": []
             }
           },
-          "description": "Number of session starts per time bucket — reflects app activity and user volume across iOS and Android",
+          "description": "Number of session starts per time bucket \u2014 reflects app activity and user volume across iOS and Android",
           "id": 73,
           "links": [],
           "title": "Sessions over time",
@@ -1293,7 +1293,7 @@
               "transformations": []
             }
           },
-          "description": "Counts all log events where event_name matches:\n- **exception** — handled or unhandled exceptions\n- **device.crash** — application crashes\n- **device.anr** — Application Not Responding (ANR) events",
+          "description": "Counts all log events where event_name matches:\n- **exception** \u2014 handled or unhandled exceptions\n- **device.crash** \u2014 application crashes\n- **device.anr** \u2014 Application Not Responding (ANR) events",
           "id": 74,
           "links": [],
           "title": "Errors over time",
@@ -1508,7 +1508,7 @@
               "transformations": []
             }
           },
-          "description": "Count of unique session IDs — each represents a distinct app session",
+          "description": "Count of unique session IDs \u2014 each represents a distinct app session",
           "id": 75,
           "links": [],
           "title": "App Sessions",
@@ -1674,7 +1674,7 @@
               "transformations": []
             }
           },
-          "description": "Count of handled exceptions (non-fatal) — event_name=exception with detected_level=error. App continued running after these.",
+          "description": "Count of handled exceptions (non-fatal) \u2014 event_name=exception with detected_level=error. App continued running after these.",
           "id": 77,
           "links": [],
           "title": "Errors",
@@ -1756,7 +1756,7 @@
               "transformations": []
             }
           },
-          "description": "Count of uncaught exceptions that caused the app to crash (event_name=device.crash). Works for Android. iOS uses the same event name convention but this is unverified — no iOS crash data available yet to confirm.",
+          "description": "Count of uncaught exceptions that caused the app to crash (event_name=device.crash). Works for Android. iOS uses the same event name convention but this is unverified \u2014 no iOS crash data available yet to confirm.",
           "id": 78,
           "links": [],
           "title": "Crashes",
@@ -1838,7 +1838,7 @@
               "transformations": []
             }
           },
-          "description": "App Not Responding events — main thread blocked >5s (event_name=device.anr). Android-only. Severe UX failure: app freezes.",
+          "description": "App Not Responding events \u2014 main thread blocked >5s (event_name=device.anr). Android-only. Severe UX failure: app freezes.",
           "id": 79,
           "links": [],
           "title": "ANRs",
@@ -1962,7 +1962,7 @@
               "transformations": []
             }
           },
-          "description": "Percentage of sessions with zero crashes — quality SLO target (e.g., 97%). Crash detection uses event_name=device.crash. Works for Android; iOS crash detection unverified — update query if iOS uses a different event name.",
+          "description": "Percentage of sessions with zero crashes \u2014 quality SLO target (e.g., 97%). Crash detection uses event_name=device.crash. Works for Android; iOS crash detection unverified \u2014 update query if iOS uses a different event name.",
           "id": 80,
           "links": [],
           "title": "Crash-Free Sessions",
@@ -2070,7 +2070,7 @@
           "description": "Unique device count per device model identifier",
           "id": 81,
           "links": [],
-          "title": "📱 Devices by Model",
+          "title": "\ud83d\udcf1 Devices by Model",
           "vizConfig": {
             "group": "table",
             "kind": "VizConfig",
@@ -2204,7 +2204,7 @@
           "description": "Unique device count per OS and version. API Level shown for Android rows.",
           "id": 82,
           "links": [],
-          "title": "📱 Devices by OS Version",
+          "title": "\ud83d\udcf1 Devices by OS Version",
           "vizConfig": {
             "group": "table",
             "kind": "VizConfig",
@@ -2358,7 +2358,7 @@
           "description": "Unique device count per app version",
           "id": 83,
           "links": [],
-          "title": "📱 App Versions",
+          "title": "\ud83d\udcf1 App Versions",
           "vizConfig": {
             "group": "table",
             "kind": "VizConfig",
@@ -2610,7 +2610,7 @@
               "transformations": []
             }
           },
-          "description": "Breakdown of non-crash errors and caught exceptions by type. Does not include crashes — those are in Crashes by Type.",
+          "description": "Breakdown of non-crash errors and caught exceptions by type. Does not include crashes \u2014 those are in Crashes by Type.",
           "id": 85,
           "links": [],
           "title": "Errors & Handled Exceptions by Type",
@@ -2698,7 +2698,7 @@
                   "showLineNumbers": false,
                   "showMiniMap": false
                 },
-                "content": "# 📱 Android & iOS Mobile Observability — OpenTelemetry RUM  \n\nReal User Monitoring for Android and iOS apps instrumented with the [OpenTelemetry Android SDK](https://github.com/open-telemetry/opentelemetry-android) and [OpenTelemetry Swift](https://github.com/open-telemetry/opentelemetry-swift).  \n\n---  \n\n## 🗂️ Tabs  \n\n**Overview** — Session volume, errors, crashes, ANRs, device breakdown. Daily health check. ANRs are Android-only and always 0 for iOS.  \n\n**Session Explorer** — Lists all sessions. Click a row to set the Session ID filter and drill into a single user session across all other tabs.  \n\n**Traces / Logs / Events / Errors / Crashes / ANRs** — Per-signal views, filtered to the selected session when a Session ID is set.  \n\n---  \n\n## ⚙️ Setup  \n\n**Mobile service names** — This dashboard filters on the OpenTelemetry resource attribute `service.name`.\n\nEdit the `Mobile service names` dashboard variable and add the `service.name` values for your Android and iOS apps, for example `my-app-android, my-app-ios`. You can also type a service name directly into the dropdown because custom values are enabled.\n\nThis list is intentionally configured manually. Grafana Cloud stacks often contain backend services in the same Loki/Tempo data sources, so an automatic `service_name` dropdown would include unrelated services.  \n\n**Session ID** — Set automatically when clicking a session row. Paste a known ID to jump directly to a session.  \n\n**OTLP endpoint** — Both SDKs send data via OTLP. Configure `OTLP_ENDPOINT` and `OTLP_AUTH_HEADER` in your app. See [Send data via OTLP](https://grafana.com/docs/grafana-cloud/send-data/otlp/send-data-otlp/).  \n\n---  \n\n## 📚 Further Reading  \n\n| Topic | Link |  \n|---|---|  \n| OpenTelemetry Android SDK | [open-telemetry/opentelemetry-android](https://github.com/open-telemetry/opentelemetry-android) |  \n| OpenTelemetry Swift SDK | [open-telemetry/opentelemetry-swift](https://github.com/open-telemetry/opentelemetry-swift) |  \n| OTel concepts | [opentelemetry.io/docs](https://opentelemetry.io/docs/) |  ",
+                "content": "# \ud83d\udcf1 Android & iOS Mobile Observability \u2014 OpenTelemetry RUM  \n\nReal User Monitoring for Android and iOS apps instrumented with the [OpenTelemetry Android SDK](https://github.com/open-telemetry/opentelemetry-android) and [OpenTelemetry Swift](https://github.com/open-telemetry/opentelemetry-swift).  \n\n---  \n\n## \ud83d\uddc2\ufe0f Tabs  \n\n**Overview** \u2014 Session volume, errors, crashes, ANRs, device breakdown. Daily health check. ANRs are Android-only and always 0 for iOS.  \n\n**Session Explorer** \u2014 Lists all sessions. Click a row to set the Session ID filter and drill into a single user session across all other tabs.  \n\n**Traces / Logs / Events / Errors / Crashes / ANRs** \u2014 Per-signal views, filtered to the selected session when a Session ID is set.  \n\n---  \n\n## \u2699\ufe0f Setup  \n\n**Mobile service names** \u2014 This dashboard filters on the OpenTelemetry resource attribute `service.name`.\n\nEdit the `Mobile service names` dashboard variable and add the `service.name` values for your Android and iOS apps, for example `my-app-android, my-app-ios`. You can also type a service name directly into the dropdown because custom values are enabled.\n\nThis list is intentionally configured manually. Grafana Cloud stacks often contain backend services in the same Loki/Tempo data sources, so an automatic `service_name` dropdown would include unrelated services.  \n\n**Session ID** \u2014 Set automatically when clicking a session row. Paste a known ID to jump directly to a session.  \n\n**OTLP endpoint** \u2014 Both SDKs send data via OTLP. Configure `OTLP_ENDPOINT` and `OTLP_AUTH_HEADER` in your app. See [Send data via OTLP](https://grafana.com/docs/grafana-cloud/send-data/otlp/send-data-otlp/).  \n\n---  \n\n## \ud83d\udcda Further Reading  \n\n| Topic | Link |  \n|---|---|  \n| OpenTelemetry Android SDK | [open-telemetry/opentelemetry-android](https://github.com/open-telemetry/opentelemetry-android) |  \n| OpenTelemetry Swift SDK | [open-telemetry/opentelemetry-swift](https://github.com/open-telemetry/opentelemetry-swift) |  \n| OTel concepts | [opentelemetry.io/docs](https://opentelemetry.io/docs/) |  ",
                 "mode": "markdown"
               }
             },
@@ -2741,7 +2741,7 @@
           "description": "Last 10 errors, crashes, and ANRs across selected services. Click a row to expand details.",
           "id": 87,
           "links": [],
-          "title": "🔴 Most Recent Errors",
+          "title": "\ud83d\udd34 Most Recent Errors",
           "vizConfig": {
             "group": "logs",
             "kind": "VizConfig",
@@ -3216,7 +3216,7 @@
                   ]
                 }
               },
-              "title": "ℹ️ About"
+              "title": "\u2139\ufe0f About"
             }
           }
         ]
@@ -3281,8 +3281,7 @@
           "name": "service_name",
           "options": [],
           "query": "quickpizza-android, quickpizza-ios",
-          "skipUrlSync": false,
-          "valuesFormat": "csv"
+          "skipUrlSync": false
         }
       },
       {
