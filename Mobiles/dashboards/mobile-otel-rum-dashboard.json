@@ -2580,30 +2580,6 @@
                     },
                     "refId": "A"
                   }
-                },
-                {
-                  "kind": "PanelQuery",
-                  "spec": {
-                    "hidden": false,
-                    "query": {
-                      "datasource": {
-                        "name": "grafanacloud-logs"
-                      },
-                      "group": "loki",
-                      "kind": "DataQuery",
-                      "spec": {
-                        "direction": "backward",
-                        "editorMode": "code",
-                        "expr": "sum by (event_name) (count_over_time({service_name=~\"$service_name\"} | event_name=\"device.anr\" [$__auto]))",
-                        "instant": false,
-                        "legendFormat": "ANR",
-                        "queryType": "range",
-                        "range": true
-                      },
-                      "version": "v0"
-                    },
-                    "refId": "B"
-                  }
                 }
               ],
               "queryOptions": {},
@@ -2726,6 +2702,7 @@
                       "spec": {
                         "direction": "backward",
                         "expr": "{service_name=~\"$service_name\"} | event_name=~\"exception|device.crash|device.anr\" | line_format \"[{{.os_name}}|{{.event_name}}]{{if .exception_type}} {{.exception_type}}{{if .exception_message}}: {{.exception_message}}{{end}}{{end}}{{if .screen_name}} | screen:{{.screen_name}}{{end}}\"",
+                        "maxLines": 10,
                         "queryType": "range"
                       },
                       "version": "v0"
