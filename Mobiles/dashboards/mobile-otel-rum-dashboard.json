@@ -1756,7 +1756,7 @@
               "transformations": []
             }
           },
-          "description": "Count of uncaught exceptions that caused the app to crash (event_name=device.crash). Works for Android. iOS uses the same event name convention but this is unverified \u2014 no iOS crash data available yet to confirm.",
+          "description": "Counts Android crash events reported as event_name=\"device.crash\". iOS OpenTelemetry crash diagnostics are delivered through MetricKit and are not currently included until their event shape is verified.",
           "id": 78,
           "links": [],
           "title": "Crashes",
@@ -1962,7 +1962,7 @@
               "transformations": []
             }
           },
-          "description": "Percentage of sessions with zero crashes \u2014 quality SLO target (e.g., 97%). Crash detection uses event_name=device.crash. Works for Android; iOS crash detection unverified \u2014 update query if iOS uses a different event name.",
+          "description": "Percentage of sessions without Android event_name=\"device.crash\" events. iOS OpenTelemetry crash diagnostics are delivered through MetricKit and are not currently included, so this panel should not be used as an iOS crash-free SLO yet.",
           "id": 80,
           "links": [],
           "title": "Crash-Free Sessions",
@@ -2492,7 +2492,7 @@
               "transformations": []
             }
           },
-          "description": "Breakdown of uncaught exceptions that caused the app to crash (event_name=device.crash), by exception type.",
+          "description": "Breakdown of Android crash events reported as event_name=\"device.crash\", by exception type. iOS MetricKit crash diagnostics are not currently included.",
           "id": 84,
           "links": [],
           "title": "Crashes by Type",

@@ -55,6 +55,10 @@ Edit that variable and replace the demo values with the OpenTelemetry
 my-app-android, my-app-ios
 ```
 
+The default values (`quickpizza-android`, `quickpizza-ios`) are from the
+QuickPizza demo apps. Replace them after import unless you are viewing the demo
+stack.
+
 The list is intentionally manual. Grafana Cloud stacks often contain backend
 services in the same Loki and Tempo data sources, so automatic service
 discovery would include unrelated services.
