@@ -73,3 +73,27 @@ An AVD named `quickpizza-test` (Android 14, x86_64, google_apis) is pre-created.
 5. In the app's `config.json`, set `BASE_URL` to `http://localhost:3333` — BrowserStack Local routes `localhost` from the device through the tunnel to this VM.
 
 **Note:** The BrowserStack free trial may have expired. Check plan status: `curl -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" https://api-cloud.browserstack.com/app-automate/plan.json`
+
+### Grafana Cloud CLI (gcx)
+
+**gcx** (v0.2.14) is installed at `/usr/local/bin/gcx` with 19 agent skills in `~/.agents/skills/`. Use it to verify that mobile app telemetry lands correctly in Grafana Cloud.
+
+**Authentication:** Set these environment secrets (or use `gcx login`):
+- `GRAFANA_SERVER` — Grafana Cloud instance URL (e.g. `https://<stack>.grafana.net`)
+- `GRAFANA_TOKEN` — Grafana service account token (Editor/Admin role)
+- `GRAFANA_CLOUD_TOKEN` — Cloud Access Policy token (needed for `gcx frontend`, `gcx traces`, etc.)
+
+**Telemetry verification commands for mobile apps:**
+
+| What to check | Command |
+|---------------|---------|
+| Faro apps (Flutter, RN) | `gcx frontend apps list` |
+| Faro app details | `gcx frontend apps get <app-id>` |
+| OTel traces (iOS, Android native) | `gcx traces query '{resource.service.name="quickpizza-android"}' --since 1h` |
+| OTel logs (iOS, Android native) | `gcx logs query '{service_name="quickpizza-android"}' --since 1h` |
+| Explore available datasources | `gcx datasources list` |
+| Check connection | `gcx config check` |
+
+**Where each app's telemetry lands (from `CLAUDE.md`):**
+- Flutter + React Native → Grafana Cloud **Frontend Observability** (Faro)
+- iOS native + Android native → Grafana Cloud **Tempo + Loki** (OTLP/HTTP)
