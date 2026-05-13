@@ -78,22 +78,32 @@ An AVD named `quickpizza-test` (Android 14, x86_64, google_apis) is pre-created.
 
 **gcx** (v0.2.14) is installed at `/usr/local/bin/gcx` with 19 agent skills in `~/.agents/skills/`. Use it to verify that mobile app telemetry lands correctly in Grafana Cloud.
 
-**Authentication:** Set these environment secrets (or use `gcx login`):
-- `GRAFANA_SERVER` — Grafana Cloud instance URL (e.g. `https://<stack>.grafana.net`)
-- `GRAFANA_TOKEN` — Grafana service account token (Editor/Admin role)
-- `GRAFANA_CLOUD_TOKEN` — Cloud Access Policy token (needed for `gcx frontend`, `gcx traces`, etc.)
+**Authentication:** A persistent context `mobile-o11y` is configured via `gcx login`. It uses:
+- `GRAFANA_MOBILE_O11Y_URL` — Grafana Cloud instance URL
+- `GRAFANA_MOBILE_O11Y_API_KEY` — Service account token (`glsa_` format)
+
+To recreate the context (e.g. after token rotation):
+```
+gcx login mobile-o11y --server "$GRAFANA_MOBILE_O11Y_URL" --token "$GRAFANA_MOBILE_O11Y_API_KEY" --yes
+```
+
+Default datasources are configured: `grafanacloud-traces` (Tempo), `grafanacloud-logs` (Loki), `grafanacloud-prom` (Prometheus).
+
+`GRAFANA_CLOUD_TOKEN` (Cloud Access Policy token) is **not** needed for traces/logs/metrics queries. It's only needed for Cloud product APIs like `gcx frontend apps list` (Faro), `gcx slo`, etc.
 
 **Telemetry verification commands for mobile apps:**
 
 | What to check | Command |
 |---------------|---------|
-| Faro apps (Flutter, RN) | `gcx frontend apps list` |
-| Faro app details | `gcx frontend apps get <app-id>` |
-| OTel traces (iOS, Android native) | `gcx traces query '{resource.service.name="quickpizza-android"}' --since 1h` |
-| OTel logs (iOS, Android native) | `gcx logs query '{service_name="quickpizza-android"}' --since 1h` |
-| Explore available datasources | `gcx datasources list` |
-| Check connection | `gcx config check` |
+| All recent traces | `gcx traces query '{}' --since 24h` |
+| Flutter traces | `gcx traces query '{resource.service.name="QuickPizza_Flutter"}' --since 1h` |
+| React Native traces | `gcx traces query '{resource.service.name="QuickPizza_ReactNative"}' --since 1h` |
+| Android native traces | `gcx traces query '{resource.service.name="quickpizza-android"}' --since 1h` |
+| iOS native traces | `gcx traces query '{resource.service.name="quickpizza-ios"}' --since 1h` |
+| Backend logs | `gcx logs query '{service_namespace=~"quickpizza.*"}' --since 1h` |
+| Datasources | `gcx datasources list` |
+| Connection check | `gcx config check` |
 
 **Where each app's telemetry lands (from `CLAUDE.md`):**
-- Flutter + React Native → Grafana Cloud **Frontend Observability** (Faro)
+- Flutter + React Native → Grafana Cloud **Tempo** (traces via Faro tracing) + **Frontend Observability** (Faro events/logs/measurements — requires `GRAFANA_CLOUD_TOKEN` for `gcx frontend` commands)
 - iOS native + Android native → Grafana Cloud **Tempo + Loki** (OTLP/HTTP)
