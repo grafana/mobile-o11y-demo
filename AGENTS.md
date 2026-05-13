@@ -27,7 +27,18 @@ QuickPizza is a Go backend + SvelteKit frontend demo app. No external services a
 
 ### Mobile apps — build environment
 
-This VM has the toolchains to build all three **Android** APKs. iOS apps cannot be built (requires macOS + Xcode). Android emulators are not available (no KVM in this VM); use **BrowserStack** to run APKs on real devices.
+This VM has the toolchains to build all three **Android** APKs. iOS apps cannot be built (requires macOS + Xcode).
+
+**Android emulator (software rendering, no KVM):**
+An AVD named `quickpizza-test` (Android 14, x86_64, google_apis) is pre-created. KVM is not available, so the emulator runs with software rendering (`-no-accel -gpu swiftshader_indirect`). Key characteristics:
+- **Boot time:** ~7–8 minutes.
+- **Performance:** Very slow. Jetpack Compose apps (Android native) trigger frequent ANR ("app isn't responding") dialogs. Flutter apps are somewhat more responsive.
+- **Disable animations** to reduce ANRs: `adb shell settings put global window_animation_scale 0 && adb shell settings put global transition_animation_scale 0 && adb shell settings put global animator_duration_scale 0`
+- **Backend connectivity:** The emulator reaches the host at `10.0.2.2`, so apps with empty `BASE_URL` default to `http://10.0.2.2:3333`, which maps to the local QuickPizza backend.
+- **Launch command:** `emulator -avd quickpizza-test -no-window -no-audio -no-accel -gpu swiftshader_indirect -memory 2048 -no-snapshot -no-boot-anim &`
+- **Wait for boot:** `adb wait-for-device && while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" != "1" ]; do sleep 10; done`
+- **Best for:** Smoke-testing that APKs install and launch. Not practical for full UI automation due to extreme slowness.
+- **Recommended for real automation:** BrowserStack (see below).
 
 **Installed toolchains:**
 - **Android SDK** at `/opt/android-sdk` — platform 36, build-tools 36.0.0, NDK 27.1.12297006 + 28.2.13676358. Env vars `ANDROID_HOME`/`ANDROID_SDK_ROOT` set in `~/.bashrc`.
