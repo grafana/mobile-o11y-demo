@@ -6,11 +6,11 @@
 #   - Mobiles/react-native/scripts/e2e/run_e2e_tests.sh
 #
 # Usage:
-#   ./Mobiles/e2e/run_e2e_tests.sh --app=flutter        --platform=android
-#   ./Mobiles/e2e/run_e2e_tests.sh --app=react-native   --platform=android
+#   ./Mobiles/e2e/run_e2e_tests.sh --app=flutter         --platform=android
+#   ./Mobiles/e2e/run_e2e_tests.sh --app=react-native    --platform=android
+#   ./Mobiles/e2e/run_e2e_tests.sh --app=android-native  --platform=android
 #
 # Future phases will add:
-#   --app=android-native   --platform=android   (Phase 2)
 #   --app=ios-native       --platform=ios       (Phase 3)
 #   --app=flutter          --platform=ios       (Phase 4)
 #   --app=react-native     --platform=ios       (Phase 4)
@@ -116,15 +116,16 @@ QuickPizza mobile E2E runner (Arbigent)
 Usage: $0 --app=<app> --platform=<platform>
 
 Required:
-  --app=<flutter|react-native>      App under test
-  --platform=<android>              Target platform
+  --app=<flutter|react-native|android-native>   App under test
+  --platform=<android>                          Target platform
 
 Other:
-  -h, --help                        Show this help message
+  -h, --help                                    Show this help message
 
 Examples:
   bash $0 --app=flutter --platform=android
   bash $0 --app=react-native --platform=android
+  bash $0 --app=android-native --platform=android
 
 Required env vars:
   OPENAI_API_KEY                    OpenAI key used by Arbigent
@@ -167,8 +168,12 @@ case "$APP" in
         ANDROID_PACKAGE="com.quickpizza"
         IOS_BUNDLE_ID="com.quickpizza"
         ;;
+    android-native)
+        ANDROID_PACKAGE="com.grafana.quickpizza"
+        IOS_BUNDLE_ID=""
+        ;;
     *)
-        print_error "Unsupported --app=$APP (supported: flutter, react-native). Native apps and iOS variants land in later phases."
+        print_error "Unsupported --app=$APP (supported: flutter, react-native, android-native). Native iOS and iOS variants land in later phases."
         ;;
 esac
 

@@ -1,10 +1,12 @@
-# Shared Arbigent project for QuickPizza Android (Flutter + React Native).
+# Shared Arbigent project for QuickPizza Android (Flutter + React Native + Android Native).
 # run_e2e_tests.sh replaces __ANDROID_PACKAGE__ with the app under test:
-#   - Flutter default: com.example.flutter_mobile_o11y_demo
-#   - React Native default: com.quickpizza
-# Both use launcher label "QuickPizza", so icon-tap / app-drawer instructions match.
+#   - Flutter default:        com.example.flutter_mobile_o11y_demo  (launcher label: QPizza Flutter)
+#   - React Native default:   com.quickpizza                        (launcher label: QPizza RN)
+#   - Android Native default: com.grafana.quickpizza                (launcher label: QPizza Android)
+# All three apps share a "QPizza" launcher label prefix and the same pizza-themed icon.
 # LaunchApp uses the package id (not the icon position), so CI passes even when the icon
-# is not on the first home page; the AI fallback below covers real launcher layouts when needed.
+# is not on the first home page; the AI fallback in bring_app_to_foreground matches on the
+# pizza icon + the "QPizza" prefix to cover all three apps without per-app branching.
 
 scenarios:
   - id: "start_app"
@@ -89,13 +91,13 @@ scenarios:
       ORDERED FALLBACK — Only if you still see the Android launcher (not the QuickPizza UI):
 
       CASE A — Icon on THIS home page:
-      - If you see a QuickPizza app icon (pizza-themed icon, label "QuickPizza"), tap it once. Do not guess unrelated icons.
+      - If you see a QuickPizza app icon (pizza-themed icon; the label starts with "QPizza", e.g. "QPizza Flutter", "QPizza RN", or "QPizza Android"), tap it once. Do not guess unrelated icons.
 
       CASE B — Icon not visible on this page (another home screen or drawer):
       - Try a horizontal swipe from RIGHT to LEFT on the empty WALLPAPER area between the dock and the icon rows (do not start the swipe on Phone, Messages, WebView Browser Tester, Camera, or Gmail). This may move to the next launcher page. Look for QuickPizza again. Repeat at most 3 page changes.
 
       CASE C — Still no QuickPizza icon:
-      - Open the "all apps" / app drawer: swipe UP from the bottom edge of the screen (above the nav bar). Scroll the alphabet list if needed and tap "QuickPizza".
+      - Open the "all apps" / app drawer: swipe UP from the bottom edge of the screen (above the nav bar). Scroll the alphabet list if needed and tap the entry whose label starts with "QPizza".
 
       AVOID: Do not tap WebView Browser Tester, Phone, Messages, or Camera to "find" QuickPizza unless you must press Home first to recover from a mistake.
 

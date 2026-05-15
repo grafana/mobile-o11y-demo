@@ -54,6 +54,9 @@ export OPENAI_API_KEY='sk-...'
 
 # React Native on Android — see the RN note below first
 ./Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=android
+
+# Native Android (Kotlin / Compose)
+./Mobiles/e2e/run_e2e_tests.sh --app=android-native --platform=android
 ```
 
 ### Extra step for local React Native runs
@@ -98,7 +101,7 @@ and persists the result alongside the run output (gitignored).
 | -------------- | :-----: | :-: | -------------------------------------- |
 | flutter        |   yes   |  -  | active                                 |
 | react-native   |   yes   |  -  | active                                 |
-| android-native |    -    |  -  | planned (Phase 2 of the e2e refactor)  |
+| android-native |   yes   |  -  | active                                 |
 | ios-native     |    -    |  -  | planned (Phase 3 of the e2e refactor)  |
 | flutter (iOS)  |    -    |  -  | planned (Phase 4 of the e2e refactor)  |
 | RN (iOS)       |    -    |  -  | planned (Phase 4 of the e2e refactor)  |
@@ -151,5 +154,6 @@ template unreliable.
 The hourly workflow at
 [`.github/workflows/mobile_demo_telemetry.yaml`](../../.github/workflows/mobile_demo_telemetry.yaml)
 builds the APKs, boots a single Android emulator, and runs each app's
-e2e flow sequentially on the same emulator. Phases 2–5 will add native
-Android, native iOS, and the iOS variants of Flutter / React Native.
+e2e flow sequentially on the same emulator (Flutter → React Native →
+Android Native). Phases 3–5 will add native iOS and the iOS variants
+of Flutter / React Native.
