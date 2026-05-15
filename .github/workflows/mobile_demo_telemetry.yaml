@@ -271,6 +271,7 @@ jobs:
           OTLP_INSTANCE_ID: ${{ env.OTLP_INSTANCE_ID }}
           OTLP_API_KEY: ${{ env.OTLP_API_KEY }}
         run: |
+          mkdir -p app/src/main/res/raw
           cat > app/src/main/res/raw/config.json << EOF
           {
             "OTLP_ENDPOINT": "${OTLP_ENDPOINT}",
