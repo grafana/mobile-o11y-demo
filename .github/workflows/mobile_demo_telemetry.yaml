@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/mobile_demo_telemetry.yaml"
+      - "Mobiles/e2e/**"
       - "Mobiles/flutter/**"
       - "Mobiles/react-native/**"
       - "compose.grafana-cloud.microservices.yaml"
@@ -310,13 +311,14 @@ jobs:
           echo "Disk space after cleanup:"
           df -h
 
-      - name: Set up Dart
-        uses: dart-lang/setup-dart@e51d8e571e22473a2ddebf0ef8a2123f0ab2c02c # v1.7.1
-
-      - name: Set up Node.js (React Native e2e HTML reports)
+      - name: Set up Node.js (shared e2e HTML report generator)
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22"
+
+      - name: Install shared e2e report generator deps
+        working-directory: Mobiles/e2e/report-generator
+        run: npm ci
 
       - name: Run Android emulator and e2e tests
         uses: reactivecircus/android-emulator-runner@b530d96654c385303d652368551fb075bc2f0b6b # v2.35.0
@@ -334,16 +336,18 @@ jobs:
             echo "Emulator is running!"
             adb devices -l
 
-            # Single reverse for both apps (devices use localhost:3333)
+            # Single reverse for all apps on the same emulator (devices use localhost:3333)
             echo "Setting up ADB reverse port forwarding..."
             adb reverse tcp:3333 tcp:3333
 
             echo "==> Flutter APK: install and E2E"
             adb install -r apk/flutter/app-debug.apk
-            cd Mobiles/flutter && chmod +x scripts/e2e/run_e2e_tests.sh && ./scripts/e2e/run_e2e_tests.sh
+            bash Mobiles/e2e/run_e2e_tests.sh --app=flutter --platform=android
+
             echo "==> React Native APK: install and E2E"
             adb install -r apk/react-native/app-debug.apk
-            cd Mobiles/react-native && chmod +x scripts/e2e/run_e2e_tests.sh && ./scripts/e2e/run_e2e_tests.sh
+            bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=android
+
             echo "E2E tests completed (Flutter then React Native on same emulator)."
 
       - name: Upload e2e test results
@@ -351,9 +355,7 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: e2e-test-results
-          path: |
-            Mobiles/flutter/arbigent-result/
-            Mobiles/react-native/arbigent-result/
+          path: Mobiles/e2e/results/
           retention-days: 1
           if-no-files-found: ignore
 
