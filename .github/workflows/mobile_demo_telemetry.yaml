@@ -404,6 +404,8 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=YES \
             build | tail -80
 
           APP_PATH=$(find DerivedData/Build/Products -name "QuickPizzaIos.app" -type d | head -1)
