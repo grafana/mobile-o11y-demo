@@ -302,10 +302,11 @@ jobs:
   build-ios-native-app:
     name: Build iOS Native .app
     # macOS-only: xcodebuild lives in Xcode and only runs on macOS runners.
-    # macos-14 = Sonoma + arm64 (M-series). Pinned rather than -latest so a
-    # GitHub-side macos image bump doesn't silently invalidate the build
-    # cache or break a working Xcode version.
-    runs-on: &ios_runner macos-14
+    # macos-15 includes a new enough Xcode to open QuickPizzaIos.xcodeproj
+    # (project file format 77). Pinned rather than -latest so a GitHub-side
+    # macOS image bump doesn't silently invalidate the build cache or break
+    # a working Xcode version.
+    runs-on: &ios_runner macos-15
     timeout-minutes: 45
     permissions:
       id-token: write
@@ -613,7 +614,7 @@ jobs:
       - build-ios-native-app
     if: ${{ needs.build-ios-native-app.result == 'success' }}
     # macOS-only: xcrun simctl + the booted iOS simulator only work on macOS.
-    # Pinned to macos-14 (matches the build job) so caches line up.
+    # Uses the same pinned macOS runner as the iOS build job so caches line up.
     runs-on: *ios_runner
     timeout-minutes: 60
     permissions:
