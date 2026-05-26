@@ -11,7 +11,7 @@ on:
       - "Mobiles/android/**"
       - "Mobiles/ios/**"
       - "compose.grafana-cloud.microservices.yaml"
-  # Manual trigger for testing
+  # Manual trigger for ad hoc testing
   workflow_dispatch: {}
   # Scheduled run every hour for continuous telemetry
   schedule:
