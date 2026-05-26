@@ -395,6 +395,7 @@ jobs:
           # signature anyway. All three CODE_SIGN_* flags are required for
           # this to work reliably across Xcode versions.
           mkdir -p build/ci
+          SRCROOT="$PWD" Scripts/generate-config.sh
           set +e
           xcodebuild \
             -project QuickPizzaIos.xcodeproj \
