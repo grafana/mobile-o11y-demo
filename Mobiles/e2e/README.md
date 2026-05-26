@@ -29,7 +29,8 @@ Mobiles/e2e/
     └── <app>/
         ├── arbigent-project.yaml                          # Rendered scenario file (template + per-app values)
         ├── arbigent-result/                               # Latest run output + visual_report.html
-        ├── arbigent-result-N/                             # Archived previous runs
+        │   ├── arbigent-project.yaml                      # Copy of the rendered YAML used for the latest run
+        │   └── arbigent-result-N/                         # Archived run, including its own arbigent-project.yaml
         └── arbigent-cache/                                # AI response cache (speeds up repeat runs)
 ```
 
@@ -105,9 +106,11 @@ Results land in `Mobiles/e2e/results/<app>/arbigent-result/` (e.g.
 directory holds Arbigent's AI response cache and is reused across
 runs to save time and OpenAI cost when the UI tree + goal are
 unchanged. The rendered project file (`arbigent-project.yaml`) is
-written there too so you can inspect exactly what Arbigent was asked
-to do — the runner reads the template, substitutes per-app values,
-and persists the result alongside the run output (gitignored).
+written both at the app result root and inside the latest/archived
+result output so you can inspect exactly what Arbigent was asked to do
+for the report you're viewing — the runner reads the template,
+substitutes per-app values, and persists the result alongside the run
+output (gitignored).
 
 ## Supported combinations
 

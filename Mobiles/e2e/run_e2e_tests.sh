@@ -457,6 +457,7 @@ run_tests() {
         done
 
     if [ -d "arbigent-result" ]; then
+        cp "$project_file" arbigent-result/arbigent-project.yaml
         generate_report "$RESULTS_DIR/arbigent-result"
         local next_number
         next_number=$(next_results_number)
@@ -471,6 +472,7 @@ run_tests() {
     for dir in arbigent-result-*; do
         [ -d "$dir" ] && mv "$dir" arbigent-result/
     done
+    cp "$project_file" arbigent-result/arbigent-project.yaml
     sleep 2
 
     if [ $arbigent_exit_code -ne 0 ]; then
