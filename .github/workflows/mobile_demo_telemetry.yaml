@@ -385,7 +385,7 @@ jobs:
         if: steps.cache-ios-app.outputs.cache-hit != 'true'
         working-directory: Mobiles/ios
         run: |
-          set -e
+          set -eo pipefail
           echo "Building QuickPizzaIos.app for iOS Simulator..."
           # generic/platform=iOS Simulator avoids xcodebuild requiring a
           # specific simulator to exist at build time; the resulting .app is

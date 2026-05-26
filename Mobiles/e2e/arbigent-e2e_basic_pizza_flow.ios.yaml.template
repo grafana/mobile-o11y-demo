@@ -50,7 +50,7 @@ scenarios:
   - id: "rate_pizza"
     dependency: "request_pizza"
     goal: |
-      You should see the rating success text below the rating buttons.
+      You should tap "Love it!" or "Pass" once and see the rating success text below the rating buttons.
 
       SUCCESS TEXT:
       - The success text will appear below the rating buttons.
