@@ -9,6 +9,7 @@ on:
       - "Mobiles/flutter/**"
       - "Mobiles/react-native/**"
       - "Mobiles/android/**"
+      - "Mobiles/ios/**"
       - "compose.grafana-cloud.microservices.yaml"
   # Manual trigger for testing
   workflow_dispatch: {}
@@ -298,6 +299,135 @@ jobs:
           path: Mobiles/android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 1
 
+  build-ios-native-app:
+    name: Build iOS Native .app
+    # macOS-only: xcodebuild lives in Xcode and only runs on macOS runners.
+    # macos-14 = Sonoma + arm64 (M-series). Pinned rather than -latest so a
+    # GitHub-side macos image bump doesn't silently invalidate the build
+    # cache or break a working Xcode version.
+    runs-on: macos-14
+    timeout-minutes: 45
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Get Vault secrets
+        id: get-secrets
+        uses: grafana/shared-workflows/actions/get-vault-secrets@5d7e361bc7e0a183cde8afe9899fb7b596d2659b # v1.2.0
+        with:
+          # NOTE: these vault paths need to exist in the shared-workflows vault
+          # before this job will work end-to-end. Mirror the naming used for
+          # Android Native (otlp_endpoint_android_native, ...) so future apps
+          # follow a consistent pattern.
+          repo_secrets: |
+            OTLP_ENDPOINT=otlp_endpoint_ios_native:value
+            OTLP_INSTANCE_ID=otlp_instance_id_ios_native:value
+            OTLP_API_KEY=otlp_api_key_ios_native:value
+
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Cache iOS .app and DerivedData
+        id: cache-ios-app
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          # The .app is a directory bundle; tar/zip it as part of the build
+          # step so the cache can store a single file. DerivedData is cached
+          # alongside to keep SPM-resolved deps + module cache between runs;
+          # without it linking adds ~2-3 min.
+          path: |
+            Mobiles/ios/build/ci/QuickPizzaIos.app.tar.gz
+            Mobiles/ios/DerivedData
+          # Hash only iOS build inputs so iOS source changes rebuild while
+          # unrelated repo changes (Flutter/RN/Android/backend) keep cache
+          # hits. OTLP secrets aren't hashed; rotate secrets => clear cache
+          # or rerun manually.
+          key: ios-native-app-cache-${{ runner.os }}-${{ hashFiles('Mobiles/ios/QuickPizzaIos.xcodeproj/**', 'Mobiles/ios/QuickPizzaIos/**', 'Mobiles/ios/Scripts/**', 'Mobiles/ios/Config.xcconfig.example', '.github/workflows/mobile_demo_telemetry.yaml') }}
+
+      - name: Log iOS app cache status
+        run: |
+          if [ "${{ steps.cache-ios-app.outputs.cache-hit }}" = "true" ]; then
+            echo "iOS .app found in cache, skipping build"
+            ls -la Mobiles/ios/build/ci/QuickPizzaIos.app.tar.gz
+          else
+            echo "iOS .app not in cache, will build"
+          fi
+
+      - name: Show Xcode version
+        if: steps.cache-ios-app.outputs.cache-hit != 'true'
+        run: |
+          xcodebuild -version
+          xcrun --show-sdk-path --sdk iphonesimulator
+
+      - name: Create Config.xcconfig for CI
+        if: steps.cache-ios-app.outputs.cache-hit != 'true'
+        working-directory: Mobiles/ios
+        env:
+          OTLP_ENDPOINT: ${{ env.OTLP_ENDPOINT }}
+          OTLP_INSTANCE_ID: ${{ env.OTLP_INSTANCE_ID }}
+          OTLP_API_KEY: ${{ env.OTLP_API_KEY }}
+        run: |
+          # BASE_URL points at localhost on the host running the simulator,
+          # which is the same machine as the runner. xcconfig URLs require
+          # /$()/ to escape the :// since semicolons split values.
+          cat > Config.xcconfig <<EOF
+          BASE_URL = http:/\$()/localhost:3333
+          PORT = 3333
+          OTLP_ENDPOINT = ${OTLP_ENDPOINT}
+          OTLP_INSTANCE_ID = ${OTLP_INSTANCE_ID}
+          OTLP_API_KEY = ${OTLP_API_KEY}
+          EOF
+          echo "Created Config.xcconfig (secrets redacted)"
+
+      - name: Build iOS .app for Simulator
+        if: steps.cache-ios-app.outputs.cache-hit != 'true'
+        working-directory: Mobiles/ios
+        run: |
+          set -e
+          echo "Building QuickPizzaIos.app for iOS Simulator..."
+          # generic/platform=iOS Simulator avoids xcodebuild requiring a
+          # specific simulator to exist at build time; the resulting .app is
+          # a fat simulator binary that runs on any iOS simulator runtime
+          # available on the macOS image.
+          # Force unsigned simulator build: the runner has no access to the
+          # repo's Apple Developer team, and simulator builds don't need a
+          # signature anyway. All three CODE_SIGN_* flags are required for
+          # this to work reliably across Xcode versions.
+          xcodebuild \
+            -project QuickPizzaIos.xcodeproj \
+            -scheme QuickPizzaIos \
+            -configuration Debug \
+            -destination "generic/platform=iOS Simulator" \
+            -derivedDataPath DerivedData \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build | tail -80
+
+          APP_PATH=$(find DerivedData/Build/Products -name "QuickPizzaIos.app" -type d | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "Could not locate built QuickPizzaIos.app under DerivedData"
+            exit 1
+          fi
+          echo "Built app: $APP_PATH"
+
+          mkdir -p build/ci
+          # tar.gz so cache + upload-artifact handle it as a single file
+          # (the .app is a directory bundle; tar preserves the symlinks
+          # and permissions xcrun simctl needs at install time). A debug
+          # build is ~150-300 MB raw; gzip brings the artifact down to a
+          # more reasonable size.
+          tar -C "$(dirname "$APP_PATH")" -czf build/ci/QuickPizzaIos.app.tar.gz "$(basename "$APP_PATH")"
+          ls -la build/ci/
+
+      - name: Upload .app artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ios-native-app
+          path: Mobiles/ios/build/ci/QuickPizzaIos.app.tar.gz
+          retention-days: 1
+
   run-mobile-demo:
     name: Run Mobile Demo
     needs:
@@ -450,7 +580,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: e2e-test-results
+          # Suffixed so the iOS leg (run-ios-mobile-demo) can publish a
+          # parallel artifact without colliding with this one — artifact
+          # names must be unique within a workflow run.
+          name: e2e-test-results-android
           path: Mobiles/e2e/results/
           retention-days: 1
           if-no-files-found: ignore
@@ -469,7 +602,184 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: backend-logs
+          name: backend-logs-android
           path: backend.log
+          retention-days: 3
+          if-no-files-found: ignore
+
+  run-ios-mobile-demo:
+    name: Run iOS Mobile Demo
+    needs:
+      - build-ios-native-app
+    if: ${{ needs.build-ios-native-app.result == 'success' }}
+    # macOS-only: xcrun simctl + the booted iOS simulator only work on macOS.
+    # Pinned to macos-14 (matches the build job) so caches line up.
+    runs-on: macos-14
+    timeout-minutes: 60
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Get Vault secrets
+        id: get-secrets
+        uses: grafana/shared-workflows/actions/get-vault-secrets@5d7e361bc7e0a183cde8afe9899fb7b596d2659b # v1.2.0
+        with:
+          repo_secrets: |
+            GRAFANA_CLOUD_STACK=grafana_cloud_stack:value
+            GRAFANA_CLOUD_TOKEN=grafana_cloud_token:value
+            OPENAI_API_KEY=openai_api_key:value
+
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Download iOS .app artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ios-native-app
+          path: ios-app/
+
+      - name: Untar iOS .app
+        run: |
+          set -e
+          ls -la ios-app/
+          mkdir -p ios-app/unpacked
+          tar -C ios-app/unpacked -xzf ios-app/QuickPizzaIos.app.tar.gz
+          APP_PATH="$(pwd)/ios-app/unpacked/QuickPizzaIos.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "Expected QuickPizzaIos.app at $APP_PATH but it does not exist"
+            exit 1
+          fi
+          echo "IOS_APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
+          echo "Unpacked .app: $APP_PATH"
+
+      - name: Install + start Colima (Docker daemon for macOS)
+        # GitHub-hosted macOS runners do not ship Docker Desktop. Colima
+        # provides a Docker-compatible daemon via QEMU/Lima; we need it to
+        # run the same docker-compose backend stack the Android leg uses so
+        # iOS telemetry flows to the same Grafana Cloud stack. Colima is
+        # preinstalled on the macos-14 image; if a future image bump drops
+        # it, brew install will install it before start.
+        run: |
+          set -e
+          if ! command -v colima >/dev/null 2>&1; then
+            brew install colima docker docker-compose
+          fi
+          # 4 CPU / 6 GB matches what the Android emulator job uses for the
+          # whole compose stack; Alloy + the microservices fit comfortably.
+          colima start --cpu 4 --memory 6 --disk 20 --runtime docker
+          docker version
+          docker compose version
+
+      - name: Start QuickPizza backend (Docker Compose)
+        env:
+          GRAFANA_CLOUD_STACK: ${{ env.GRAFANA_CLOUD_STACK }}
+          GRAFANA_CLOUD_TOKEN: ${{ env.GRAFANA_CLOUD_TOKEN }}
+          DEPLOYMENT_ENVIRONMENT: ci
+          # Same dev Alloy override the Android leg uses, so both legs ship
+          # to the same grafana-dev.net stack via identical pipelines.
+          ALLOY_FILE_NAME: cloud-dev.alloy
+        run: |
+          echo "Starting QuickPizza backend (microservices + dev Alloy override) via Colima..."
+          docker compose -f compose.grafana-cloud.microservices.yaml -f compose.grafana-cloud.dev-override.yaml up -d
+          docker compose -f compose.grafana-cloud.microservices.yaml -f compose.grafana-cloud.dev-override.yaml ps
+
+          echo "Waiting for backend to be ready..."
+          for i in {1..60}; do
+            if curl -fsS "http://localhost:3333/ready" > /dev/null 2>&1; then
+              echo "Backend is ready!"
+              exit 0
+            fi
+            echo "Waiting for backend... attempt $i/60"
+            sleep 2
+          done
+
+          echo "Backend did not become ready in time"
+          docker compose -f compose.grafana-cloud.microservices.yaml -f compose.grafana-cloud.dev-override.yaml logs --no-color
+          exit 1
+
+      - name: Boot iOS simulator + install app
+        run: |
+          set -e
+          # Pick the newest available iPhone runtime/device on the runner.
+          # macos-14 ships several iOS runtimes; we don't hard-code one so
+          # an image bump doesn't break the workflow. Resolve to a UDID
+          # because `simctl bootstatus` requires a UDID (not a name), and
+          # because device names contain spaces ("iPhone 15 Pro") which
+          # make `read` splitting fragile. Tab-separate UDID + name so the
+          # log shows which device we picked without ambiguity.
+          IFS=$'\t' read -r DEVICE_UDID DEVICE_NAME < <(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          data = json.load(sys.stdin)
+          for runtime in sorted(data.get("devices", {}).keys(), reverse=True):
+              for d in data["devices"][runtime]:
+                  if d.get("isAvailable") and "iPhone" in d.get("name", ""):
+                      print(d["udid"], d["name"], sep="\t")
+                      sys.exit(0)
+          sys.exit(1)
+          ')
+          if [ -z "$DEVICE_UDID" ]; then
+            echo "No available iPhone simulator on this runner image"
+            xcrun simctl list devices available
+            exit 1
+          fi
+          echo "Booting simulator: $DEVICE_NAME ($DEVICE_UDID)"
+          xcrun simctl boot "$DEVICE_UDID" || true
+          # Wait until the simulator finishes booting before installing —
+          # `simctl install` on a still-booting device is a common cause of
+          # silent install failures.
+          xcrun simctl bootstatus "$DEVICE_UDID" -b
+          xcrun simctl list devices booted
+
+          echo "Installing $IOS_APP_PATH..."
+          xcrun simctl install booted "$IOS_APP_PATH"
+          xcrun simctl get_app_container booted com.grafana.QuickPizzaIos
+
+      - name: Set up Node.js (shared e2e HTML report generator)
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+
+      - name: Install shared e2e report generator deps
+        working-directory: Mobiles/e2e/report-generator
+        run: npm ci
+
+      - name: Run iOS e2e
+        env:
+          OPENAI_API_KEY: ${{ env.OPENAI_API_KEY }}
+        run: |
+          bash Mobiles/e2e/run_e2e_tests.sh --app=ios-native --platform=ios
+
+      - name: Upload e2e test results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          # Suffixed to avoid colliding with the Android leg's artifact.
+          name: e2e-test-results-ios
+          path: Mobiles/e2e/results/
+          retention-days: 1
+          if-no-files-found: ignore
+
+      - name: Collect backend logs
+        if: always()
+        run: |
+          docker compose -f compose.grafana-cloud.microservices.yaml -f compose.grafana-cloud.dev-override.yaml logs --no-color > backend-ios.log 2>&1 || true
+
+      - name: Stop backend
+        if: always()
+        run: |
+          docker compose -f compose.grafana-cloud.microservices.yaml -f compose.grafana-cloud.dev-override.yaml down -v || true
+
+      - name: Stop Colima
+        if: always()
+        run: |
+          colima stop || true
+
+      - name: Upload backend logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: backend-logs-ios
+          path: backend-ios.log
           retention-days: 3
           if-no-files-found: ignore
