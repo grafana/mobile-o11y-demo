@@ -691,16 +691,19 @@ jobs:
           if ! command -v colima >/dev/null 2>&1 || ! command -v docker >/dev/null 2>&1 || [ ! -e /opt/homebrew/lib/docker/cli-plugins/docker-compose ]; then
             brew install colima docker docker-compose
           fi
-          if ! command -v qemu-img >/dev/null 2>&1; then
-            brew install qemu
-          fi
           mkdir -p ~/.docker/cli-plugins
           ln -sf /opt/homebrew/lib/docker/cli-plugins/docker-compose ~/.docker/cli-plugins/docker-compose
           # 4 CPU / 6 GB matches what the Android emulator job uses for the
           # whole compose stack; Alloy + the microservices fit comfortably.
-          # QEMU is slower than the default VZ driver, but avoids intermittent
-          # VZ startup failures on GitHub-hosted macOS runners.
-          colima start --cpu 4 --memory 6 --disk 20 --runtime docker --vm-type=qemu
+          if ! colima start --cpu 4 --memory 6 --disk 20 --runtime docker --vm-type=vz; then
+            echo "Colima failed with VZ; retrying with QEMU"
+            colima stop || true
+            colima delete -f || true
+            if ! command -v qemu-img >/dev/null 2>&1; then
+              brew install qemu
+            fi
+            colima start --cpu 4 --memory 6 --disk 20 --runtime docker --vm-type=qemu
+          fi
           docker version
           docker compose version
 
