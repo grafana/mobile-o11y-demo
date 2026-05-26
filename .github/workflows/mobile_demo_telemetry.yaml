@@ -688,8 +688,11 @@ jobs:
         # it, brew install will install it before start.
         run: |
           set -e
-          if ! command -v colima >/dev/null 2>&1; then
+          if ! command -v colima >/dev/null 2>&1 || ! command -v docker >/dev/null 2>&1 || [ ! -e /opt/homebrew/lib/docker/cli-plugins/docker-compose ]; then
             brew install colima docker docker-compose
+          fi
+          if ! command -v qemu-img >/dev/null 2>&1; then
+            brew install qemu
           fi
           mkdir -p ~/.docker/cli-plugins
           ln -sf /opt/homebrew/lib/docker/cli-plugins/docker-compose ~/.docker/cli-plugins/docker-compose
