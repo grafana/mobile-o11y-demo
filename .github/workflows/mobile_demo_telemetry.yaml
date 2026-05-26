@@ -30,7 +30,7 @@ env:
 jobs:
   build-flutter-apk:
     name: Build Flutter APK
-    runs-on: &android_runner ubuntu-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       id-token: write
@@ -116,7 +116,7 @@ jobs:
 
   build-react-native-apk:
     name: Build React Native APK
-    runs-on: *android_runner
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       id-token: write
@@ -220,7 +220,7 @@ jobs:
 
   build-android-native-apk:
     name: Build Android Native APK
-    runs-on: *android_runner
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       id-token: write
@@ -306,7 +306,7 @@ jobs:
     # (project file format 77). Pinned rather than -latest so a GitHub-side
     # macOS image bump doesn't silently invalidate the build cache or break
     # a working Xcode version.
-    runs-on: &ios_runner macos-15
+    runs-on: macos-15
     timeout-minutes: 45
     permissions:
       id-token: write
@@ -436,7 +436,7 @@ jobs:
       - build-react-native-apk
       - build-android-native-apk
     if: ${{ needs.build-flutter-apk.result == 'success' && needs.build-react-native-apk.result == 'success' && needs.build-android-native-apk.result == 'success' }}
-    runs-on: *android_runner
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
       id-token: write
@@ -615,7 +615,7 @@ jobs:
     if: ${{ needs.build-ios-native-app.result == 'success' }}
     # macOS-only: xcrun simctl + the booted iOS simulator only work on macOS.
     # Uses the same pinned macOS runner as the iOS build job so caches line up.
-    runs-on: *ios_runner
+    runs-on: macos-15
     timeout-minutes: 60
     permissions:
       id-token: write
