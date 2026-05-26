@@ -316,14 +316,14 @@ jobs:
         id: get-secrets
         uses: grafana/shared-workflows/actions/get-vault-secrets@5d7e361bc7e0a183cde8afe9899fb7b596d2659b # v1.2.0
         with:
-          # NOTE: these vault paths need to exist in the shared-workflows vault
-          # before this job will work end-to-end. Mirror the naming used for
-          # Android Native (otlp_endpoint_android_native, ...) so future apps
-          # follow a consistent pattern.
+          # Reuse the Android Native OTLP creds: both apps ship to the same
+          # Grafana Cloud stack and are separated by the `service.name`
+          # resource attribute (quickpizza-android vs quickpizza-ios) in
+          # the shared "Android & iOS OTel RUM" dashboard.
           repo_secrets: |
-            OTLP_ENDPOINT=otlp_endpoint_ios_native:value
-            OTLP_INSTANCE_ID=otlp_instance_id_ios_native:value
-            OTLP_API_KEY=otlp_api_key_ios_native:value
+            OTLP_ENDPOINT=otlp_endpoint_android_native:value
+            OTLP_INSTANCE_ID=otlp_instance_id_android_native:value
+            OTLP_API_KEY=otlp_api_key_android_native:value
 
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
