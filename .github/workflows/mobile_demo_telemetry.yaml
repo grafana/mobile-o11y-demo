@@ -679,46 +679,29 @@ jobs:
           echo "IOS_APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
           echo "Unpacked .app: $APP_PATH"
 
-      - name: Install + start Colima (Docker daemon for macOS)
-        # GitHub-hosted macOS runners do not ship Docker Desktop. Colima
-        # provides a Docker-compatible daemon via QEMU/Lima; we need it to
-        # run the same docker-compose backend stack the Android leg uses so
-        # iOS telemetry flows to the same Grafana Cloud stack. Colima is
-        # preinstalled on the macos-14 image; if a future image bump drops
-        # it, brew install will install it before start.
+      - name: Set up Go (QuickPizza backend)
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+
+      - name: Build QuickPizza backend
         run: |
           set -e
-          if ! command -v colima >/dev/null 2>&1 || ! command -v docker >/dev/null 2>&1 || [ ! -e /opt/homebrew/lib/docker/cli-plugins/docker-compose ]; then
-            brew install colima docker docker-compose
-          fi
-          mkdir -p ~/.docker/cli-plugins
-          ln -sf /opt/homebrew/lib/docker/cli-plugins/docker-compose ~/.docker/cli-plugins/docker-compose
-          # 4 CPU / 6 GB matches what the Android emulator job uses for the
-          # whole compose stack; Alloy + the microservices fit comfortably.
-          if ! colima start --cpu 4 --memory 6 --disk 20 --runtime docker --vm-type=vz; then
-            echo "Colima failed with VZ; retrying with QEMU"
-            colima stop || true
-            colima delete -f || true
-            if ! command -v qemu-img >/dev/null 2>&1; then
-              brew install qemu
-            fi
-            colima start --cpu 4 --memory 6 --disk 20 --runtime docker --vm-type=qemu
-          fi
-          docker version
-          docker compose version
+          make build-go
 
-      - name: Start QuickPizza backend (Docker Compose)
+      - name: Start QuickPizza backend
         env:
-          GRAFANA_CLOUD_STACK: ${{ env.GRAFANA_CLOUD_STACK }}
-          GRAFANA_CLOUD_TOKEN: ${{ env.GRAFANA_CLOUD_TOKEN }}
           DEPLOYMENT_ENVIRONMENT: ci
-          # Same dev Alloy override the Android leg uses, so both legs ship
-          # to the same grafana-dev.net stack via identical pipelines.
-          ALLOY_FILE_NAME: cloud-dev.alloy
         run: |
-          echo "Starting QuickPizza backend (microservices + dev Alloy override) via Colima..."
-          docker compose -f compose.grafana-cloud.microservices.yaml -f compose.grafana-cloud.dev-override.yaml up -d
-          docker compose -f compose.grafana-cloud.microservices.yaml -f compose.grafana-cloud.dev-override.yaml ps
+          set -e
+          touch backend-ios.log
+          echo "Starting QuickPizza backend natively on macOS..."
+          QUICKPIZZA_TRUST_CLIENT_TRACEID=1 \
+          QUICKPIZZA_ENABLE_ALL_SERVICES=1 \
+          QUICKPIZZA_DB= \
+          QUICKPIZZA_TIMEOUT=10s \
+          QUICKPIZZA_OTEL_SERVICE_NAME=quickpizza-ios-ci-backend \
+          OTEL_RESOURCE_ATTRIBUTES="deployment.environment=${DEPLOYMENT_ENVIRONMENT},service.version=quickpizza-local" \
+          ./bin/quickpizza > backend-ios.log 2>&1 &
+          echo "$!" > backend-ios.pid
 
           echo "Waiting for backend to be ready..."
           for i in {1..60}; do
@@ -731,7 +714,7 @@ jobs:
           done
 
           echo "Backend did not become ready in time"
-          docker compose -f compose.grafana-cloud.microservices.yaml -f compose.grafana-cloud.dev-override.yaml logs --no-color
+          cat backend-ios.log
           exit 1
 
       - name: Boot iOS simulator + install app
@@ -799,17 +782,16 @@ jobs:
       - name: Collect backend logs
         if: always()
         run: |
-          docker compose -f compose.grafana-cloud.microservices.yaml -f compose.grafana-cloud.dev-override.yaml logs --no-color > backend-ios.log 2>&1 || true
+          if [ -f backend-ios.log ]; then
+            tail -200 backend-ios.log
+          fi
 
       - name: Stop backend
         if: always()
         run: |
-          docker compose -f compose.grafana-cloud.microservices.yaml -f compose.grafana-cloud.dev-override.yaml down -v || true
-
-      - name: Stop Colima
-        if: always()
-        run: |
-          colima stop || true
+          if [ -f backend-ios.pid ]; then
+            kill "$(cat backend-ios.pid)" || true
+          fi
 
       - name: Upload backend logs
         if: always()
