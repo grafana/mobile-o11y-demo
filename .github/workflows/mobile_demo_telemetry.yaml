@@ -385,16 +385,17 @@ jobs:
         if: steps.cache-ios-app.outputs.cache-hit != 'true'
         working-directory: Mobiles/ios
         run: |
-          set -eo pipefail
+          set -e
           echo "Building QuickPizzaIos.app for iOS Simulator..."
           # generic/platform=iOS Simulator avoids xcodebuild requiring a
-          # specific simulator to exist at build time; the resulting .app is
-          # a fat simulator binary that runs on any iOS simulator runtime
-          # available on the macOS image.
+          # specific simulator to exist at build time; the resulting .app runs
+          # on arm64 iOS simulators available on the macOS runner image.
           # Force unsigned simulator build: the runner has no access to the
           # repo's Apple Developer team, and simulator builds don't need a
           # signature anyway. All three CODE_SIGN_* flags are required for
           # this to work reliably across Xcode versions.
+          mkdir -p build/ci
+          set +e
           xcodebuild \
             -project QuickPizzaIos.xcodeproj \
             -scheme QuickPizzaIos \
@@ -406,7 +407,20 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             ARCHS=arm64 \
             ONLY_ACTIVE_ARCH=YES \
-            build | tail -80
+            build > build/ci/xcodebuild.log 2>&1
+          build_status=$?
+          set -e
+
+          if [ "$build_status" -ne 0 ]; then
+            echo "xcodebuild failed with status $build_status"
+            echo "Relevant build diagnostics:"
+            grep -nE "error:|fatal error:|BUILD FAILED|The following build commands failed|Command SwiftCompile failed" build/ci/xcodebuild.log | tail -200 || true
+            echo "Last 300 xcodebuild log lines:"
+            tail -300 build/ci/xcodebuild.log
+            exit "$build_status"
+          fi
+
+          tail -80 build/ci/xcodebuild.log
 
           APP_PATH=$(find DerivedData/Build/Products -name "QuickPizzaIos.app" -type d | head -1)
           if [ -z "$APP_PATH" ]; then
@@ -415,7 +429,6 @@ jobs:
           fi
           echo "Built app: $APP_PATH"
 
-          mkdir -p build/ci
           # tar.gz so cache + upload-artifact handle it as a single file
           # (the .app is a directory bundle; tar preserves the symlinks
           # and permissions xcrun simctl needs at install time). A debug
@@ -423,6 +436,15 @@ jobs:
           # more reasonable size.
           tar -C "$(dirname "$APP_PATH")" -czf build/ci/QuickPizzaIos.app.tar.gz "$(basename "$APP_PATH")"
           ls -la build/ci/
+
+      - name: Upload iOS build log
+        if: failure() && steps.cache-ios-app.outputs.cache-hit != 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ios-native-build-log
+          path: Mobiles/ios/build/ci/xcodebuild.log
+          retention-days: 3
+          if-no-files-found: ignore
 
       - name: Upload .app artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
