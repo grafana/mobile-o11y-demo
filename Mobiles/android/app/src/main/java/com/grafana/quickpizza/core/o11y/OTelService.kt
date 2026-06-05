@@ -54,9 +54,12 @@ class OTelService @Inject constructor(
                     enabled(diskBufferingEnabled)
                 }
                 resource {
-                    put(AttributeKey.stringKey("service.name"), "quickpizza-android")
+                    // Logical OTel service (dashboards, Tempo filters) — not the Android package name.
+                    put(AttributeKey.stringKey("service.name"), SERVICE_NAME)
                     put(AttributeKey.stringKey("service.namespace"), "quickpizza")
-                    put(AttributeKey.stringKey("service.version"), appConfig.appVersion)
+                    put(AttributeKey.stringKey("service.version"), appConfig.versionName)
+                    // Encoded build identity — maps to meta.app.bundleId for Android symbol retrace.
+                    put(AttributeKey.stringKey("faro.app.bundleId"), appConfig.symbolsBundleId)
                 }
             }
         }.onFailure { Log.e(TAG, "OTelService initialization failed", it) }.getOrNull()
@@ -140,6 +143,7 @@ class OTelService @Inject constructor(
 
     companion object {
         private const val TAG = "OTelService"
+        const val SERVICE_NAME = "quickpizza-android"
         const val INSTRUMENTATION_SCOPE = "com.grafana.quickpizza"
         private const val CRASH_INSTRUMENTATION_SCOPE = "io.opentelemetry.crash"
         private const val DEVICE_CRASH_EVENT_NAME = "device.crash"

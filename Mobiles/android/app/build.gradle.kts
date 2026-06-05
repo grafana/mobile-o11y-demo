@@ -11,6 +11,10 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
     alias(libs.plugins.bytebuddy)
+    // Auto-uploads R8 mapping.txt + native-debug-symbols.zip after assembleRelease/bundleRelease/installRelease.
+    // NOTE: this module locks the buildscript classpath; after adding this plugin run
+    // `./gradlew --write-locks` (or `dependencies --write-locks`) to refresh the lockfiles.
+    id("com.grafana.faro") version "0.1.0"
 }
 
 // Remove config.json.example from res/raw before the resource merger runs.
@@ -40,7 +44,10 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -68,6 +75,14 @@ android {
             path = file("src/main/cpp/CMakeLists.txt")
         }
     }
+}
+
+// Grafana Faro symbol upload. Secrets come from the environment / CI — never hardcode the key.
+faro {
+    endpoint.set(System.getenv("FARO_SOURCEMAP_ENDPOINT"))
+    appId.set(System.getenv("FARO_SOURCEMAP_APP_ID"))
+    stackId.set(System.getenv("FARO_SOURCEMAP_STACK_ID"))
+    apiKey.set(System.getenv("FARO_SOURCEMAP_API_KEY"))
 }
 
 dependencies {
@@ -115,6 +130,8 @@ dependencies {
     implementation("com.google.protobuf:protobuf-javalite:3.25.1")
 
     // Testing
+    testImplementation(libs.junit4)
+    testImplementation(libs.proguard.retrace)
     androidTestImplementation(libs.test.runner)
     androidTestImplementation(libs.test.espresso.core)
     androidTestImplementation(libs.test.junit.ext)
