@@ -1558,7 +1558,7 @@ __metadata:
 
 "@grafana/faro-react-native@file:../../../faro-react-native-sdk/packages/react-native::locator=QuickPizza%40workspace%3A.":
   version: 1.2.1
-  resolution: "@grafana/faro-react-native@file:../../../faro-react-native-sdk/packages/react-native#../../../faro-react-native-sdk/packages/react-native::hash=224f6a&locator=QuickPizza%40workspace%3A."
+  resolution: "@grafana/faro-react-native@file:../../../faro-react-native-sdk/packages/react-native#../../../faro-react-native-sdk/packages/react-native::hash=934822&locator=QuickPizza%40workspace%3A."
   dependencies:
     "@grafana/faro-core": "npm:^2.2.3"
     "@react-native-async-storage/async-storage": "npm:^1.21.0"
@@ -1573,7 +1573,7 @@ __metadata:
       optional: true
     react-native-mmkv:
       optional: true
-  checksum: 10c0/28f773afb9a30e08f138894c2ba018a3bb63a49fc1d091ecee663a188497121d5c01b78d9fcc41a18ca357a224091da962050292af3d23f8d4566cf979748f12
+  checksum: 10c0/5d60741afebf1a897df3c956b402a1e978911bb909bb80310f90b756c3a384245901a73559f89dd2258cb693fccfa760d76f7053f9eea6da705f9c237ed551c9
   languageName: node
   linkType: hard
 
