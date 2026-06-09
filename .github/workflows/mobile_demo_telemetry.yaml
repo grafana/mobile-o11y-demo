@@ -51,7 +51,7 @@ jobs:
     if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'codex/fix-mobile-telemetry-ci')
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    environment: mobile-demo-telemetry
+    environment: ${{ github.event_name == 'pull_request' && 'mobile-demo-telemetry-pr' || 'mobile-demo-telemetry' }}
     permissions:
       id-token: write
       contents: read
@@ -339,7 +339,7 @@ jobs:
     # macOS-only: xcrun simctl + the booted iOS simulator only work on macOS.
     runs-on: macos-26
     timeout-minutes: 180
-    environment: mobile-demo-telemetry
+    environment: ${{ github.event_name == 'pull_request' && 'mobile-demo-telemetry-pr' || 'mobile-demo-telemetry' }}
     permissions:
       id-token: write
       contents: read
