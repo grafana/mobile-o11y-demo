@@ -37,7 +37,7 @@ env:
 
 jobs:
   run-mobile-demo:
-    name: Run Mobile Demo
+    name: Run Android Mobile Demo
     runs-on: ubuntu-latest
     timeout-minutes: 90
     environment: mobile-demo-telemetry
