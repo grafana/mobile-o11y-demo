@@ -94,6 +94,10 @@ class OTelService @Inject constructor(
      * *after* that delegation — i.e. after the process is already dead. The queued crash log is
      * dropped, so crashes never appear in the backend (handled exceptions are unaffected because
      * the process stays alive long enough for the normal batch flush).
+     *
+     * We install the outermost handler ourselves: emit `device.crash`, force-flush synchronously,
+     * then hand off to the original OS handler so the app still crashes for real. Because this
+     * replaces the SDK chain as the default handler, the crash is emitted exactly once.
      */
     private fun installCrashFlushHandler(osHandler: Thread.UncaughtExceptionHandler?) {
         val sdk = rum?.openTelemetry as? OpenTelemetrySdk ?: run {
@@ -119,6 +123,7 @@ class OTelService @Inject constructor(
         }
     }
 
+    /** Mirrors the OTel-Android CrashReporter payload so the collector classifies it as a crash. */
     private fun emitDeviceCrash(sdk: OpenTelemetrySdk, thread: Thread, throwable: Throwable) {
         sdk.logsBridge.get(CRASH_INSTRUMENTATION_SCOPE)
             .logRecordBuilder()

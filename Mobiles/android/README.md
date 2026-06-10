@@ -183,9 +183,9 @@ live demos at the cost of dropping signals if the network is down.
 custom event (`debug.test_event`).
 - **Handled exception** — emits an OTel exception log via
 `logger.exception(...)`.
-- **ANR card** — blocks the main thread for 6 s. Android's 5 s ANR
+- **ANR card** — blocks the main thread for 10 s (same as RN). Android's 5 s ANR
 threshold trips and `event_name=device.anr` is captured by the OTel
-agent.
+agent; ~5 s of system Wait/Close dialog after that.
 - **Crash card** — `RuntimeException` and simulated `NullPointerException`
 variants. The OTel-Android `CrashReporter` persists the crash to disk
 and the exporter delivers it on the next app launch.

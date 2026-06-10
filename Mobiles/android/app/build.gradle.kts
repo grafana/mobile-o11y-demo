@@ -44,6 +44,8 @@ android {
 
     buildTypes {
         release {
+            // Demo / local release installs (installRelease requires a signing config).
+            signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = true
             ndk {
                 debugSymbolLevel = "FULL"
