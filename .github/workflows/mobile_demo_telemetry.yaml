@@ -9,6 +9,16 @@ on:
         required: false
         default: false
         type: boolean
+  # Temporary: run full telemetry on PR #75 to validate the iOS backend telemetry fix.
+  pull_request:
+    paths:
+      - ".github/workflows/mobile_demo_telemetry.yaml"
+      - "Mobiles/e2e/**"
+      - "Mobiles/flutter/**"
+      - "Mobiles/react-native/**"
+      - "Mobiles/android/**"
+      - "Mobiles/ios/**"
+      - "compose.grafana-cloud.microservices.yaml"
   # Scheduled run every hour for continuous telemetry
   schedule:
     - cron: "0 * * * *"
@@ -38,9 +48,10 @@ env:
 jobs:
   run-mobile-demo:
     name: Run Android Mobile Demo
+    if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'codex/fix-ios-telemetry-backend')
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    environment: mobile-demo-telemetry
+    environment: ${{ github.event_name == 'pull_request' && 'mobile-demo-telemetry-pr' || 'mobile-demo-telemetry' }}
     permissions:
       id-token: write
       contents: read
@@ -324,10 +335,11 @@ jobs:
 
   run-ios-mobile-demo:
     name: Run iOS Mobile Demo
+    if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'codex/fix-ios-telemetry-backend')
     # macOS-only: xcrun simctl + the booted iOS simulator only work on macOS.
     runs-on: macos-26
     timeout-minutes: 180
-    environment: mobile-demo-telemetry
+    environment: ${{ github.event_name == 'pull_request' && 'mobile-demo-telemetry-pr' || 'mobile-demo-telemetry' }}
     permissions:
       id-token: write
       contents: read
