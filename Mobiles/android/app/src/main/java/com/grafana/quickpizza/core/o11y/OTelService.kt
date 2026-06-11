@@ -119,6 +119,7 @@ class OTelService @Inject constructor(
                 if (osHandler != null) {
                     osHandler.uncaughtException(thread, throwable)
                 } else {
+                    // No prior handler registered; terminate the process to ensure the app crashes for real.
                     android.os.Process.killProcess(android.os.Process.myPid())
                     kotlin.system.exitProcess(10)
                 }

@@ -40,16 +40,16 @@ class R8RetraceTest {
     }
 
     private companion object {
-        const val SAMPLE_MAPPING = """
+        val SAMPLE_MAPPING = """
             com.grafana.quickpizza.features.debug.DebugViewModel -> a5.r0:
                 163:163:void triggerRuntimeCrash():163:163 -> invoke
-        """
+        """.trimIndent()
 
-        const val SAMPLE_OBFUSCATED_STACK = """
+        val SAMPLE_OBFUSCATED_STACK = """
             java.lang.RuntimeException: Deliberate crash from QuickPizza debug tab
                 at a5.r0.invoke(DebugViewModel.kt:163)
                 at a5.r0.invoke(Unknown Source)
                 at kotlinx.coroutines.internal.DispatchedContinuationKt.resumeCancellableWith(DispatchedContinuation.kt:375)
-        """
+        """.trimIndent()
     }
 }
