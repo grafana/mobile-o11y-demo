@@ -28,21 +28,11 @@ class AppConfig @Inject constructor(
     val applicationId: String get() = context.packageName
 
     val versionCode: Long
-        get() = runCatching {
-            val info = context.packageManager.getPackageInfo(context.packageName, 0)
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                info.longVersionCode
-            } else {
-                @Suppress("DEPRECATION")
-                info.versionCode.toLong()
-            }
-        }.getOrDefault(0L)
-
-    val versionName: String get() = appVersion
+        get() = AndroidPackageInfo.getVersionCode(context)
 
     /** Encoded Android symbols bundle id: `{applicationId}@{versionCode}@{versionName}`. */
     val symbolsBundleId: String get() =
-        SymbolsBundleId.format(applicationId, versionCode, versionName)
+        SymbolsBundleId.format(applicationId, versionCode, appVersion)
 
     val appVersion: String get() = runCatching {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "unknown"

@@ -1,7 +1,7 @@
 # QuickPizza Android Demo App
 
 A native Kotlin / Jetpack Compose app that demonstrates mobile observability
-using the `[opentelemetry-android](https://github.com/open-telemetry/opentelemetry-android)`
+using the [opentelemetry-android](https://github.com/open-telemetry/opentelemetry-android)
 RUM agent. It connects to the QuickPizza backend and exports traces and
 logs over OTLP/HTTP to Grafana Cloud.
 
@@ -10,14 +10,14 @@ logs over OTLP/HTTP to Grafana Cloud.
 > native Android app specifically.
 
 For setup details (Android Studio, SDK, emulator, physical devices) see
-`[../docs/ANDROID_NATIVE_SETUP.md](../docs/ANDROID_NATIVE_SETUP.md)`.
+[../docs/ANDROID_NATIVE_SETUP.md](../docs/ANDROID_NATIVE_SETUP.md).
 
 For the cross-platform observability overview (Faro vs OTel, what each
 platform emits, dashboards) see
-`[../docs/MOBILE_OBSERVABILITY_OVERVIEW.md](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md)`.
+[../docs/MOBILE_OBSERVABILITY_OVERVIEW.md](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md).
 
 > **Not the same as the Flutter Android app.** The Flutter implementation
-> lives at `[../flutter/](../flutter/)`. This directory is the **native**
+> lives at [../flutter/](../flutter/). This directory is the **native**
 > Kotlin/Compose app.
 
 ---
@@ -54,9 +54,9 @@ persist to `SharedPreferences` and apply on the next launch.
 ## Release build and Android symbols
 
 Release builds enable R8 (`isMinifyEnabled = true`) and emit native debug
-symbols (`ndk.debugSymbolLevel = FULL`). The `**com.grafana.faro`** Gradle plugin
+symbols (`ndk.debugSymbolLevel = FULL`). The **`com.grafana.faro`** Gradle plugin
 (`app/build.gradle.kts`) uploads symbolication artifacts automatically after
-`assembleRelease`, `bundleRelease`, or `**installRelease**` — no manual
+`assembleRelease`, `bundleRelease`, or **`installRelease`** — no manual
 `faro-cli` step is required.
 
 
@@ -70,7 +70,7 @@ symbols (`ndk.debugSymbolLevel = FULL`). The `**com.grafana.faro`** Gradle plugi
 
 Each shipped Android release gets a **release id** — a short label that
 combines the app package name, build number, and version string. For this
-demo that id is `**com.grafana.quickpizza@1@1.0`**.
+demo that id is **`com.grafana.quickpizza@1@1.0`**.
 
 Think of it in three steps:
 
@@ -89,13 +89,13 @@ build tooling and uploads stay in sync. Engineers: the app emits this id as
 `faro.app.bundleId` at runtime; `service.version` remains the human-readable
 version (`1.0`) for dashboards.
 
-> **Also in this repo — the React Native demo** (`[../react-native/](../react-native/)`):
+> **Also in this repo — the React Native demo** ([../react-native/](../react-native/)):
 > same three-step flow and the same release id per build. The difference is
 > *what* gets uploaded at build time. The React Native app is written in
 > JavaScript *and* native Android code, so its release pipeline uploads debug
 > files for **both** layers under one id. **This app** is native Kotlin only,
 > so it uploads debug files for the **Android/native** layer alone. Details:
-> `[../react-native/README.md](../react-native/README.md)`.
+> [../react-native/README.md](../react-native/README.md).
 
 ### Configure upload credentials
 
@@ -152,7 +152,7 @@ ls -l app/build/outputs/native-debug-symbols/release/native-debug-symbols.zip
 Manual retry outside Gradle (optional): `faro-cli android upload` with the same
 `FARO_SOURCEMAP_*` env vars and `--application-id` / `--version-code` /
 `--version-name` matching `bundle-id-release.txt` (see
-`[faro-cli` `android upload](https://github.com/grafana/faro-javascript-bundler-plugins/tree/main/packages/faro-cli)`).
+[faro-cli android upload](https://github.com/grafana/faro-javascript-bundler-plugins/tree/main/packages/faro-cli)).
 
 **Verify in Grafana:** install the release build (`./gradlew installRelease`),
 open the app, trigger **Debug → Crash (RuntimeException)**, relaunch, and check
@@ -165,30 +165,30 @@ scrambled labels like `a5.r0`.
 
 The user-facing screens (Home, Login, Profile, About, Debug) are aligned
 with the other QuickPizza mobile apps. See
-`[../FEATURES.md](../FEATURES.md)` for the shared feature spec.
+[../FEATURES.md](../FEATURES.md) for the shared feature spec.
 
 The **Debug** tab exposes:
 
 - Runtime config overrides (backend URL, OTLP endpoint, instance ID, API key).
 - Backend error/latency injection toggles
-(`x-error-record-recommendation`, `x-delay-record-recommendation`,
-`x-error-get-ingredients`, `x-delay-get-ingredients`).
+  (`x-error-record-recommendation`, `x-delay-record-recommendation`,
+  `x-error-get-ingredients`, `x-delay-get-ingredients`).
 - Client-side fault simulation (`useV2PizzaSchema`,
-`skipAuthDepInTools`).
+  `skipAuthDepInTools`).
 - An **OTel SDK section** with a `Disable disk buffering` toggle —
-default-on disk buffering means ~30–45 s end-to-end latency at the
-cost of offline resilience; turning it off gives ~1–6 s latency for
-live demos at the cost of dropping signals if the network is down.
+  default-on disk buffering means ~30–45 s end-to-end latency at the
+  cost of offline resilience; turning it off gives ~1–6 s latency for
+  live demos at the cost of dropping signals if the network is down.
 - **Quick signals** — buttons to send a debug log, an error log, and a
 custom event (`debug.test_event`).
 - **Handled exception** — emits an OTel exception log via
 `logger.exception(...)`.
 - **ANR card** — blocks the main thread for 10 s (same as RN). Android's 5 s ANR
-threshold trips and `event_name=device.anr` is captured by the OTel
-agent; ~5 s of system Wait/Close dialog after that.
+  threshold trips and `event_name=device.anr` is captured by the OTel
+  agent; ~5 s of system Wait/Close dialog after that.
 - **Crash card** — `RuntimeException` and simulated `NullPointerException`
-variants. The OTel-Android `CrashReporter` persists the crash to disk
-and the exporter delivers it on the next app launch.
+  variants. The OTel-Android `CrashReporter` persists the crash to disk
+  and the exporter delivers it on the next app launch.
 
 ---
 

@@ -54,10 +54,13 @@ class OTelService @Inject constructor(
                     enabled(diskBufferingEnabled)
                 }
                 resource {
-                    // Logical OTel service (dashboards, Tempo filters) — not the Android package name.
+                    // Logical service name for traces/dashboards (not the package name).
+                    // This groups all Android app telemetry together, similar to how
+                    // the app name appears in Frontend Observability.
                     put(AttributeKey.stringKey("service.name"), SERVICE_NAME)
                     put(AttributeKey.stringKey("service.namespace"), "quickpizza")
-                    put(AttributeKey.stringKey("service.version"), appConfig.versionName)
+                    // App version - matches the version displayed to users.
+                    put(AttributeKey.stringKey("service.version"), appConfig.appVersion)
                     // Encoded build identity — maps to meta.app.bundleId for Android symbol retrace.
                     put(AttributeKey.stringKey("faro.app.bundleId"), appConfig.symbolsBundleId)
                 }
