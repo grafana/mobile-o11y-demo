@@ -274,26 +274,31 @@ jobs:
             adb shell settings put global transition_animation_scale 0 || true
             adb shell settings put global animator_duration_scale 0 || true
 
-            # Single reverse for all apps on the same emulator (devices use localhost:3333)
+            # Devices use localhost:3333; refresh this between apps in case
+            # ADB state changes during test cleanup.
             echo "Setting up ADB reverse port forwarding..."
+            adb reverse --remove tcp:3333 || true
             adb reverse tcp:3333 tcp:3333
 
             echo "==> Flutter APK: install and E2E"
             adb install -r apk/flutter/app-debug.apk
             timeout --foreground 25m bash Mobiles/e2e/run_e2e_tests.sh --app=flutter --platform=android
             adb shell am force-stop com.example.flutter_mobile_o11y_demo || true
+            adb reverse --remove tcp:3333 || true
             adb reverse tcp:3333 tcp:3333
 
             echo "==> React Native APK: install and E2E"
             adb install -r apk/react-native/app-debug.apk
             timeout --foreground 25m bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=android
             adb shell am force-stop com.quickpizza || true
+            adb reverse --remove tcp:3333 || true
             adb reverse tcp:3333 tcp:3333
 
             echo "==> Android Native APK: install and E2E"
             adb install -r apk/android-native/app-debug.apk
             timeout --foreground 25m bash Mobiles/e2e/run_e2e_tests.sh --app=android-native --platform=android
             adb shell am force-stop com.grafana.quickpizza || true
+            adb reverse --remove tcp:3333 || true
             adb reverse tcp:3333 tcp:3333
 
             # android-emulator-runner executes script lines individually, so
