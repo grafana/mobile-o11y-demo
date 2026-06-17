@@ -270,7 +270,6 @@ jobs:
           RUN_DIAGNOSTICS: ${{ github.event_name == 'workflow_dispatch' && inputs.run_diagnostics == true }}
         with:
           api-level: 34
-          target: aosp_atd
           arch: x86_64
           profile: pixel_2
           cores: 2
