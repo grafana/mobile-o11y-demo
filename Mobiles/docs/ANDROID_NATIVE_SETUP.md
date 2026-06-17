@@ -23,7 +23,7 @@ Setup guide for the native Android QuickPizza app (`Mobiles/android/`).
 The app reads `app/src/main/res/raw/config.json` at startup. This file is gitignored so you must create it from the example:
 
 ```bash
-cp Mobiles/android/app/src/main/res/raw/config.json.example \
+cp Mobiles/android/config.json.example \
    Mobiles/android/app/src/main/res/raw/config.json
 ```
 

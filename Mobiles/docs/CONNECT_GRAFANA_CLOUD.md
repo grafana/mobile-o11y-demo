@@ -9,9 +9,11 @@ families that authenticate differently:
 | Flutter, React Native | Grafana **Faro** | `FARO_COLLECTOR_URL` | Frontend Observability plugin |
 | iOS native, Android native | **OpenTelemetry** | `OTLP_ENDPOINT` + `OTLP_INSTANCE_ID` + `OTLP_API_KEY` | Tempo (traces) + Loki (logs), viewed via the [Mobile OTel RUM dashboard](./MOBILE_OTEL_RUM_DASHBOARD.md) |
 
-> You can run any app **without** Grafana Cloud — leave the telemetry fields
-> empty and signals are written to the local console only (Xcode/Logcat/Metro).
-> Configure the values below when you want data to show up in Grafana.
+> **Faro apps require a collector URL.** The Flutter and React Native apps
+> throw at startup if `FARO_COLLECTOR_URL` is empty, so you must set it (see
+> below) even for a local-only demo. The **native OTel apps (iOS, Android)** are
+> different — leave the OTLP fields empty and signals go to the local console
+> only (Xcode/Logcat); set them when you want data in Grafana.
 
 Every app can also take these values at runtime from its in-app **Debug →
 Config** screen (applied on next launch), so you can reconfigure during a demo
@@ -28,17 +30,19 @@ The backend emits its **own** traces/metrics/logs (via Grafana Alloy), which is
 what you need if you want to see the **server side** of the HTTP calls the apps
 make — i.e. mobile → backend end-to-end traces in one stack. That is configured
 separately, not here: run the backend with the instrumented Docker Compose setup
-and a `.env` containing `GRAFANA_CLOUD_STACK` + `GRAFANA_CLOUD_TOKEN`, as
-documented in the [root README → *Run locally and observe with Grafana
-Cloud*](../../README.md#run-locally-and-observe-with-grafana-cloud-). Point the
-backend at the **same** Grafana Cloud stack as the app so both land together.
+and a `.env` containing `GRAFANA_CLOUD_STACK` + `GRAFANA_CLOUD_TOKEN`, then turn
+on the relevant solutions as documented in the root README under
+[*Enable Grafana Cloud Observability solutions*](../../README.md#enable-grafana-cloud-observability-solutions)
+(and the Docker Compose `.env` steps just above it). Point the backend at the
+**same** Grafana Cloud stack as the app so both land together.
 
 ---
 
 ## Faro apps (Flutter, React Native)
 
 Faro apps send to a **collector URL** that already encodes the app identity and
-auth — there is no separate token to manage.
+auth — there is no separate token to manage. This URL is **required**: the
+Flutter and React Native apps throw at startup if it is empty.
 
 1. In Grafana Cloud, open **Frontend Observability**.
 2. Create a new app (or open an existing one) and set the domain — for local

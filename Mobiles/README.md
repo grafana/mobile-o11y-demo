@@ -54,12 +54,18 @@ curl http://localhost:3333/api/pizza   # should return a JSON pizza
 > backend with full local/cloud observability instead, see the Docker Compose
 > options in the [root README](../README.md).
 
-### Step 2 — (Optional) Connect to Grafana Cloud
+### Step 2 — Connect to Grafana Cloud
 
-You can run any app without this — telemetry just stays in the local console.
-To send data to Grafana Cloud, set the SDK credentials once:
-[**Connect to Grafana Cloud**](./docs/CONNECT_GRAFANA_CLOUD.md) (covers both the
-Faro collector URL and the OTLP endpoint/token).
+Whether this is optional depends on the SDK family:
+
+- **Flutter / React Native (Faro):** a `FARO_COLLECTOR_URL` is **required** —
+  these apps throw at startup without one, even for a local-only demo.
+- **iOS / Android native (OpenTelemetry):** Grafana Cloud is **optional** —
+  leave the OTLP fields empty to keep telemetry in the local console, or set
+  them to export.
+
+One doc covers both: [**Connect to Grafana Cloud**](./docs/CONNECT_GRAFANA_CLOUD.md)
+(Faro collector URL and OTLP endpoint/token).
 
 ### Step 3 — Pick a platform and run it
 
@@ -70,7 +76,7 @@ Quick orientation:
   `cd ios && cp Config.xcconfig.example Config.xcconfig && bash Scripts/sim-run.sh`.
   Full steps: [iOS README](./ios/README.md).
 - **Android native** — Android Studio + emulator.
-  `cd android && cp app/src/main/res/raw/config.json.example app/src/main/res/raw/config.json && ./gradlew installDebug`.
+  `cd android && cp config.json.example app/src/main/res/raw/config.json && ./gradlew installDebug`.
   Full steps: [Android README](./android/README.md) ·
   [toolchain setup](./docs/ANDROID_NATIVE_SETUP.md).
 - **Flutter** — needs the Flutter SDK plus a mobile toolchain:

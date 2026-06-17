@@ -43,9 +43,9 @@ cp config.json.example config.json
 
 Edit `config.json`:
 
-- **FARO_COLLECTOR_URL** (required for cloud): Your Grafana Faro collector URL —
-  see [Connect to Grafana Cloud](../docs/CONNECT_GRAFANA_CLOUD.md). Leave empty
-  to keep telemetry in the console only.
+- **FARO_COLLECTOR_URL** (**required**): Your Grafana Faro collector URL —
+  see [Connect to Grafana Cloud](../docs/CONNECT_GRAFANA_CLOUD.md). The app
+  throws at startup if this is empty.
 - **BASE_URL** (optional): Backend API URL. Leave empty on emulators/simulators;
   set to your machine's LAN IP for physical devices. See
   [emulator/device defaults](../README.md#shared-basics).
@@ -253,8 +253,9 @@ When a PASS lands, you can confidently upload, reinstall, and run the full Front
 
 ### Start the QuickPizza backend
 
-**Option A – Monolithic (simple):** the one-container command from
-[Mobile README § Step 1](../README.md#step-1--start-the-backend):
+**Option A – Monolithic (simple):** the one-container backend (see
+[Mobile README § Step 1](../README.md#step-1--start-the-backend) for the
+canonical command). Here it's run interactively rather than detached:
 
 ```bash
 docker run --rm -it -p 3333:3333 ghcr.io/grafana/quickpizza-mobile-local:latest

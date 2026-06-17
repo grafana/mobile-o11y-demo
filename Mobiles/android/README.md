@@ -25,8 +25,9 @@ platform emits, dashboards) see
 ## Quickstart
 
 ```bash
-# 1. Configure
-cp app/src/main/res/raw/config.json.example \
+# 1. Configure (the example template lives at the project root; a Gradle task
+#    strips any *.example out of res/raw before the resource merger runs)
+cp config.json.example \
    app/src/main/res/raw/config.json
 # edit OTLP_ENDPOINT, OTLP_INSTANCE_ID, OTLP_API_KEY, BASE_URL
 
@@ -83,7 +84,7 @@ The **Debug** tab exposes:
 ## Observability
 
 The app uses [`opentelemetry-android`](https://github.com/open-telemetry/opentelemetry-android)
-1.2.0-alpha and exports via OTLP/HTTP. Init lives in
+1.4.0-alpha and exports via OTLP/HTTP. Init lives in
 `app/src/main/java/com/grafana/quickpizza/core/o11y/OTelService.kt`.
 
 | Signal | Examples |

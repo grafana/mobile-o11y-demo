@@ -73,9 +73,9 @@ flutter pub get
 
    **Configuration options:**
 
-   - `FARO_COLLECTOR_URL`: Your Grafana Faro collector URL — see
-     [Connect to Grafana Cloud](../docs/CONNECT_GRAFANA_CLOUD.md). Leave empty to
-     keep telemetry in the console only.
+   - `FARO_COLLECTOR_URL` (**required**): Your Grafana Faro collector URL — see
+     [Connect to Grafana Cloud](../docs/CONNECT_GRAFANA_CLOUD.md). The app throws
+     at startup if this is empty.
    - `BASE_URL`: Backend API URL. Leave empty on emulators/simulators; set it to
      your machine's LAN IP for physical devices. See
      [emulator/device defaults in the Mobile README](../README.md#shared-basics).
