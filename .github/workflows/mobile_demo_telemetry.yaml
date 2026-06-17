@@ -9,6 +9,18 @@ on:
         required: false
         default: false
         type: boolean
+  # TEMPORARY: validate full mobile telemetry on this PR, then remove before merge.
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/mobile_demo_telemetry.yaml"
+      - "Mobiles/e2e/**"
+      - "Mobiles/flutter/**"
+      - "Mobiles/react-native/**"
+      - "Mobiles/android/**"
+      - "Mobiles/ios/**"
+      - "compose.grafana-cloud.microservices.yaml"
   # Scheduled run every hour for continuous telemetry
   schedule:
     - cron: "0 * * * *"
