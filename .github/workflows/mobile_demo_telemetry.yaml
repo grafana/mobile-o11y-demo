@@ -9,18 +9,6 @@ on:
         required: false
         default: false
         type: boolean
-  # TEMPORARY: validate full mobile telemetry on this PR, then remove before merge.
-  pull_request:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/mobile_demo_telemetry.yaml"
-      - "Mobiles/e2e/**"
-      - "Mobiles/flutter/**"
-      - "Mobiles/react-native/**"
-      - "Mobiles/android/**"
-      - "Mobiles/ios/**"
-      - "compose.grafana-cloud.microservices.yaml"
   # Scheduled run every hour for continuous telemetry
   schedule:
     - cron: "0 * * * *"
@@ -50,12 +38,9 @@ env:
 jobs:
   run-mobile-demo:
     name: Run Android Mobile Demo
-    if: github.event_name != 'pull_request' || github.head_ref == 'codex/harden-mobile-telemetry-ci'
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    # TEMPORARY: disabled for PR validation because refs/pull/* is blocked by
-    # the mobile-demo-telemetry environment protection rules. Restore before merge.
-    # environment: mobile-demo-telemetry
+    environment: mobile-demo-telemetry
     permissions:
       id-token: write
       contents: read
@@ -354,7 +339,6 @@ jobs:
 
   run-ios-mobile-demo:
     name: Run iOS Mobile Demo
-    if: github.event_name != 'pull_request'
     # macOS-only: xcrun simctl + the booted iOS simulator only work on macOS.
     runs-on: macos-26
     timeout-minutes: 180
