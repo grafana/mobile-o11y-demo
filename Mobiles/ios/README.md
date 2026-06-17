@@ -4,7 +4,11 @@ A native SwiftUI app that demonstrates mobile observability using OpenTelemetry.
 It connects to the QuickPizza backend and sends traces/logs to an OTLP collector
 (any Grafana Cloud stack you configure — see [Sending Telemetry to Grafana Cloud](#sending-telemetry-to-grafana-cloud)).
 
-> For a cross-platform comparison of all four QuickPizza mobile demos (Flutter, React Native, iOS native, Android native) and what each one emits, see [`../docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md). For the iOS instrumentation deep-dive see [`../docs/IOS_OBSERVABILITY_OTEL_GUIDE.md`](../docs/IOS_OBSERVABILITY_OTEL_GUIDE.md). The shared feature spec lives in [`../FEATURES.md`](../FEATURES.md).
+> **New here?** Start at [`../README.md`](../README.md) for the overview of all
+> four apps, the backend, and how to get a demo running. This page covers the
+> native iOS app specifically.
+>
+> For a cross-platform comparison of what each app emits, see [`../docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md). For the iOS instrumentation deep-dive see [`../docs/IOS_OBSERVABILITY_OTEL_GUIDE.md`](../docs/IOS_OBSERVABILITY_OTEL_GUIDE.md). The shared feature spec lives in [`../FEATURES.md`](../FEATURES.md).
 
 ---
 
@@ -134,22 +138,10 @@ details.
 
 ## Sending Telemetry to Grafana Cloud
 
-To send traces and logs to a Grafana Cloud stack, you need an OTLP endpoint
-and an API token.
-
-### Find your OTLP endpoint and credentials
-
-The OTLP endpoint follows the standard Grafana Cloud pattern:
-
-```
-https://otlp-gateway-<clusterSlug>.grafana.net/otlp
-```
-
-To find your `clusterSlug`, Instance ID, and API token:
-
-1. Go to your Grafana Cloud org page (`https://grafana.com/orgs/<your-org>`)
-2. Find the stack and click through to its details — the **cluster slug** and **numeric Instance ID** are listed there
-3. Generate an API token with scopes: `metrics:write`, `logs:write`, `traces:write`
+To send traces and logs to a Grafana Cloud stack you need an OTLP endpoint,
+instance ID, and token. Finding those values is the same for both native apps —
+see [**Connect to Grafana Cloud**](../docs/CONNECT_GRAFANA_CLOUD.md#opentelemetry-apps-ios-native-android-native).
+Then fill them into `Config.xcconfig` as shown below.
 
 ### Update Config.xcconfig
 

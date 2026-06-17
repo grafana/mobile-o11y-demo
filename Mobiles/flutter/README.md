@@ -2,7 +2,11 @@
 
 A Flutter mobile application that replicates the QuickPizza web application functionality. This app allows users to get pizza recommendations, rate pizzas, and manage their profile, and demonstrates Grafana Faro mobile telemetry.
 
-> For a cross-platform comparison of all four QuickPizza mobile demos (Flutter, React Native, iOS native, Android native) and what each one emits, see [`../docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md). The shared feature spec lives in [`../FEATURES.md`](../FEATURES.md).
+> **New here?** Start at [`../README.md`](../README.md) for the overview of all
+> four apps, the backend, and how to get a demo running. This page covers the
+> Flutter app specifically.
+>
+> For a cross-platform comparison of what each app emits, see [`../docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md). The shared feature spec lives in [`../FEATURES.md`](../FEATURES.md).
 
 ## Features
 
@@ -29,13 +33,13 @@ A Flutter mobile application that replicates the QuickPizza web application func
 
 **For Android development:**
 
-- Follow the setup guide: [`../docs/ANDROID_SETUP.md`](../docs/ANDROID_SETUP.md)
+- Follow the setup guide: [`../docs/FLUTTER_ANDROID_SETUP.md`](../docs/FLUTTER_ANDROID_SETUP.md)
 - Quick check: Run `flutter doctor` - Android toolchain should show ✓
 - **Quick start:** After setup, use `./scripts/run-android.sh` to automatically open emulator and run the app
 
 **For iOS development (macOS only):**
 
-- Follow the setup guide: [`../docs/XCODE_SETUP.md`](../docs/XCODE_SETUP.md)
+- Follow the setup guide: [`../docs/FLUTTER_IOS_SETUP.md`](../docs/FLUTTER_IOS_SETUP.md)
 - Quick check: Run `flutter doctor` - Xcode should show ✓
 - **Quick start:** After setup, use `./scripts/run-ios.sh` to automatically open simulator and run the app
 
@@ -69,20 +73,13 @@ flutter pub get
 
    **Configuration options:**
 
-   - `FARO_COLLECTOR_URL`: Your Grafana Faro collector URL for observability
-   - `BASE_URL`: Backend API URL (optional - see platform defaults below)
+   - `FARO_COLLECTOR_URL`: Your Grafana Faro collector URL — see
+     [Connect to Grafana Cloud](../docs/CONNECT_GRAFANA_CLOUD.md). Leave empty to
+     keep telemetry in the console only.
+   - `BASE_URL`: Backend API URL. Leave empty on emulators/simulators; set it to
+     your machine's LAN IP for physical devices. See
+     [emulator/device defaults in the Mobile README](../README.md#shared-basics).
    - `PORT`: Backend port (optional, defaults to `3333`)
-
-   **Platform defaults for BASE_URL:**
-
-   - **Android emulator**: `http://10.0.2.2:3333` (automatically used if BASE_URL is empty)
-   - **iOS simulator**: `http://localhost:3333` (automatically used if BASE_URL is empty)
-   - **Physical devices**: You must set BASE_URL to your machine's IP (e.g., `http://192.168.1.100:3333`)
-
-   > **💡 Tip:** To find your machine's IP address:
-   >
-   > - macOS: `ifconfig | grep "inet " | grep -v 127.0.0.1`
-   > - Make sure your phone is on the same WiFi network as your development machine
 
 3. Run the app:
 
@@ -220,8 +217,7 @@ onPressed: () => actions.ratePizza(stars: 5);
 
 ## Default Login Credentials
 
-- Username: `default`
-- Password: `12345678`
+`default` / `12345678` (see [Shared basics](../README.md#shared-basics)).
 
 ## Running on Different Platforms
 

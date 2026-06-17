@@ -351,6 +351,11 @@ QuickPizza for mobile observability demonstrations. Each app talks to the
 same QuickPizza backend and implements the same screens — what differs is
 the telemetry SDK and where the data lands in Grafana Cloud.
 
+> **👉 Start at [`Mobiles/README.md`](./Mobiles/README.md)** — it lists the
+> supported platforms, walks through getting a demo running (backend + an app),
+> and links out to the per-platform and observability docs. The rest of this
+> section only covers the backend image naming that's specific to this repo.
+
 ### Backend Docker image (mobile vs k6/web)
 
 This fork publishes a separate GHCR image so releases here do not overwrite the
@@ -375,17 +380,17 @@ For a single container (no compose):
 docker run --rm -it -p 3333:3333 ghcr.io/grafana/quickpizza-mobile-local:latest
 ```
 
-| Platform | Location | SDK | Telemetry destination | Setup |
-| --- | --- | --- | --- | --- |
-| Flutter (Android & iOS) | `Mobiles/flutter/` | Grafana Faro (`faro` Dart SDK) | Frontend Observability plugin | [Flutter README](./Mobiles/flutter/README.md) + [Flutter Android setup](./Mobiles/docs/ANDROID_SETUP.md) / [Flutter iOS setup](./Mobiles/docs/XCODE_SETUP.md) |
-| React Native (Android & iOS) | `Mobiles/react-native/` | Grafana Faro (`@grafana/faro-react-native`) | Frontend Observability plugin | [React Native README](./Mobiles/react-native/README.md) |
-| iOS native (Swift / SwiftUI) | `Mobiles/ios/` | `opentelemetry-swift` (+ `URLSessionInstrumentation`, `Sessions`, `MetricKitInstrumentation`) | OTLP/HTTP → Tempo + Loki | [iOS native README](./Mobiles/ios/README.md) |
-| Android native (Kotlin / Compose) | `Mobiles/android/` | `opentelemetry-android` RUM agent | OTLP/HTTP → Tempo + Loki | [Android native README](./Mobiles/android/README.md) + [Android native setup](./Mobiles/docs/ANDROID_NATIVE_SETUP.md) |
+### Supported platforms
 
-For a single document that covers what each platform actually emits, where
-the data lives, and how the Faro and OpenTelemetry SDKs differ
-side-by-side, see
-[`Mobiles/docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](./Mobiles/docs/MOBILE_OBSERVABILITY_OVERVIEW.md).
+| Platform | Location | SDK | Telemetry destination |
+| --- | --- | --- | --- |
+| Flutter (Android & iOS) | `Mobiles/flutter/` | Grafana Faro (`faro` Dart SDK) | Frontend Observability plugin |
+| React Native (Android & iOS) | `Mobiles/react-native/` | Grafana Faro (`@grafana/faro-react-native`) | Frontend Observability plugin |
+| iOS native (Swift / SwiftUI) | `Mobiles/ios/` | `opentelemetry-swift` | OTLP/HTTP → Tempo + Loki |
+| Android native (Kotlin / Compose) | `Mobiles/android/` | `opentelemetry-android` RUM agent | OTLP/HTTP → Tempo + Loki |
 
-The shared cross-platform feature spec (Home, Login, Profile, About, Debug)
-lives in [`Mobiles/FEATURES.md`](./Mobiles/FEATURES.md).
+Per-platform run guides, the observability deep-dive
+([`MOBILE_OBSERVABILITY_OVERVIEW.md`](./Mobiles/docs/MOBILE_OBSERVABILITY_OVERVIEW.md)),
+the shared feature spec ([`FEATURES.md`](./Mobiles/FEATURES.md)), and the
+Grafana Cloud connection steps are all linked from
+[`Mobiles/README.md`](./Mobiles/README.md).

@@ -15,6 +15,7 @@ For a single source of truth on what each app emits, where it lands, and how the
 
 ### Mobile Apps Quick Reference
 
+- **Start here:** [`Mobiles/README.md`](./Mobiles/README.md) is the entry point — supported platforms, run-a-demo steps, and links to every deeper doc.
 - **Demo cloud stack:** internal Grafana Cloud stack — substitute your own (`<your-grafana-cloud-stack>.grafana.net`) when running outside Grafana Labs
 - **Backend (local, mobile):** `docker run --rm -d -p 3333:3333 ghcr.io/grafana/quickpizza-mobile-local:latest` (or `QUICKPIZZA_IMAGE=ghcr.io/grafana/quickpizza-mobile-local:latest` with compose; k6/upstream uses `quickpizza-local`)
 - **Shared feature spec:** [`Mobiles/FEATURES.md`](./Mobiles/FEATURES.md)
