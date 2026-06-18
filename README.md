@@ -382,6 +382,16 @@ docker run --rm -it -p 3333:3333 ghcr.io/grafana/quickpizza-mobile-local:latest
 | iOS native (Swift / SwiftUI) | `Mobiles/ios/` | `opentelemetry-swift` (+ `URLSessionInstrumentation`, `Sessions`, `MetricKitInstrumentation`) | OTLP/HTTP → Tempo + Loki | [iOS native README](./Mobiles/ios/README.md) |
 | Android native (Kotlin / Compose) | `Mobiles/android/` | `opentelemetry-android` RUM agent | OTLP/HTTP → Tempo + Loki | [Android native README](./Mobiles/android/README.md) + [Android native setup](./Mobiles/docs/ANDROID_NATIVE_SETUP.md) |
 
+### Demo app version variation
+
+The mobile telemetry workflow varies app versions for demo data so Mobile O11y
+can show a small app-version distribution instead of a single flat version.
+Flutter resolves this at runtime when `CI_DEMO_VERSIONING=true`. React Native
+resolves the Faro-reported app version at bundle time. Native Android and
+native iOS resolve the version during the CI build and bake it into
+`versionName` / `MARKETING_VERSION`, so their installed app metadata and
+emitted telemetry use the same version for that run.
+
 For a single document that covers what each platform actually emits, where
 the data lives, and how the Faro and OpenTelemetry SDKs differ
 side-by-side, see
