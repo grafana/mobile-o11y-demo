@@ -198,10 +198,11 @@ The full telemetry workflow has two independent legs that run in parallel:
 ### Scheduled diagnostic data
 
 The hourly full telemetry workflow also emits a small amount of diagnostic data
-so the Mobile O11y demo apps do not look unrealistically perfect:
+so the demo apps show realistic error/crash signals:
 
-- handled exceptions run every third scheduled hour;
-- crash diagnostics run every tenth scheduled hour;
+- handled exceptions run every third scheduled hour, based on the shared UTC
+  hour bucket;
+- crash diagnostics run every tenth scheduled hour, based on the same bucket;
 - when crash diagnostics run, the separate handled-exception flow is skipped
   because the crash flow emits one handled exception before the crash;
 - manual `workflow_dispatch` runs with `run_diagnostics=true` still force the

@@ -6,8 +6,7 @@
 #
 # This flow intentionally exercises only the Debug tab handled-exception
 # control. The scheduled telemetry workflow can run it more often than crash
-# diagnostics, keeping demo error data realistic without making every session
-# fatal.
+# diagnostics, keeping demo error data realistic without crashing every run.
 
 scenarios:
   - id: "start_app"

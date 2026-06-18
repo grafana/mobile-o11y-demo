@@ -40,9 +40,8 @@ jobs:
     name: Resolve diagnostics cadence
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # Compute the diagnostics cadence once so the Android and iOS legs stay in
-    # lockstep. Computing it per-leg risked the two runners landing on different
-    # hour buckets across an hour boundary and disagreeing on what to emit.
+    # Compute cadence once so the Android and iOS legs agree
+    # (avoids an hour-boundary race between the two runners).
     outputs:
       run_handled_exception: ${{ steps.cadence.outputs.run_handled_exception }}
       run_crash: ${{ steps.cadence.outputs.run_crash }}
