@@ -22,7 +22,7 @@ tasks.register<Delete>("deleteExampleConfig") {
 tasks.matching { it.name.contains("mergeDebugResources") || it.name.contains("mergeReleaseResources") || it.name.contains("packageDebugResources") || it.name.contains("packageReleaseResources") }
     .configureEach { dependsOn("deleteExampleConfig") }
 
-val quickPizzaDemoVersionName = providers.gradleProperty("quickpizzaDemoVersionName").orElse("1.0")
+val quickPizzaDemoVersionName = providers.gradleProperty("quickpizzaDemoVersionName").orElse("1.0.0")
 
 android {
     namespace = "com.grafana.quickpizza"

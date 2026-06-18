@@ -55,8 +55,8 @@ jobs:
           done <<< "$CHANGED"
           echo "mobile=$mobile" >> "$GITHUB_OUTPUT"
 
-  test-demo-version-script:
-    name: Test demo app version script
+  test-demo-version-scripts:
+    name: Test demo app version scripts
     needs: mobile-changes
     if: needs.mobile-changes.outputs.mobile == 'true'
     runs-on: ubuntu-latest
@@ -70,8 +70,8 @@ jobs:
         with:
           node-version: ">=24.5.0"
 
-      - name: Test demo app version script
-        run: node --test .github/scripts/resolve-demo-app-version.test.mjs
+      - name: Test demo app version scripts
+        run: node --test .github/scripts/*.test.mjs
 
   build-flutter-apk:
     name: Build check — Flutter APK

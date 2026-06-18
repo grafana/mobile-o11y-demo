@@ -149,9 +149,10 @@ jobs:
 
       - name: Resolve React Native demo app version
         run: |
-          DEMO_APP_VERSION="$(node .github/scripts/resolve-demo-app-version.mjs 1.0.0)"
+          DEMO_APP_BASE_VERSION="$(node .github/scripts/read-demo-app-base-version.mjs react-native)"
+          DEMO_APP_VERSION="$(node .github/scripts/resolve-demo-app-version.mjs "${DEMO_APP_BASE_VERSION}")"
           echo "DEMO_APP_VERSION=${DEMO_APP_VERSION}" >> "$GITHUB_ENV"
-          echo "React Native demo app version: ${DEMO_APP_VERSION}"
+          echo "React Native demo app version: ${DEMO_APP_VERSION} (base: ${DEMO_APP_BASE_VERSION})"
 
       - name: Bundle JS for offline debug APK
         working-directory: Mobiles/react-native
@@ -191,9 +192,10 @@ jobs:
 
       - name: Resolve Android Native demo app version
         run: |
-          ANDROID_NATIVE_DEMO_APP_VERSION="$(node .github/scripts/resolve-demo-app-version.mjs 1.0.0)"
+          ANDROID_NATIVE_DEMO_BASE_VERSION="$(node .github/scripts/read-demo-app-base-version.mjs android-native)"
+          ANDROID_NATIVE_DEMO_APP_VERSION="$(node .github/scripts/resolve-demo-app-version.mjs "${ANDROID_NATIVE_DEMO_BASE_VERSION}")"
           echo "ANDROID_NATIVE_DEMO_APP_VERSION=${ANDROID_NATIVE_DEMO_APP_VERSION}" >> "$GITHUB_ENV"
-          echo "Android Native demo app version: ${ANDROID_NATIVE_DEMO_APP_VERSION}"
+          echo "Android Native demo app version: ${ANDROID_NATIVE_DEMO_APP_VERSION} (base: ${ANDROID_NATIVE_DEMO_BASE_VERSION})"
 
       - name: Build Android Native APK (debug)
         working-directory: Mobiles/android
@@ -416,9 +418,10 @@ jobs:
 
       - name: Resolve iOS Native demo app version
         run: |
-          IOS_NATIVE_DEMO_APP_VERSION="$(node .github/scripts/resolve-demo-app-version.mjs 1.1.0)"
+          IOS_NATIVE_DEMO_BASE_VERSION="$(node .github/scripts/read-demo-app-base-version.mjs ios-native)"
+          IOS_NATIVE_DEMO_APP_VERSION="$(node .github/scripts/resolve-demo-app-version.mjs "${IOS_NATIVE_DEMO_BASE_VERSION}")"
           echo "IOS_NATIVE_DEMO_APP_VERSION=${IOS_NATIVE_DEMO_APP_VERSION}" >> "$GITHUB_ENV"
-          echo "iOS Native demo app version: ${IOS_NATIVE_DEMO_APP_VERSION}"
+          echo "iOS Native demo app version: ${IOS_NATIVE_DEMO_APP_VERSION} (base: ${IOS_NATIVE_DEMO_BASE_VERSION})"
 
       - name: Build iOS .app for Simulator
         id: build-ios-app
@@ -552,9 +555,10 @@ jobs:
 
       - name: Resolve React Native demo app version
         run: |
-          DEMO_APP_VERSION="$(node .github/scripts/resolve-demo-app-version.mjs 1.0.0)"
+          DEMO_APP_BASE_VERSION="$(node .github/scripts/read-demo-app-base-version.mjs react-native)"
+          DEMO_APP_VERSION="$(node .github/scripts/resolve-demo-app-version.mjs "${DEMO_APP_BASE_VERSION}")"
           echo "DEMO_APP_VERSION=${DEMO_APP_VERSION}" >> "$GITHUB_ENV"
-          echo "React Native demo app version: ${DEMO_APP_VERSION}"
+          echo "React Native demo app version: ${DEMO_APP_VERSION} (base: ${DEMO_APP_BASE_VERSION})"
 
       - name: Build React Native iOS .app for Simulator
         id: build-react-native-ios-app
