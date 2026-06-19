@@ -55,10 +55,11 @@ jobs:
 
           run_handled_exception=false
           run_crash=false
+          hour_bucket=n/a
 
           if [ "$FORCE_DIAGNOSTICS" = "true" ]; then
             run_crash=true
-          elif [ "$GITHUB_EVENT_NAME" = "schedule" ] || [ "$GITHUB_EVENT_NAME" = "push" ]; then
+          elif [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
             hour_bucket=$(($(date -u +%s) / 3600))
             if [ $((hour_bucket % 3)) -eq 0 ]; then
               run_handled_exception=true
@@ -72,6 +73,8 @@ jobs:
 
           echo "run_handled_exception=${run_handled_exception}" >> "$GITHUB_OUTPUT"
           echo "run_crash=${run_crash}" >> "$GITHUB_OUTPUT"
+          echo "Diagnostics event: ${GITHUB_EVENT_NAME}"
+          echo "Diagnostics hour bucket: ${hour_bucket}"
           echo "Handled-exception diagnostics: ${run_handled_exception}"
           echo "Crash diagnostics: ${run_crash}"
 

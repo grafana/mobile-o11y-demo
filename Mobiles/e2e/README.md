@@ -208,5 +208,7 @@ so the demo apps show realistic error/crash signals:
 - manual `workflow_dispatch` runs with `run_diagnostics=true` still force the
   full crash diagnostics flow.
 
-This keeps error data present while targeting roughly 80-90% crash-free demo
-sessions over time.
+This targets roughly 90% crash-free scheduled demo sessions over time. Any
+error signal is more frequent: handled-exception diagnostics run about every
+third scheduled hour, and crash diagnostics run about every tenth scheduled
+hour.
