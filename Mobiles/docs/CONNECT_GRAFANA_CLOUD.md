@@ -19,7 +19,7 @@ Every app can also take these values at runtime from its in-app **Debug →
 Config** screen (applied on next launch), so you can reconfigure during a demo
 without rebuilding.
 
-### This doc is about the *mobile app's* telemetry, not the backend's
+## This doc is about the *mobile app's* telemetry, not the backend's
 
 The mobile apps send their telemetry **directly** to Grafana Cloud (Faro
 collector or OTLP gateway) — the QuickPizza backend is not in that path and
