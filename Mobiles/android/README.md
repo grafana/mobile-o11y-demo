@@ -25,7 +25,9 @@ platform emits, dashboards) see
 ## Quickstart
 
 ```bash
-# 1. Configure (the example template lives at the project root; a Gradle task
+cd Mobiles/android
+
+# 1. Configure (the example template lives at this project root; a Gradle task
 #    strips any *.example out of res/raw before the resource merger runs)
 cp config.json.example \
    app/src/main/res/raw/config.json
@@ -36,7 +38,6 @@ docker run --rm -d --name quickpizza -p 3333:3333 \
   ghcr.io/grafana/quickpizza-mobile-local:latest
 
 # 3. Build and install on a running emulator
-cd Mobiles/android
 ./gradlew installDebug
 adb shell am start -n com.grafana.quickpizza/.MainActivity
 ```
