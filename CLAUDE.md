@@ -22,7 +22,7 @@ For a single source of truth on what each app emits, where it lands, and how the
 - **Per-platform READMEs:** [`Mobiles/flutter/README.md`](./Mobiles/flutter/README.md), [`Mobiles/react-native/README.md`](./Mobiles/react-native/README.md), [`Mobiles/ios/README.md`](./Mobiles/ios/README.md), [`Mobiles/android/README.md`](./Mobiles/android/README.md)
 - **OTel mobile SDK gaps & contribution backlog:** [`Mobiles/docs/OTEL_MOBILE_MATURITY.md`](./Mobiles/docs/OTEL_MOBILE_MATURITY.md)
 - **iOS native run:** `cp Mobiles/ios/Config.xcconfig.example Mobiles/ios/Config.xcconfig` (fill in OTLP creds), then `bash Mobiles/ios/Scripts/sim-run.sh`
-- **Android native run:** `cp Mobiles/android/app/src/main/res/raw/config.json.example Mobiles/android/app/src/main/res/raw/config.json` (fill in OTLP creds), then `cd Mobiles/android && ./gradlew installDebug`
+- **Android native run:** `cp Mobiles/android/config.json.example Mobiles/android/app/src/main/res/raw/config.json` (fill in OTLP creds), then `cd Mobiles/android && ./gradlew installDebug`
 
 ## Key Commands
 
