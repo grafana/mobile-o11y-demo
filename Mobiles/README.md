@@ -61,8 +61,9 @@ Whether this is optional depends on the SDK family:
 - **Flutter / React Native (Faro):** a `FARO_COLLECTOR_URL` is **required** —
   these apps throw at startup without one, even for a local-only demo.
 - **iOS / Android native (OpenTelemetry):** Grafana Cloud is **optional** —
-  leave the OTLP fields empty to keep telemetry in the local console, or set
-  them to export.
+  the apps still run with the OTLP fields empty. On iOS (debug builds) spans
+  go to the Xcode console; on Android export is simply disabled (the SDK runs
+  as a noop, so no OTel signals are produced). Set the OTLP fields to export.
 
 One doc covers both: [**Connect to Grafana Cloud**](./docs/CONNECT_GRAFANA_CLOUD.md)
 (Faro collector URL and OTLP endpoint/token).

@@ -28,7 +28,7 @@ platform emits, dashboards) see
 cd Mobiles/android
 
 # 1. Configure (the example template lives at this project root; a Gradle task
-#    strips any *.example out of res/raw before the resource merger runs)
+#    deletes the config.json.example file from res/raw before the resource merger runs)
 cp config.json.example \
    app/src/main/res/raw/config.json
 # edit OTLP_ENDPOINT, OTLP_INSTANCE_ID, OTLP_API_KEY, BASE_URL

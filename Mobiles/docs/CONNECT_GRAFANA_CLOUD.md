@@ -12,8 +12,10 @@ families that authenticate differently:
 > **Faro apps require a collector URL.** The Flutter and React Native apps
 > throw at startup if `FARO_COLLECTOR_URL` is empty, so you must set it (see
 > below) even for a local-only demo. The **native OTel apps (iOS, Android)** are
-> different — leave the OTLP fields empty and signals go to the local console
-> only (Xcode/Logcat); set them when you want data in Grafana.
+> different — they still run with the OTLP fields empty. On iOS (debug builds)
+> spans go to the Xcode console; on Android export is disabled (the SDK runs as
+> a noop, so no OTel signals are produced). Set the OTLP fields when you want
+> data in Grafana.
 
 Every app can also take these values at runtime from its in-app **Debug →
 Config** screen (applied on next launch), so you can reconfigure during a demo
@@ -91,7 +93,8 @@ only supply the three raw values.
 | Android native | `Mobiles/android/app/src/main/res/raw/config.json` (same three keys) — see [Android README](../android/README.md) |
 
 Use the OTLP base URL **without** a trailing slash or `/v1/traces` suffix — the
-apps append `/v1/traces` and `/v1/logs` themselves.
+signal paths (`/v1/traces`, `/v1/logs`) get appended for you: the iOS app builds
+them itself, and on Android the OpenTelemetry SDK exporter handles them.
 
 ### View the data
 
