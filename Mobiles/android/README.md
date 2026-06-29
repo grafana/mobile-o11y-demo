@@ -5,6 +5,10 @@ using the [`opentelemetry-android`](https://github.com/open-telemetry/openteleme
 RUM agent. It connects to the QuickPizza backend and exports traces and
 logs over OTLP/HTTP to Grafana Cloud.
 
+> **New here?** Start at [`../README.md`](../README.md) for the overview of all
+> four apps, the backend, and how to get a demo running. This page covers the
+> native Android app specifically.
+
 For setup details (Android Studio, SDK, emulator, physical devices) see
 [`../docs/ANDROID_NATIVE_SETUP.md`](../docs/ANDROID_NATIVE_SETUP.md).
 
@@ -21,8 +25,11 @@ platform emits, dashboards) see
 ## Quickstart
 
 ```bash
-# 1. Configure
-cp app/src/main/res/raw/config.json.example \
+cd Mobiles/android
+
+# 1. Configure (the example template lives at this project root; a Gradle task
+#    deletes the config.json.example file from res/raw before the resource merger runs)
+cp config.json.example \
    app/src/main/res/raw/config.json
 # edit OTLP_ENDPOINT, OTLP_INSTANCE_ID, OTLP_API_KEY, BASE_URL
 
@@ -31,7 +38,6 @@ docker run --rm -d --name quickpizza -p 3333:3333 \
   ghcr.io/grafana/quickpizza-mobile-local:latest
 
 # 3. Build and install on a running emulator
-cd Mobiles/android
 ./gradlew installDebug
 adb shell am start -n com.grafana.quickpizza/.MainActivity
 ```
@@ -79,7 +85,7 @@ The **Debug** tab exposes:
 ## Observability
 
 The app uses [`opentelemetry-android`](https://github.com/open-telemetry/opentelemetry-android)
-1.2.0-alpha and exports via OTLP/HTTP. Init lives in
+1.4.0-alpha and exports via OTLP/HTTP. Init lives in
 `app/src/main/java/com/grafana/quickpizza/core/o11y/OTelService.kt`.
 
 | Signal | Examples |
@@ -87,23 +93,11 @@ The app uses [`opentelemetry-android`](https://github.com/open-telemetry/opentel
 | **Spans** | `GET` (auto OkHttp), `AppStart` / `Paused` / `Stopped` (auto lifecycle), `pizza.get_recommendation` / `auth.login` / `pizza.rate` (manual) |
 | **Logs** | `screen.view` (auto), `app.jank` (auto, slow rendering), `session.start` (auto), `rum.sdk.init.*` (auto SDK self-telemetry), `exception` (manual `logger.exception`), `device.crash` (auto, next launch), `device.anr` (auto, runtime), `debug.test_event` (manual) |
 
-Resource attributes:
-
-```
-service.name             = quickpizza-android
-service.namespace        = quickpizza
-service.version          = <versionName>
-deployment.environment   = production
-android.os.api_level     = 30/34/...
-device.manufacturer      = Google / ...
-device.model.identifier  = sdk_gphone_arm64 / ...
-network.connection.type  = wifi / cellular / ...
-app.installation.id      = <stable per install>
-session.id               = <15-min inactivity timeout>
-telemetry.sdk.language   = java
-telemetry.sdk.version    = 1.2.0-alpha
-nav.destination          = current Compose route
-```
+Core resource attributes: `service.name=quickpizza-android`,
+`service.namespace=quickpizza`, `service.version`,
+`deployment.environment=production`. The full set (device, network, nav, and
+session attributes) is inventoried in
+[`MOBILE_OBSERVABILITY_OVERVIEW.md § Android native`](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md#android-native-opentelemetry-android).
 
 `OTelService` registers `OpenTelemetryRumInitializer` which wires up:
 
@@ -144,10 +138,12 @@ Where to view the data on the demo stack:
 | `OTLP_ENDPOINT` | OTLP/HTTP base URL (without `/v1/traces`). Empty disables export. |
 | `OTLP_INSTANCE_ID` | Numeric Grafana Cloud OTLP gateway instance ID. |
 | `OTLP_API_KEY` | Grafana Cloud access token (combined with the instance ID into `Authorization: Basic`). |
-| `BASE_URL` | QuickPizza backend URL. Empty auto-resolves to `http://10.0.2.2:3333` on emulators. Set to your machine's LAN IP for physical devices. |
+| `BASE_URL` | QuickPizza backend URL. Empty auto-resolves to `http://10.0.2.2:3333` on emulators. Set to your machine's LAN IP for physical devices ([details](../README.md#shared-basics)). |
 
-All four can be overridden at runtime from **Debug → Config** without a
-rebuild — overrides apply on the next launch.
+To obtain the OTLP endpoint, instance ID, and token, see
+[Connect to Grafana Cloud](../docs/CONNECT_GRAFANA_CLOUD.md#opentelemetry-apps-ios-native-android-native).
+All four fields can also be overridden at runtime from **Debug → Config**
+without a rebuild — overrides apply on the next launch.
 
 ---
 

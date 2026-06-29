@@ -1,6 +1,9 @@
-# Android Setup Guide
+# Flutter — Android Toolchain Setup
 
-Simple steps to set up Android development and run the app on Android Emulator.
+Simple steps to set up the Android toolchain (Android Studio + emulator) so you
+can run the **Flutter** QuickPizza app on Android. The native Kotlin/Compose app
+has its own guide ([`ANDROID_NATIVE_SETUP.md`](./ANDROID_NATIVE_SETUP.md)); for
+the other apps see [`../README.md`](../README.md).
 
 ## Setup Steps
 

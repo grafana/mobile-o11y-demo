@@ -2,7 +2,11 @@
 
 A React Native mobile application that replicates the QuickPizza web and Flutter app functionality. This app demonstrates Grafana Faro SDK integration for mobile observability.
 
-> For a cross-platform comparison of all four QuickPizza mobile demos (Flutter, React Native, iOS native, Android native) and what each one emits, see [MOBILE_OBSERVABILITY_OVERVIEW.md](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md). The shared feature spec lives in [FEATURES.md](../FEATURES.md).
+> **New here?** Start at [`../README.md`](../README.md) for the overview of all
+> four apps, the backend, and how to get a demo running. This page covers the
+> React Native app specifically.
+>
+> For a cross-platform comparison of what each app emits, see [MOBILE_OBSERVABILITY_OVERVIEW.md](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md). The shared feature spec lives in [FEATURES.md](../FEATURES.md).
 
 ## Features
 
@@ -39,11 +43,13 @@ cp config.json.example config.json
 
 Edit `config.json`:
 
-- **FARO_COLLECTOR_URL** (required): Your Grafana Faro collector URL for observability
-- **BASE_URL** (optional): Backend API URL. Leave empty for emulators (uses 10.0.2.2 for Android, localhost for iOS)
+- **FARO_COLLECTOR_URL** (**required**): Your Grafana Faro collector URL —
+  see [Connect to Grafana Cloud](../docs/CONNECT_GRAFANA_CLOUD.md). The app
+  throws at startup if this is empty.
+- **BASE_URL** (optional): Backend API URL. Leave empty on emulators/simulators;
+  set to your machine's LAN IP for physical devices. See
+  [emulator/device defaults](../README.md#shared-basics).
 - **PORT** (optional): Backend port, defaults to 3333
-
-For physical devices, set `BASE_URL` to your machine's IP (e.g. `http://192.168.1.100:3333`).
 
 ### 3. iOS: Install CocoaPods
 
@@ -247,7 +253,9 @@ When a PASS lands, you can confidently upload, reinstall, and run the full Front
 
 ### Start the QuickPizza backend
 
-**Option A – Monolithic (simple):**
+**Option A – Monolithic (simple):** the one-container backend (see
+[Mobile README § Step 1](../README.md#step-1--start-the-backend) for the
+canonical command). Here it's run interactively rather than detached:
 
 ```bash
 docker run --rm -it -p 3333:3333 ghcr.io/grafana/quickpizza-mobile-local:latest
@@ -288,8 +296,7 @@ yarn android
 
 ## Default login credentials
 
-- Username: `default`
-- Password: `12345678`
+`default` / `12345678` (see [Shared basics](../README.md#shared-basics)).
 
 ## Faro SDK
 

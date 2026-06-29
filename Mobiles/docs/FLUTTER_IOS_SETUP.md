@@ -1,6 +1,9 @@
-# iOS Setup Guide
+# Flutter — iOS Toolchain Setup
 
-Simple steps to set up iOS development and run the app on iOS Simulator.
+Simple steps to set up the iOS toolchain (Xcode + Simulator) so you can run the
+**Flutter** QuickPizza app on iOS. For the React Native, native iOS, or native
+Android apps, see their own setup docs linked from
+[`../README.md`](../README.md).
 
 ## Setup Steps
 
