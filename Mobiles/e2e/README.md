@@ -142,6 +142,8 @@ The scenario goals live in two parallel templates, one per platform:
 
 - [`arbigent-e2e_basic_pizza_flow.android.yaml.template`](./arbigent-e2e_basic_pizza_flow.android.yaml.template) — Flutter, React Native, and native Android on a running Android emulator.
 - [`arbigent-e2e_basic_pizza_flow.ios.yaml.template`](./arbigent-e2e_basic_pizza_flow.ios.yaml.template) — native iOS (and later Flutter/RN on iOS) on a running iOS simulator.
+- [`arbigent-e2e_handled_exception.android.yaml.template`](./arbigent-e2e_handled_exception.android.yaml.template) and [`arbigent-e2e_handled_exception.ios.yaml.template`](./arbigent-e2e_handled_exception.ios.yaml.template) — Debug-tab handled exception only.
+- [`arbigent-e2e_diagnostics.android.yaml.template`](./arbigent-e2e_diagnostics.android.yaml.template) and [`arbigent-e2e_diagnostics.ios.yaml.template`](./arbigent-e2e_diagnostics.ios.yaml.template) — Debug-tab handled exception plus intentional crash and relaunch.
 
 The split exists because launcher and backgrounding flows differ enough
 between Springboard and the Android launcher that a single template was
@@ -186,11 +188,27 @@ The full telemetry workflow has two independent legs that run in parallel:
   Android emulator, installs each APK in turn, and runs
   `run_e2e_tests.sh --platform=android` for each app. Secret-bearing APKs
   are **not** uploaded as workflow artifacts.
-- **iOS leg** — `macos-26`. Fetches Vault secrets, builds the native iOS
-  `.app` on the runner, boots an iOS simulator, installs the app, and
-  runs `run_e2e_tests.sh --app=ios-native --platform=ios`. The QuickPizza
-  backend is started natively on the macOS runner. The `.app` bundle is
-  **not** uploaded as a workflow artifact.
+- **iOS leg** — `macos-26`. Fetches Vault secrets, builds native iOS,
+  Flutter iOS, and React Native iOS `.app` bundles on the runner, boots
+  one iOS simulator, installs each app in turn, and runs
+  `run_e2e_tests.sh --platform=ios` for each app. The QuickPizza backend
+  is started natively on the macOS runner. The `.app` bundles are **not**
+  uploaded as workflow artifacts.
 
-The iOS variants of Flutter and React Native will be added later by
-plugging their respective .app builds into the iOS leg.
+### Scheduled diagnostic data
+
+The hourly full telemetry workflow also emits a small amount of diagnostic data
+so the demo apps show realistic error/crash signals:
+
+- handled exceptions run every third scheduled hour, based on the shared UTC
+  hour bucket;
+- crash diagnostics run every tenth scheduled hour, based on the same bucket;
+- when crash diagnostics run, the separate handled-exception flow is skipped
+  because the crash flow emits one handled exception before the crash;
+- manual `workflow_dispatch` runs with `run_diagnostics=true` still force the
+  full crash diagnostics flow.
+
+This targets roughly 90% crash-free scheduled demo sessions over time. Any
+error signal is more frequent: handled-exception diagnostics run about every
+third scheduled hour, and crash diagnostics run about every tenth scheduled
+hour.

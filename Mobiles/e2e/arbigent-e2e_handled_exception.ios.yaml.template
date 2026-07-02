@@ -1,0 +1,65 @@
+# Shared Arbigent handled-exception project for QuickPizza iOS.
+# run_e2e_tests.sh replaces __IOS_BUNDLE_ID__ with the app under test:
+#   - iOS Native default:       com.grafana.QuickPizzaIos
+#   - Flutter iOS default:      com.example.flutterMobileO11yDemo
+#   - React Native iOS default: com.quickpizza
+#
+# This flow intentionally exercises only the Debug tab handled-exception
+# control. The scheduled telemetry workflow can run it more often than crash
+# diagnostics, keeping demo error data realistic without crashing every run.
+
+scenarios:
+  - id: "start_app"
+    goal: |
+      You should see the QuickPizza home screen.
+
+      SUCCESS CRITERIA:
+      - You see the QuickPizza home screen with a "Pizza, Please!" button.
+
+      __RECOVERY_BLOCK__
+
+    initializationMethods:
+      - type: "CleanupData"
+        packageName: "__IOS_BUNDLE_ID__"
+      - type: "LaunchApp"
+        packageName: "__IOS_BUNDLE_ID__"
+    maxRetry: 2
+    maxStep: 5
+
+  - id: "open_debug_tab"
+    dependency: "start_app"
+    goal: |
+      You should open the QuickPizza Debug tab.
+
+      STEPS:
+      - Tap the bottom tab labeled "Debug".
+      - If the bottom tab bar is not visible, press Back once or scroll to recover, then tap "Debug".
+
+      SUCCESS CRITERIA:
+      - You see a Debug screen with controls such as "Send Debug Log", "Send Handled Exception", "Handled exception", or crash buttons.
+
+      __RECOVERY_BLOCK__
+
+    maxRetry: 2
+    maxStep: 8
+
+  - id: "send_handled_exception"
+    dependency: "open_debug_tab"
+    goal: |
+      You should emit one handled exception from the Debug tab.
+
+      STEPS:
+      - Tap exactly one handled-exception control.
+      - The button may be labeled "Send Handled Exception" or "Handled exception" depending on the app.
+      - Do not tap any crash, unhandled exception, or error-log button in this scenario.
+      - The UI may not visually change after this tap. That is expected.
+      - After tapping the handled exception button once, OUTPUT "Goal achieved" and STOP. Do not retry the same button just because the screen looks unchanged.
+
+      SUCCESS CRITERIA:
+      - The handled exception action was tapped once.
+      - The app is still running on the Debug screen.
+
+      __RECOVERY_BLOCK__
+
+    maxRetry: 2
+    maxStep: 8

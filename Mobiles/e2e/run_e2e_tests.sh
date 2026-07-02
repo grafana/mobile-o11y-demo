@@ -13,6 +13,7 @@
 #   ./Mobiles/e2e/run_e2e_tests.sh --app=react-native    --platform=ios
 #   ./Mobiles/e2e/run_e2e_tests.sh --app=ios-native      --platform=ios
 #   ./Mobiles/e2e/run_e2e_tests.sh --app=flutter         --platform=android --flow=diagnostics
+#   ./Mobiles/e2e/run_e2e_tests.sh --app=flutter         --platform=android --flow=handled-exception
 #
 # Required env vars:
 #   OPENAI_API_KEY    OpenAI API key used by Arbigent.
@@ -50,6 +51,8 @@ TEMPLATE_FILE_ANDROID_BASIC="$SCRIPT_DIR/arbigent-e2e_basic_pizza_flow.android.y
 TEMPLATE_FILE_IOS_BASIC="$SCRIPT_DIR/arbigent-e2e_basic_pizza_flow.ios.yaml.template"
 TEMPLATE_FILE_ANDROID_DIAGNOSTICS="$SCRIPT_DIR/arbigent-e2e_diagnostics.android.yaml.template"
 TEMPLATE_FILE_IOS_DIAGNOSTICS="$SCRIPT_DIR/arbigent-e2e_diagnostics.ios.yaml.template"
+TEMPLATE_FILE_ANDROID_HANDLED_EXCEPTION="$SCRIPT_DIR/arbigent-e2e_handled_exception.android.yaml.template"
+TEMPLATE_FILE_IOS_HANDLED_EXCEPTION="$SCRIPT_DIR/arbigent-e2e_handled_exception.ios.yaml.template"
 RECOVERY_HINTS_FILE="$SCRIPT_DIR/arbigent-recovery-hints.txt"
 RENDER_HELPER="$SCRIPT_DIR/render-template.js"
 
@@ -125,7 +128,7 @@ Required:
   --platform=<android|ios>                                 Target platform
 
 Other:
-  --flow=<basic|diagnostics>                               Scenario flow (default: basic)
+  --flow=<basic|diagnostics|handled-exception>              Scenario flow (default: basic)
   -h, --help                                               Show this help message
 
 Examples:
@@ -136,6 +139,7 @@ Examples:
   bash $0 --app=react-native --platform=ios
   bash $0 --app=ios-native --platform=ios
   bash $0 --app=flutter --platform=android --flow=diagnostics
+  bash $0 --app=flutter --platform=android --flow=handled-exception
 
 Required env vars:
   OPENAI_API_KEY                    OpenAI key used by Arbigent
@@ -165,8 +169,8 @@ done
 [ -n "$PLATFORM" ] || { show_help; print_error "--platform is required"; }
 
 case "$FLOW" in
-    basic|diagnostics) ;;
-    *) print_error "Unsupported --flow=$FLOW (supported: basic, diagnostics)" ;;
+    basic|diagnostics|handled-exception) ;;
+    *) print_error "Unsupported --flow=$FLOW (supported: basic, diagnostics, handled-exception)" ;;
 esac
 
 ### App configuration table ###################################################
@@ -396,11 +400,13 @@ render_template() {
 
     local template_file
     case "$FLOW:$PLATFORM" in
-        basic:android)       template_file="$TEMPLATE_FILE_ANDROID_BASIC" ;;
-        basic:ios)           template_file="$TEMPLATE_FILE_IOS_BASIC" ;;
-        diagnostics:android) template_file="$TEMPLATE_FILE_ANDROID_DIAGNOSTICS" ;;
-        diagnostics:ios)     template_file="$TEMPLATE_FILE_IOS_DIAGNOSTICS" ;;
-        *)                   print_error "render_template: unsupported flow/platform '$FLOW/$PLATFORM'" ;;
+        basic:android)                template_file="$TEMPLATE_FILE_ANDROID_BASIC" ;;
+        basic:ios)                    template_file="$TEMPLATE_FILE_IOS_BASIC" ;;
+        diagnostics:android)          template_file="$TEMPLATE_FILE_ANDROID_DIAGNOSTICS" ;;
+        diagnostics:ios)              template_file="$TEMPLATE_FILE_IOS_DIAGNOSTICS" ;;
+        handled-exception:android)    template_file="$TEMPLATE_FILE_ANDROID_HANDLED_EXCEPTION" ;;
+        handled-exception:ios)        template_file="$TEMPLATE_FILE_IOS_HANDLED_EXCEPTION" ;;
+        *)                            print_error "render_template: unsupported flow/platform '$FLOW/$PLATFORM'" ;;
     esac
     if [ ! -f "$template_file" ]; then
         print_error "Missing Arbigent template for flow=$FLOW platform=$PLATFORM: $template_file"
