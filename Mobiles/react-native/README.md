@@ -95,7 +95,7 @@ Edit **`sourcemaps.config.json`** (gitignored, like `config.json`):
 | `apiKey` | Bearer token for the source map API (optional if you use env only). |
 | `bundleId` | Optional default id for **iOS** / dev; **Android release** uses Gradle (`applicationId@versionCode@versionName`) via `@grafana/faro-metro-plugin` — do not set `FARO_BUNDLE_ID` in CI. |
 
-For **Android** release, configure **`com.grafana.faro`** in `android/app/build.gradle` and run **`yarn android --mode=release`** (or `./gradlew :app:assembleRelease` from `android/`). Metro reads the same bundle id from Gradle; R8 symbols upload with the plugin.
+For **Android** release, configure **`com.grafana.faro.android-symbols`** in `android/app/build.gradle` and run **`yarn android --mode=release`** (or `./gradlew :app:assembleRelease` from `android/`). Metro reads the same bundle id from Gradle; R8 symbols upload with the plugin.
 
 For **iOS** release, export source map API vars in the same shell where you run **`yarn ios -- --mode Release`** (or inject them into CI **`xcodebuild`**) so the autolinked upload step can run **`faro-upload-source-map`**. Set **`FARO_BUNDLE_ID`** (or `bundleId` in config) to a stable id per shipped IPA build.
 

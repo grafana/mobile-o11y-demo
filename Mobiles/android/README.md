@@ -54,7 +54,7 @@ persist to `SharedPreferences` and apply on the next launch.
 ## Release build and Android symbols
 
 Release builds enable R8 (`isMinifyEnabled = true`) and emit native debug
-symbols (`ndk.debugSymbolLevel = FULL`). The **`com.grafana.faro`** Gradle plugin
+symbols (`ndk.debugSymbolLevel = FULL`). The **`com.grafana.faro.android-symbols`** Gradle plugin
 (`app/build.gradle.kts`) uploads symbolication artifacts automatically after
 `assembleRelease`, `bundleRelease`, or **`installRelease`** — no manual
 `faro-cli` step is required.

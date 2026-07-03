@@ -1,7 +1,7 @@
 pluginManagement {
     includeBuild("../node_modules/@react-native/gradle-plugin")
     repositories {
-        // Resolve a locally published `com.grafana.faro` build first (gradle publishToMavenLocal);
+        // Resolve a locally published `com.grafana.faro.android-symbols` build first (gradle publishToMavenLocal);
         // gradlePluginPortal() covers it once the plugin is published.
         mavenLocal()
         gradlePluginPortal()

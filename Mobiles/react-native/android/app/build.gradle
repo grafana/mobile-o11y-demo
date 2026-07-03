@@ -1,6 +1,6 @@
 plugins {
-    // Auto-uploads R8 mapping.txt + native-debug-symbols.zip after assembleRelease/bundleRelease.
-    id "com.grafana.faro" version "0.1.0"
+    // Auto-uploads R8 mapping.txt + native .so symbols (AGP zip and/or CMake obj/) after release builds.
+    id "com.grafana.faro.android-symbols" version "0.1.0"
 }
 
 apply plugin: "com.android.application"

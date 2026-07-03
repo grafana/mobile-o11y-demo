@@ -2,7 +2,7 @@ package com.grafana.quickpizza.core.config
 
 /**
  * Canonical Android symbols bundle id for upload and OTLP resource `faro.app.bundleId`.
- * Format: `{applicationId}@{versionCode}@{versionName}` (matches `com.grafana.faro` Gradle plugin).
+ * Format: `{applicationId}@{versionCode}@{versionName}` (matches `com.grafana.faro.android-symbols` Gradle plugin).
  */
 object SymbolsBundleId {
     private const val SEPARATOR = "@"
