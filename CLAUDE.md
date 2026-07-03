@@ -117,7 +117,7 @@ read [`Mobiles/docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](./Mobiles/docs/MOBILE_OBS
 
 ### React Native (`Mobiles/react-native/`)
 
-- **Stack:** React Native 0.84.x, `@grafana/faro-react-native` 1.0.0-alpha.1, `faro-react-native` 2.3.1.
+- **Stack:** React Native 0.84.x, `@grafana/faro-react-native` 1.3.0, `@grafana/faro-react-native-tracing` 1.3.0.
 - **Observability:** Faro signals as above, plus dual fetch + XMLHttpRequest auto tracing (`faro.tracing.fetch` + `faro.tracing.xml-http-request`), custom business measurements (`pizza.recommendation`, `pizza.rating`), native crash capture via Faro CrashKit (`type=crash`).
 - **Where it lands:** Frontend Observability plugin (Faro app `QuickPizza_ReactNative`, id `123`).
 - **Config:** `config.json` at `Mobiles/react-native/` — `BASE_URL`, `FARO_COLLECTOR_URL`.

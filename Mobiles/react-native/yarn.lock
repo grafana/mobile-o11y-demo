@@ -1500,7 +1500,7 @@ __metadata:
   resolution: "@grafana/faro-cli@portal:../../../faro-javascript-bundler-plugins/packages/faro-cli::locator=QuickPizza%40workspace%3A."
   dependencies:
     "@grafana/faro-bundlers-shared": "npm:^0.11.0"
-    commander: "npm:^14.0.0"
+    commander: "npm:^15.0.0"
     dotenv: "npm:^17.0.1"
     glob: "npm:^13.0.0"
     tar: "npm:^7.1.0"
@@ -1508,16 +1508,6 @@ __metadata:
     faro-cli: dist/cjs/cli.js
   languageName: node
   linkType: soft
-
-"@grafana/faro-core@npm:^2.2.3":
-  version: 2.3.1
-  resolution: "@grafana/faro-core@npm:2.3.1"
-  dependencies:
-    "@opentelemetry/api": "npm:^1.9.0"
-    "@opentelemetry/otlp-transformer": "npm:^0.213.0"
-  checksum: 10c0/db8ad2650c8ca4bbb7c62d740fdb0b72633a352eda172b7e0f00ab9cc3bdde49ebab16e6cf4114114c8a7169449f03d5b21085befaa08b4e51229c5825d98616
-  languageName: node
-  linkType: hard
 
 "@grafana/faro-core@npm:^2.7.0":
   version: 2.7.1
@@ -1534,7 +1524,7 @@ __metadata:
   resolution: "@grafana/faro-metro-plugin@portal:../../../faro-javascript-bundler-plugins/packages/faro-metro-plugin::locator=QuickPizza%40workspace%3A."
   dependencies:
     "@grafana/faro-bundlers-shared": "npm:^0.11.0"
-    "@grafana/faro-cli": "npm:^0.10.0"
+    "@grafana/faro-cli": "npm:^0.11.0"
     cross-fetch: "npm:^4.0.0"
     source-map: "npm:^0.7.4"
   peerDependencies:
@@ -1544,12 +1534,12 @@ __metadata:
   languageName: node
   linkType: soft
 
-"@grafana/faro-react-native-tracing@npm:1.2.1":
-  version: 1.2.1
-  resolution: "@grafana/faro-react-native-tracing@npm:1.2.1"
+"@grafana/faro-react-native-tracing@npm:1.3.0":
+  version: 1.3.0
+  resolution: "@grafana/faro-react-native-tracing@npm:1.3.0"
   dependencies:
-    "@grafana/faro-core": "npm:^2.2.3"
-    "@grafana/faro-react-native": "npm:^1.2.1"
+    "@grafana/faro-core": "npm:^2.7.0"
+    "@grafana/faro-react-native": "npm:^1.3.0"
     "@opentelemetry/api": "npm:^1.9.0"
     "@opentelemetry/core": "npm:^2.0.0"
     "@opentelemetry/instrumentation": "npm:^0.208.0"
@@ -1562,13 +1552,13 @@ __metadata:
     "@opentelemetry/semantic-conventions": "npm:^1.32.0"
   peerDependencies:
     react-native: ">=0.70.0"
-  checksum: 10c0/86e5e0ac8d71b330244fe2b63f83eb0caad09e0538431ce42b45c01c1f53c3a500c522e1ec46a475dc70ea55c3684af9a6de2e048d3bf42a400ee55e95773ee7
+  checksum: 10c0/57706e48c84dc8756092ba128238809fae854a628578f8070ab219a94949cb88a9a574fb79cdd622d6328b2baeb47f5962cb58b4f7e9f5715b993046f086e4c6
   languageName: node
   linkType: hard
 
-"@grafana/faro-react-native@file:../../../faro-react-native-sdk/packages/react-native::locator=QuickPizza%40workspace%3A.":
-  version: 1.2.1
-  resolution: "@grafana/faro-react-native@file:../../../faro-react-native-sdk/packages/react-native#../../../faro-react-native-sdk/packages/react-native::hash=f53f59&locator=QuickPizza%40workspace%3A."
+"@grafana/faro-react-native@npm:1.3.0":
+  version: 1.3.0
+  resolution: "@grafana/faro-react-native@npm:1.3.0"
   dependencies:
     "@grafana/faro-core": "npm:^2.7.0"
     "@react-native-async-storage/async-storage": "npm:^1.21.0"
@@ -1583,7 +1573,7 @@ __metadata:
       optional: true
     react-native-mmkv:
       optional: true
-  checksum: 10c0/579fd7b37134ec0f9ebb4b8bafb01b0d40f42551e33af3be74e61dae4eb0c66933f9c87c7880b5e26161a1110feea724c64e1f94541f4dfb736844fbf324a789
+  checksum: 10c0/1a67b04efd3aaaf47597ae7e0ad94ac78270194cfd6e2233bcff1d56294075fd0e7e2927b284f7f0fba6a3455ab56869bfcdd378d7656a6d7ba3c3f4f272b76f
   languageName: node
   linkType: hard
 
@@ -2002,15 +1992,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@opentelemetry/api-logs@npm:0.213.0":
-  version: 0.213.0
-  resolution: "@opentelemetry/api-logs@npm:0.213.0"
-  dependencies:
-    "@opentelemetry/api": "npm:^1.3.0"
-  checksum: 10c0/74421639d518b6d060aae8b0693feb6e7bcf2674951dfadc5ad111fc7285b1ba403010fbf2c5cd82b84267c31faef0bb72e4d61c008c5ec572471a0100e5c493
-  languageName: node
-  linkType: hard
-
 "@opentelemetry/api-logs@npm:0.218.0":
   version: 0.218.0
   resolution: "@opentelemetry/api-logs@npm:0.218.0"
@@ -2035,17 +2016,6 @@ __metadata:
   peerDependencies:
     "@opentelemetry/api": ">=1.0.0 <1.10.0"
   checksum: 10c0/f618b63f2f560d052791d2406b1411722aa4b0585031242e6906f869f0a707ffe725c4b29bf18aed1f202e1ab5dfc3a9f769c517ac8521338b33ac8c4265fba9
-  languageName: node
-  linkType: hard
-
-"@opentelemetry/core@npm:2.6.0":
-  version: 2.6.0
-  resolution: "@opentelemetry/core@npm:2.6.0"
-  dependencies:
-    "@opentelemetry/semantic-conventions": "npm:^1.29.0"
-  peerDependencies:
-    "@opentelemetry/api": ">=1.0.0 <1.10.0"
-  checksum: 10c0/526854a3d8917c82b41bfea6ed48f2e9ae38705d1758710b86f879e5c4910b9dbe7fa03d36205e98ebebe4854ae781116d8f298a10cd0fe2e51138e75926ec3a
   languageName: node
   linkType: hard
 
@@ -2129,23 +2099,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@opentelemetry/otlp-transformer@npm:^0.213.0":
-  version: 0.213.0
-  resolution: "@opentelemetry/otlp-transformer@npm:0.213.0"
-  dependencies:
-    "@opentelemetry/api-logs": "npm:0.213.0"
-    "@opentelemetry/core": "npm:2.6.0"
-    "@opentelemetry/resources": "npm:2.6.0"
-    "@opentelemetry/sdk-logs": "npm:0.213.0"
-    "@opentelemetry/sdk-metrics": "npm:2.6.0"
-    "@opentelemetry/sdk-trace-base": "npm:2.6.0"
-    protobufjs: "npm:^7.0.0"
-  peerDependencies:
-    "@opentelemetry/api": ^1.3.0
-  checksum: 10c0/38ff685e4d3e88354d4995e71e69efd9cde83bec9922fc408f9ac9babc3a5b2dd9f713267b7b02ec80e8181234f2ffb6f91334e3bae3f95e18ce92c73c308b10
-  languageName: node
-  linkType: hard
-
 "@opentelemetry/otlp-transformer@npm:^0.218.0":
   version: 0.218.0
   resolution: "@opentelemetry/otlp-transformer@npm:0.218.0"
@@ -2171,18 +2124,6 @@ __metadata:
   peerDependencies:
     "@opentelemetry/api": ">=1.3.0 <1.10.0"
   checksum: 10c0/f08fa69ccccb6d14b6932fabe6f8e097c0dfc41ae8f4c0f6c54fb04bc3d9c04e742da3e22d7240d74b585287101126d97a0da192b493a9724dc07a56ca1b77e0
-  languageName: node
-  linkType: hard
-
-"@opentelemetry/resources@npm:2.6.0":
-  version: 2.6.0
-  resolution: "@opentelemetry/resources@npm:2.6.0"
-  dependencies:
-    "@opentelemetry/core": "npm:2.6.0"
-    "@opentelemetry/semantic-conventions": "npm:^1.29.0"
-  peerDependencies:
-    "@opentelemetry/api": ">=1.3.0 <1.10.0"
-  checksum: 10c0/9c75654690c0917be948ed18453f3085a54541f0db8c8b728515f5a26b67c5fc1f6acd2644462e17368045e3c3fd65f728e8bd0a19c31fe12cc443fa0f0f058c
   languageName: node
   linkType: hard
 
@@ -2223,20 +2164,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@opentelemetry/sdk-logs@npm:0.213.0":
-  version: 0.213.0
-  resolution: "@opentelemetry/sdk-logs@npm:0.213.0"
-  dependencies:
-    "@opentelemetry/api-logs": "npm:0.213.0"
-    "@opentelemetry/core": "npm:2.6.0"
-    "@opentelemetry/resources": "npm:2.6.0"
-    "@opentelemetry/semantic-conventions": "npm:^1.29.0"
-  peerDependencies:
-    "@opentelemetry/api": ">=1.4.0 <1.10.0"
-  checksum: 10c0/b0916f49061bb92bd8c6133207640fd2dcba8b639299b0673f55c976f1d4452c2434e6d55526787781a9f1b736ea192d8608e3b1daafdb85480967029e491442
-  languageName: node
-  linkType: hard
-
 "@opentelemetry/sdk-logs@npm:0.218.0":
   version: 0.218.0
   resolution: "@opentelemetry/sdk-logs@npm:0.218.0"
@@ -2263,18 +2190,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@opentelemetry/sdk-metrics@npm:2.6.0":
-  version: 2.6.0
-  resolution: "@opentelemetry/sdk-metrics@npm:2.6.0"
-  dependencies:
-    "@opentelemetry/core": "npm:2.6.0"
-    "@opentelemetry/resources": "npm:2.6.0"
-  peerDependencies:
-    "@opentelemetry/api": ">=1.9.0 <1.10.0"
-  checksum: 10c0/b174199aa1ef6086a15281eb4f7abac434e5d937e488dfe0929ce7fd7119d829da26997913c55cde56d5350983451678f3157e8bc0cf134a6186cee812307f31
-  languageName: node
-  linkType: hard
-
 "@opentelemetry/sdk-metrics@npm:2.7.1":
   version: 2.7.1
   resolution: "@opentelemetry/sdk-metrics@npm:2.7.1"
@@ -2297,19 +2212,6 @@ __metadata:
   peerDependencies:
     "@opentelemetry/api": ">=1.3.0 <1.10.0"
   checksum: 10c0/a67715b71d7253cd61ea79954f56491796ac7a660d03d5381fd81defd4546042bb465b27e1b6eee4b1ed32c00305a5349a16d04fd44314c9a1d371a0a638107a
-  languageName: node
-  linkType: hard
-
-"@opentelemetry/sdk-trace-base@npm:2.6.0":
-  version: 2.6.0
-  resolution: "@opentelemetry/sdk-trace-base@npm:2.6.0"
-  dependencies:
-    "@opentelemetry/core": "npm:2.6.0"
-    "@opentelemetry/resources": "npm:2.6.0"
-    "@opentelemetry/semantic-conventions": "npm:^1.29.0"
-  peerDependencies:
-    "@opentelemetry/api": ">=1.3.0 <1.10.0"
-  checksum: 10c0/92363197f17d37adf206299da95f683fc039a77f9477caad4bbd6599561cab699c29a1a72830cb1271d7ffc50cd2ed061e85e92f69d06e3fa1946bb742a41ce2
   languageName: node
   linkType: hard
 
@@ -3352,8 +3254,8 @@ __metadata:
     "@babel/runtime": "npm:^7.25.0"
     "@grafana/faro-cli": "portal:../../../faro-javascript-bundler-plugins/packages/faro-cli"
     "@grafana/faro-metro-plugin": "portal:../../../faro-javascript-bundler-plugins/packages/faro-metro-plugin"
-    "@grafana/faro-react-native": "file:../../../faro-react-native-sdk/packages/react-native"
-    "@grafana/faro-react-native-tracing": "npm:1.2.1"
+    "@grafana/faro-react-native": "npm:1.3.0"
+    "@grafana/faro-react-native-tracing": "npm:1.3.0"
     "@react-native-async-storage/async-storage": "npm:^1.21.0"
     "@react-native-community/cli": "npm:20.1.0"
     "@react-native-community/cli-platform-android": "npm:20.1.0"
@@ -4264,10 +4166,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"commander@npm:^14.0.0":
-  version: 14.0.3
-  resolution: "commander@npm:14.0.3"
-  checksum: 10c0/755652564bbf56ff2ff083313912b326450d3f8d8c85f4b71416539c9a05c3c67dbd206821ca72635bf6b160e2afdefcb458e86b317827d5cb333b69ce7f1a24
+"commander@npm:^15.0.0":
+  version: 15.0.0
+  resolution: "commander@npm:15.0.0"
+  checksum: 10c0/539229c171914ea1ccd45ee5f10d924289a12a684ea3a7a44147abe54003c35ed6de9ae4ad198d88c29fdf403dca0428451a388234e6dc01b6faa978fb207206
   languageName: node
   linkType: hard
 
@@ -8047,7 +7949,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"protobufjs@npm:^7.0.0, protobufjs@npm:^7.3.0":
+"protobufjs@npm:^7.3.0":
   version: 7.5.5
   resolution: "protobufjs@npm:7.5.5"
   dependencies:
