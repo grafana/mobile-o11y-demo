@@ -214,19 +214,25 @@ internal object TombstoneWireParser {
     }
 
     private fun extractLengthDelimitedMessages(bytes: ByteArray): List<ByteArray> {
-        val nested = mutableListOf<ByteArray>()
-        val input = CodedInputStream.newInstance(bytes)
-        while (true) {
-            val tag = input.readTag()
-            if (tag == 0) {
-                break
+        return try {
+            val nested = mutableListOf<ByteArray>()
+            val input = CodedInputStream.newInstance(bytes)
+            while (true) {
+                val tag = input.readTag()
+                if (tag == 0) {
+                    break
+                }
+                if (WireFormat.getTagWireType(tag) == WireFormat.WIRETYPE_LENGTH_DELIMITED) {
+                    nested.add(input.readBytes().toByteArray())
+                } else {
+                    input.skipField(tag)
+                }
             }
-            if (WireFormat.getTagWireType(tag) == WireFormat.WIRETYPE_LENGTH_DELIMITED) {
-                nested.add(input.readBytes().toByteArray())
-            } else {
-                input.skipField(tag)
-            }
+            nested
+        } catch (_: InvalidProtocolBufferException) {
+            emptyList()
+        } catch (_: IndexOutOfBoundsException) {
+            emptyList()
         }
-        return nested
     }
 }

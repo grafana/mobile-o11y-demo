@@ -33,12 +33,14 @@ internal object ApplicationExitTraceReader {
 
         return try {
             val traceInputStream = exitInfo.traceInputStream ?: return ParsedExitTrace("")
-            val bytes = readAllBytes(traceInputStream)
-            if (bytes.isEmpty()) {
-                return ParsedExitTrace("")
+            traceInputStream.use { stream ->
+                val bytes = readAllBytes(stream)
+                if (bytes.isEmpty()) {
+                    ParsedExitTrace("")
+                } else {
+                    parseTraceBytes(exitInfo, bytes)
+                }
             }
-
-            parseTraceBytes(exitInfo, bytes)
         } catch (error: Exception) {
             Log.w(TAG, "Failed to read ApplicationExitInfo trace: ${error.message}")
             ParsedExitTrace("")

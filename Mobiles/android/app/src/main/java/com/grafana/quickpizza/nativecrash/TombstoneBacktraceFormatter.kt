@@ -1,5 +1,7 @@
 package com.grafana.quickpizza.nativecrash
 
+import java.util.Locale
+
 /**
  * Converts Android tombstone data into text backtrace format for NDK retrace.
  */
@@ -128,7 +130,7 @@ internal object TombstoneBacktraceFormatter {
                 append(')')
             }
         }
-        return "      #${String.format("%02d", index)} pc $pcHex  $library$suffix"
+        return "      #${String.format(Locale.US, "%02d", index)} pc $pcHex  $library$suffix"
     }
 
     private fun resolveLibrary(

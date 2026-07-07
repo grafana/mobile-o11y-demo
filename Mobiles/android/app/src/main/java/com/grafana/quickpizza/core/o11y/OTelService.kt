@@ -66,9 +66,13 @@ class OTelService @Inject constructor(
             (rum?.openTelemetry as? OpenTelemetrySdk)?.let { sdk ->
                 // TODO(opentelemetry-android#764): Remove NativeExitCrashReporter once OTel Android
                 // replays REASON_CRASH_NATIVE via ApplicationExitInfo in CrashReporter instrumentation.
-                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    NativeExitCrashReporter.reportPendingNativeCrashes(application, sdk)
-                }
+                Thread({
+                    try {
+                        NativeExitCrashReporter.reportPendingNativeCrashes(application, sdk)
+                    } catch (t: Throwable) {
+                        Log.w(TAG, "Native exit crash replay failed", t)
+                    }
+                }, "native-exit-crash-replay").start()
             }
             Log.i(
                 TAG,
