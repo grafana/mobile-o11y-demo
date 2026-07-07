@@ -245,8 +245,8 @@ private fun ClientDiagnosticsSection(viewModel: DebugViewModel) {
 
     DiagnosticActionCard(
         title = "NDK crash (C++ / tombstone)",
-        description = "Real SIGSEGV in native code; stack frames use per-ABI .so symbols " +
-            "(arm64-v8a.zip) and R8 mapping.txt after relaunch.",
+        description = "Real SIGSEGV in native code; stack frames symbolicate with per-ABI " +
+            ".so symbols (arm64-v8a.zip) after relaunch.",
         buttonText = "SIGSEGV (null dereference)",
         danger = true,
         onClick = { pendingNdkCrash = true },
