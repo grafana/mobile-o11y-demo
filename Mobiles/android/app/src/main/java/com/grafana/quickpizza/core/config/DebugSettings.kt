@@ -44,7 +44,7 @@ data class DebugSettings(
      * land in Grafana right after an action. Read once at app startup; toggling requires
      * a restart.
      */
-    val disableDiskBuffering: Boolean = false,
+    val disableDiskBuffering: Boolean = true,
 ) {
     val hasActiveOverrides: Boolean
         get() = backendUrlOverride != null ||
@@ -194,6 +194,6 @@ class DebugSettingsRepository @Inject constructor(
         slowIngredients = this[DebugSettingsKeys.slowIngredients] ?: false,
         useV2PizzaSchema = this[DebugSettingsKeys.useV2PizzaSchema] ?: false,
         skipAuthDepInTools = this[DebugSettingsKeys.skipAuthDepInTools] ?: false,
-        disableDiskBuffering = this[DebugSettingsKeys.disableDiskBuffering] ?: false,
+        disableDiskBuffering = this[DebugSettingsKeys.disableDiskBuffering] ?: true,
     )
 }
