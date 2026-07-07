@@ -1,5 +1,6 @@
 package com.grafana.quickpizza.features.debug
 
+import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.grafana.quickpizza.core.config.DebugSettings
@@ -59,6 +60,7 @@ fun computeRestartBanner(
 
 @HiltViewModel
 class DebugViewModel @Inject constructor(
+    private val application: Application,
     private val debugSettings: DebugSettingsRepository,
     private val runtimeConfig: RuntimeConfigHolder,
     private val logger: AppLogger,
@@ -149,9 +151,9 @@ class DebugViewModel @Inject constructor(
     }
 
     fun triggerAnr() {
-        // Block the main thread long enough to exceed Android's 5s ANR threshold.
-        // Caller invokes from main thread; intentionally not dispatched off it.
-        Thread.sleep(6000)
+        // Match the RN demo (QuickPizzaCrashModule): block ~10s so the system ANR
+        // dialog stays up ~5s after the ~5s threshold (6s was too short to tap Close).
+        Thread.sleep(10_000)
     }
 
     /**
@@ -170,6 +172,11 @@ class DebugViewModel @Inject constructor(
     fun triggerCrashNullPointer() {
         val nothing: String? = null
         nothing!!.length
+    }
+
+    /** Real SIGSEGV; tombstone replay is handled by `nativecrash` in a follow-up PR (OTel #764). */
+    fun triggerNdkCrash() {
+        NdkCrashTrigger.crash(application)
     }
 
     // ---------------------------------------------------------------------
