@@ -136,9 +136,12 @@ export function DebugScreen({ onNavigateToConfig }: DebugScreenProps) {
   };
 
   const confirmJavaCrash = (variant: 'runtimeException' | 'nullPointer') => {
+    const isAndroid = Platform.OS === 'android';
     Alert.alert(
-      'Trigger Java crash?',
-      'Throws a Java/Kotlin exception (R8 mapping.txt retrace). The app will terminate; relaunch to report via Faro.',
+      isAndroid ? 'Trigger Java crash?' : 'Trigger native crash?',
+      isAndroid
+        ? 'Throws a Java/Kotlin exception (R8 mapping.txt retrace). The app will terminate; relaunch to report via Faro.'
+        : 'Triggers a Swift fatalError. The app will terminate; relaunch to report via Faro.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -307,9 +310,15 @@ export function DebugScreen({ onNavigateToConfig }: DebugScreenProps) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Java crash (R8 / mapping.txt)</Text>
+          <Text style={styles.sectionTitle}>
+            {Platform.OS === 'android'
+              ? 'Java crash (R8 / mapping.txt)'
+              : 'Native crash (Swift)'}
+          </Text>
           <Text style={styles.settingSubtitle}>
-            Java/Kotlin exceptions retrace against mapping.txt after relaunch.
+            {Platform.OS === 'android'
+              ? 'Java/Kotlin exceptions retrace against mapping.txt after relaunch.'
+              : 'Intentional fatalError in native Swift code. Reported after relaunch.'}
           </Text>
           <View style={styles.buttonGrid}>
             <ActionButton
@@ -322,11 +331,13 @@ export function DebugScreen({ onNavigateToConfig }: DebugScreenProps) {
               tone="danger"
               onPress={() => confirmJavaCrash('nullPointer')}
             />
-            <ActionButton
-              title="ANR (block main thread ~10s)"
-              tone="danger"
-              onPress={confirmNativeAnr}
-            />
+            {Platform.OS === 'android' && (
+              <ActionButton
+                title="ANR (block main thread ~10s)"
+                tone="danger"
+                onPress={confirmNativeAnr}
+              />
+            )}
           </View>
         </View>
 
