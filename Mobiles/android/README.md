@@ -53,29 +53,14 @@ symbols (`ndk.debugSymbolLevel = FULL`). The **`com.grafana.faro.android-symbols
 `assembleRelease`, `bundleRelease`, or **`installRelease`** — no manual
 `faro-cli` step is required.
 
-### Local Gradle plugin (until Plugin Portal publish)
-
-`settings.gradle.kts` lists `mavenLocal()` first so you can test unreleased
-builds of **`com.grafana.faro.android-symbols`**. Until the plugin is on the
-Gradle Plugin Portal, **release builds** (`assembleRelease`, `installRelease`)
-need a matching local publish:
-
-```bash
-cd <path-to>/faro-android-gradle-plugin
-./gradlew publishToMavenLocal -Pversion=0.1.0
-```
-
 This demo locks the plugin classpath (`app/buildscript-gradle.lockfile`). After
-you publish locally (or bump the plugin version), refresh lockfiles or Gradle
-will fail with a dependency-lock mismatch:
+you bump the plugin version, refresh lockfiles or Gradle will fail with a
+dependency-lock mismatch:
 
 ```bash
 cd Mobiles/android
 ./gradlew :app:dependencies --write-locks
 ```
-
-The React Native demo uses the same plugin via `Mobiles/react-native/android/settings.gradle`
-— publish to `mavenLocal()` there too when working on unreleased plugin builds.
 
 | Artifact       | Path (under `app/build/outputs/`)                       |
 | -------------- | ------------------------------------------------------- |

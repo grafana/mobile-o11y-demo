@@ -1,9 +1,5 @@
 pluginManagement {
     repositories {
-        // Until com.grafana.faro.android-symbols is on the Gradle Plugin Portal, release builds
-        // need: publishToMavenLocal in faro-android-gradle-plugin, then refresh lockfiles
-        // (see Mobiles/android/README.md — "Local Gradle plugin").
-        mavenLocal()
         google {
             content {
                 includeGroupByRegex("com\\.android.*")

@@ -92,8 +92,6 @@ Edit **`sourcemaps.config.json`** (gitignored, like `config.json`):
 
 For **Android** release, configure **`com.grafana.faro.android-symbols`** in `android/app/build.gradle` and run **`yarn android --mode=release`** (or `./gradlew :app:assembleRelease` from `android/`). Metro reads the same bundle id from Gradle; R8 symbols upload with the plugin.
 
-Until the plugin is on the Gradle Plugin Portal, publish it locally first (`publishToMavenLocal` in [faro-android-gradle-plugin](https://github.com/grafana/faro-android-gradle-plugin)) and refresh native Android lockfiles — see [../android/README.md](../android/README.md#local-gradle-plugin-until-plugin-portal-publish).
-
 For **iOS** release, export source map API vars in the same shell where you run **`yarn ios -- --mode Release`** (or inject them into CI **`xcodebuild`**) so the autolinked upload step can run **`faro-upload-source-map`**. Set **`FARO_BUNDLE_ID`** to a stable id per shipped IPA build.
 
 `FARO_SOURCEMAP_ENDPOINT`, `FARO_SOURCEMAP_APP_ID`, `FARO_SOURCEMAP_STACK_ID`, `FARO_SOURCEMAP_API_KEY` (Android). On iOS, also set **`FARO_BUNDLE_ID`**.

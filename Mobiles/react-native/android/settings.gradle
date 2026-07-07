@@ -1,9 +1,6 @@
 pluginManagement {
     includeBuild("../node_modules/@react-native/gradle-plugin")
     repositories {
-        // Until com.grafana.faro.android-symbols is on the Gradle Plugin Portal, publish the
-        // plugin to mavenLocal first (see Mobiles/android/README.md — "Local Gradle plugin").
-        mavenLocal()
         gradlePluginPortal()
         google()
         mavenCentral()
