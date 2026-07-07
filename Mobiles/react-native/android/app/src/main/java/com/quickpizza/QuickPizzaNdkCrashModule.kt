@@ -5,7 +5,6 @@ import android.os.Looper
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
-import com.grafana.faro.reactnative.FaroCrashReporter
 
 class QuickPizzaNdkCrashModule(
   reactContext: ReactApplicationContext
@@ -17,8 +16,12 @@ class QuickPizzaNdkCrashModule(
   fun crash() {
     Handler(Looper.getMainLooper()).post {
       val trace = captureBacktraceForCache()
-      if (trace.isNotBlank()) {
-        FaroCrashReporter.cachePendingNativeCrashTrace(reactApplicationContext, trace)
+      if (trace.isNotBlank() && looksLikeNativeBacktrace(trace)) {
+        QuickPizzaNativeCrashTraceCache.savePendingCrashTrace(
+          reactApplicationContext,
+          trace.trim(),
+          System.currentTimeMillis(),
+        )
       }
       nativeCrash()
     }
