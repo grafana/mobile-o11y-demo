@@ -10,14 +10,14 @@ class SymbolsBundleIdTest {
     @Test
     fun formatUsesVersionCodeBeforeVersionName() {
         assertEquals(
-            "com.grafana.quickpizza@1@1.0",
-            SymbolsBundleId.format("com.grafana.quickpizza", 1L, "1.0"),
+            "com.grafana.quickpizza@1@1.0.0",
+            SymbolsBundleId.format("com.grafana.quickpizza", 1L, "1.0.0"),
         )
     }
 
     @Test
     fun validateAcceptsEncodedTriple() {
-        assertTrue(SymbolsBundleId.validate("com.grafana.quickpizza@1@1.0"))
+        assertTrue(SymbolsBundleId.validate("com.grafana.quickpizza@1@1.0.0"))
     }
 
     @Test

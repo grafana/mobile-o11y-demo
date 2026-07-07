@@ -1,7 +1,8 @@
 pluginManagement {
     repositories {
-        // Resolve a locally published `com.grafana.faro.android-symbols` build first (gradle publishToMavenLocal).
-        // Once the plugin is on the Gradle Plugin Portal, gradlePluginPortal() below is enough.
+        // Until com.grafana.faro.android-symbols is on the Gradle Plugin Portal, release builds
+        // need: publishToMavenLocal in faro-android-gradle-plugin, then refresh lockfiles
+        // (see Mobiles/android/README.md — "Local Gradle plugin").
         mavenLocal()
         google {
             content {

@@ -87,13 +87,16 @@ Edit **`sourcemaps.config.json`** (gitignored, like `config.json`):
 | `appName` | Must match `app.name` in `initializeFaro` (`src/bootstrap.ts`). |
 | `endpoint`, `appId`, `stackId` | **Frontend Observability → your app → Settings → Source maps** (not the Faro collector URL). |
 | `apiKey` | Bearer token for the source map API (optional if you use env only). |
-| `bundleId` | Optional default id for **iOS** / dev; **Android release** uses Gradle (`applicationId@versionCode@versionName`) via `@grafana/faro-metro-plugin` — do not set `FARO_BUNDLE_ID` in CI. |
+
+**Bundle id (release):** not in `sourcemaps.config.json`. **Android** resolves `applicationId@versionCode@versionName` from the Faro Gradle plugin (`android/app/build/faro/bundle-id-release.txt`). **iOS** sets `FARO_BUNDLE_ID` in the shell or `ios/.xcode.env` before `yarn ios -- --mode Release`.
 
 For **Android** release, configure **`com.grafana.faro.android-symbols`** in `android/app/build.gradle` and run **`yarn android --mode=release`** (or `./gradlew :app:assembleRelease` from `android/`). Metro reads the same bundle id from Gradle; R8 symbols upload with the plugin.
 
-For **iOS** release, export source map API vars in the same shell where you run **`yarn ios -- --mode Release`** (or inject them into CI **`xcodebuild`**) so the autolinked upload step can run **`faro-upload-source-map`**. Set **`FARO_BUNDLE_ID`** (or `bundleId` in config) to a stable id per shipped IPA build.
+Until the plugin is on the Gradle Plugin Portal, publish it locally first (`publishToMavenLocal` in [faro-android-gradle-plugin](https://github.com/grafana/faro-android-gradle-plugin)) and refresh native Android lockfiles — see [../android/README.md](../android/README.md#local-gradle-plugin-until-plugin-portal-publish).
 
-`FARO_SOURCEMAP_ENDPOINT`, `FARO_SOURCEMAP_APP_ID`, `FARO_SOURCEMAP_STACK_ID`, `FARO_SOURCEMAP_API_KEY` (and on iOS, `FARO_BUNDLE_ID` when not using an explicit `bundleId` in `metro.config.js`).
+For **iOS** release, export source map API vars in the same shell where you run **`yarn ios -- --mode Release`** (or inject them into CI **`xcodebuild`**) so the autolinked upload step can run **`faro-upload-source-map`**. Set **`FARO_BUNDLE_ID`** to a stable id per shipped IPA build.
+
+`FARO_SOURCEMAP_ENDPOINT`, `FARO_SOURCEMAP_APP_ID`, `FARO_SOURCEMAP_STACK_ID`, `FARO_SOURCEMAP_API_KEY` (Android). On iOS, also set **`FARO_BUNDLE_ID`**.
 
 They override the JSON values when set. Use **one** bundle id per build you ship; changing the id means uploading a new map.
 

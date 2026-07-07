@@ -53,6 +53,29 @@ symbols (`ndk.debugSymbolLevel = FULL`). The **`com.grafana.faro.android-symbols
 `assembleRelease`, `bundleRelease`, or **`installRelease`** — no manual
 `faro-cli` step is required.
 
+### Local Gradle plugin (until Plugin Portal publish)
+
+`settings.gradle.kts` lists `mavenLocal()` first so you can test unreleased
+builds of **`com.grafana.faro.android-symbols`**. Until the plugin is on the
+Gradle Plugin Portal, **release builds** (`assembleRelease`, `installRelease`)
+need a matching local publish:
+
+```bash
+cd <path-to>/faro-android-gradle-plugin
+./gradlew publishToMavenLocal -Pversion=0.1.0
+```
+
+This demo locks the plugin classpath (`app/buildscript-gradle.lockfile`). After
+you publish locally (or bump the plugin version), refresh lockfiles or Gradle
+will fail with a dependency-lock mismatch:
+
+```bash
+cd Mobiles/android
+./gradlew :app:dependencies --write-locks
+```
+
+The React Native demo uses the same plugin via `Mobiles/react-native/android/settings.gradle`
+— publish to `mavenLocal()` there too when working on unreleased plugin builds.
 
 | Artifact       | Path (under `app/build/outputs/`)                       |
 | -------------- | ------------------------------------------------------- |
@@ -64,24 +87,18 @@ symbols (`ndk.debugSymbolLevel = FULL`). The **`com.grafana.faro.android-symbols
 
 Each shipped Android release gets a **release id** — a short label that
 combines the app package name, build number, and version string. For this
-demo that id is **`com.grafana.quickpizza@1@1.0`**.
+demo that id is **`com.grafana.quickpizza@1@1.0.0`**.
 
 Think of it in three steps:
 
-1. **At build time** (your CI or laptop, not on users’ phones), the Gradle
-  plugin uploads debug files for that release to Grafana — the files that
-   turn obfuscated crash output back into real class and file names.
-2. **At runtime**, the installed app only sends lightweight error reports.
-  Each report includes the same release id so Grafana knows *which* build
-   produced the crash.
-3. **In Grafana**, Frontend Observability uses that id to find the files
-  uploaded in step 1 and show a **readable stack trace** instead of
-   scrambled names like `a5.r0`.
+1. **At build time** (your CI or laptop, not on users’ phones), the Gradle plugin uploads debug files for that release to Grafana — the files that turn obfuscated crash output back into real class and file names.
+2. **At runtime**, the installed app only sends lightweight error reports. Each report includes the same release id so Grafana knows *which* build produced the crash.
+3. **In Grafana**, Frontend Observability uses that id to find the files uploaded in step 1 and show a **readable stack trace** instead of scrambled names like `a5.r0`.
 
 The release id is saved locally as `app/build/faro/bundle-id-release.txt` so
 build tooling and uploads stay in sync. Engineers: the app emits this id as
 `faro.app.bundleId` at runtime; `service.version` remains the human-readable
-version (`1.0`) for dashboards.
+version (`1.0.0`) for dashboards.
 
 > **Also in this repo — the React Native demo** ([../react-native/](../react-native/)):
 > same three-step flow and the same release id per build. The difference is
@@ -173,13 +190,9 @@ The **Debug** tab exposes:
   default-on disk buffering means ~30–45 s end-to-end latency at the
   cost of offline resilience; turning it off gives ~1–6 s latency for
   live demos at the cost of dropping signals if the network is down.
-- **Quick signals** — buttons to send a debug log, an error log, and a
-custom event (`debug.test_event`).
-- **Handled exception** — emits an OTel exception log via
-`logger.exception(...)`.
-- **ANR card** — blocks the main thread for 10 s (same as RN). Android's 5 s ANR
-  threshold trips and `event_name=device.anr` is captured by the OTel
-  agent; ~5 s of system Wait/Close dialog after that.
+- **Quick signals** — buttons to send a debug log, an error log, and a custom event (`debug.test_event`).
+- **Handled exception** — emits an OTel exception log via `logger.exception(...)`.
+- **ANR card** — blocks the main thread for 6 s. Android's 5 s ANR threshold trips and `event_name=device.anr` is captured by the OTel agent; the system may show a Wait/Close dialog afterward.
 - **Crash card** — `RuntimeException` and simulated `NullPointerException`
   variants. The OTel-Android `CrashReporter` persists the crash to disk
   and the exporter delivers it on the next app launch.
@@ -204,8 +217,8 @@ Resource attributes:
 ```
 service.name             = quickpizza-android   (logical service — not the package)
 service.namespace        = quickpizza
-service.version          = 1.0                  (versionName)
-faro.app.bundleId        = com.grafana.quickpizza@1@1.0  (symbols lookup key: applicationId@versionCode@versionName)
+service.version          = 1.0.0                (versionName)
+faro.app.bundleId        = com.grafana.quickpizza@1@1.0.0  (symbols lookup key: applicationId@versionCode@versionName)
 deployment.environment   = production
 android.os.api_level     = 30/34/...
 device.manufacturer      = Google / ...

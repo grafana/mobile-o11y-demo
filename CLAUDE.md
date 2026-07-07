@@ -133,12 +133,12 @@ read [`Mobiles/docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](./Mobiles/docs/MOBILE_OBS
 
 ### Android native (`Mobiles/android/`)
 
-- **Stack:** Kotlin, Jetpack Compose, Hilt, OkHttp, `opentelemetry-android` 1.2.0-alpha (the OTel-Android **RUM agent**).
+- **Stack:** Kotlin, Jetpack Compose, Hilt, OkHttp, `opentelemetry-android` 1.4.0-alpha (the OTel-Android **RUM agent**).
 - **Observability:** Manual spans (`pizza.get_recommendation`, `auth.login`, `pizza.rate`), auto OkHttp HTTP spans, auto lifecycle spans (`AppStart`, `Paused`, `Stopped`), auto `screen.view` / `app.jank` events, auto `device.crash` (next launch) and `device.anr` (runtime) events, 15-min session tracking, OTLP disk buffering for offline resilience (toggleable via Debug screen).
 - **Where it lands:** OTLP/HTTP → Grafana Cloud Tempo + Loki, visualised via the "Android & iOS OTel RUM" dashboard.
 - **Config:** `app/src/main/res/raw/config.json` — `BASE_URL` (default `http://10.0.2.2:3333` on emulators), `OTLP_ENDPOINT`, `OTLP_INSTANCE_ID`, `OTLP_API_KEY`. Runtime overrides via in-app Debug → Config.
 - **Build:** Android Studio or `cd Mobiles/android && ./gradlew installDebug`. Use Android Studio's bundled JDK (system JDK is often too old).
-- **Resource attrs:** `service.name=quickpizza-android`, `service.namespace=quickpizza`, `service.version`, `deployment.environment`, `android.os.api_level`, `device.manufacturer`, `device.model.{identifier,name}`, `network.connection.type`, `app.installation.id`, `nav.{destination, previous_destination, kind}`, `telemetry.sdk.{language=java, version=1.2.0-alpha}`.
+- **Resource attrs:** `service.name=quickpizza-android`, `service.namespace=quickpizza`, `service.version`, `deployment.environment`, `android.os.api_level`, `device.manufacturer`, `device.model.{identifier,name}`, `network.connection.type`, `app.installation.id`, `nav.{destination, previous_destination, kind}`, `telemetry.sdk.{language=java, version=1.4.0-alpha}`.
 
 ### Shared Debug screen
 
