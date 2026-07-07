@@ -35,6 +35,8 @@ concurrency:
 
 env:
   FLUTTER_CHANNEL: "stable"
+  # Until com.grafana.faro.android-symbols is on the Gradle Plugin Portal.
+  FARO_ANDROID_GRADLE_PLUGIN_VERSION: "0.1.0"
 
 jobs:
   resolve-diagnostics-cadence:
@@ -135,6 +137,24 @@ jobs:
         with:
           distribution: "zulu"
           java-version: "17"
+
+      - name: Checkout Faro Android Gradle plugin
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: grafana/faro-android-gradle-plugin
+          ref: main
+          path: .faro-android-gradle-plugin
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Gradle for Faro plugin publish
+        uses: gradle/actions/setup-gradle@48b5f213c81028ace310571dc5ec0fbbca0b2947 # v4.4.3
+        with:
+          gradle-version: "8.10"
+
+      - name: Publish Faro Android Gradle plugin to Maven Local
+        env:
+          FARO_ANDROID_GRADLE_PLUGIN_VERSION: ${{ env.FARO_ANDROID_GRADLE_PLUGIN_VERSION }}
+        run: bash .github/scripts/publish-faro-android-gradle-plugin.sh .faro-android-gradle-plugin
 
       - name: Set up Flutter
         uses: subosito/flutter-action@e938fdf56512cc96ef2f93601a5a40bde3801046 # v2.19.0
