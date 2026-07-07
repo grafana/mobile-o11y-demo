@@ -136,8 +136,7 @@ which exercises Faro's `crash` exception path on the next launch.
 
 ### React Native (Faro)
 
-- **SDK:** `faro-react-native` 2.3.1, integration
-  `@grafana/faro-react-native:1.0.0` (alpha — see RN README)
+- **SDK:** `@grafana/faro-react-native` 1.3.0, `@grafana/faro-react-native-tracing` 1.3.0 (see RN README)
 - **Init:** `Mobiles/react-native/src/bootstrap.ts` →
   `core/o11y/faroSdk.ts`
 - **Faro app:** registry name `QuickPizza_ReactNative`, id `123`
@@ -189,7 +188,7 @@ For deeper iOS detail see
 
 ### Android native (OpenTelemetry Android)
 
-- **SDK:** `opentelemetry-android` 1.4.0-alpha (`telemetry_sdk_language=java`)
+- **SDK:** `opentelemetry-android` 1.2.0-alpha (`telemetry_sdk_language=java`)
 - **Init:** `Mobiles/android/app/src/main/java/com/grafana/quickpizza/core/o11y/OTelService.kt`
   → `OpenTelemetryRumInitializer.initialize(...)`
 - **OTel service.name:** `quickpizza-android`, service.namespace `quickpizza`
