@@ -217,6 +217,8 @@ private fun ErrorSimulationSection(settings: DebugSettings, viewModel: DebugView
 
 @Composable
 private fun ClientDiagnosticsSection(viewModel: DebugViewModel) {
+    var pendingNdkCrash by rememberSaveable { mutableStateOf(false) }
+
     SectionHeader("Client Diagnostics")
 
     QuickSignalsCard(viewModel)
@@ -231,14 +233,46 @@ private fun ClientDiagnosticsSection(viewModel: DebugViewModel) {
 
     DiagnosticActionCard(
         title = "ANR",
-        description = "Blocks the main thread for 6 seconds, exceeding Android's 5s ANR threshold. " +
-            "The system shows an ANR dialog and the OTel agent reports it.",
+        description = "Blocks the main thread for 10 seconds (same as the RN demo) so the " +
+            "system ANR dialog stays open long enough to tap Close app or Wait. The OTel " +
+            "agent reports device.anr with the main-thread stack.",
         buttonText = "Trigger ANR",
         danger = true,
         onClick = viewModel::triggerAnr,
     )
 
     CrashCard(viewModel)
+
+    DiagnosticActionCard(
+        title = "NDK crash (C++ / tombstone)",
+        description = "Real SIGSEGV in native code; stack frames symbolicate with per-ABI " +
+            ".so symbols (arm64-v8a.zip) after relaunch.",
+        buttonText = "SIGSEGV (null dereference)",
+        danger = true,
+        onClick = { pendingNdkCrash = true },
+    )
+
+    if (pendingNdkCrash) {
+        AlertDialog(
+            onDismissRequest = { pendingNdkCrash = false },
+            title = { Text("Trigger native SIGSEGV?") },
+            text = {
+                Text(
+                    "Causes a real SIGSEGV with a native tombstone. The app will terminate; " +
+                        "relaunch to report via OTLP (device.crash + context.trace).",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingNdkCrash = false
+                    viewModel.triggerNdkCrash()
+                }) { Text("Crash now", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingNdkCrash = false }) { Text("Cancel") }
+            },
+        )
+    }
 }
 
 @Composable

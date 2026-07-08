@@ -128,6 +128,9 @@ export async function initFaro(): Promise<void> {
     memoryUsageVitals: true,
     refreshRateVitals: true,
     anrTracking: true,
+    anrOptions: {
+      pollingInterval: __DEV__ ? 5000 : 10000,
+    },
     fetchVitalsInterval: __DEV__ ? 5000 : 30000,
 
     enableErrorReporting: true,

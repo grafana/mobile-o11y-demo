@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import {
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,7 +12,7 @@ import {
 import MaterialIcons from '@react-native-vector-icons/material-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { triggerNativeCrash } from '../../../core/native/nativeCrash';
+import { triggerJavaCrash, triggerNdkCrash } from '../../../core/native/nativeCrash';
 import { reportError } from '../../../core/o11y/o11yErrors';
 import { trackEvent } from '../../../core/o11y/o11yEvents';
 import { pushDebugLog, pushErrorLog } from '../../../core/o11y/o11yLogs';
@@ -134,16 +135,49 @@ export function DebugScreen({ onNavigateToConfig }: DebugScreenProps) {
     }, 0);
   };
 
-  const confirmNativeCrash = (variant: 'runtimeException' | 'nullPointer') => {
+  const confirmJavaCrash = (variant: 'runtimeException' | 'nullPointer') => {
+    const isAndroid = Platform.OS === 'android';
     Alert.alert(
-      'Trigger native crash?',
-      'The app will terminate. Relaunch it to let Faro report the crash.',
+      isAndroid ? 'Trigger Java crash?' : 'Trigger native crash?',
+      isAndroid
+        ? 'Throws a Java/Kotlin exception (R8 mapping.txt retrace). The app will terminate; relaunch to report via Faro.'
+        : 'Triggers a Swift fatalError. The app will terminate; relaunch to report via Faro.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Crash',
           style: 'destructive',
-          onPress: () => triggerNativeCrash(variant),
+          onPress: () => triggerJavaCrash(variant),
+        },
+      ],
+    );
+  };
+
+  const confirmNdkCrash = () => {
+    Alert.alert(
+      'Trigger NDK crash?',
+      'Causes a real SIGSEGV with a native tombstone (arm64-v8a.zip symbolication). The app will terminate; relaunch to report via Faro.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Crash',
+          style: 'destructive',
+          onPress: () => triggerNdkCrash(),
+        },
+      ],
+    );
+  };
+
+  const confirmNativeAnr = () => {
+    Alert.alert(
+      'Trigger native ANR?',
+      'The UI will freeze for ~10s while the main thread is blocked. Faro reports it as an ANR.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Freeze',
+          style: 'destructive',
+          onPress: () => triggerJavaCrash('anr'),
         },
       ],
     );
@@ -276,23 +310,53 @@ export function DebugScreen({ onNavigateToConfig }: DebugScreenProps) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Native crash</Text>
+          <Text style={styles.sectionTitle}>
+            {Platform.OS === 'android'
+              ? 'Java crash (R8 / mapping.txt)'
+              : 'Native crash (Swift)'}
+          </Text>
           <Text style={styles.settingSubtitle}>
-            These intentionally terminate the app and are reported after relaunch.
+            {Platform.OS === 'android'
+              ? 'Java/Kotlin exceptions retrace against mapping.txt after relaunch.'
+              : 'Intentional fatalError in native Swift code. Reported after relaunch.'}
           </Text>
           <View style={styles.buttonGrid}>
             <ActionButton
-              title="RuntimeException / fatalError"
+              title="RuntimeException"
               tone="danger"
-              onPress={() => confirmNativeCrash('runtimeException')}
+              onPress={() => confirmJavaCrash('runtimeException')}
             />
             <ActionButton
-              title="Null pointer / force unwrap"
+              title="Null pointer"
               tone="danger"
-              onPress={() => confirmNativeCrash('nullPointer')}
+              onPress={() => confirmJavaCrash('nullPointer')}
             />
+            {Platform.OS === 'android' && (
+              <ActionButton
+                title="ANR (block main thread ~10s)"
+                tone="danger"
+                onPress={confirmNativeAnr}
+              />
+            )}
           </View>
         </View>
+
+        {Platform.OS === 'android' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>NDK crash (C++ / tombstone)</Text>
+            <Text style={styles.settingSubtitle}>
+              Real SIGSEGV in native code; stack frames use per-ABI .so symbols
+              (arm64-v8a.zip) after relaunch.
+            </Text>
+            <View style={styles.buttonGrid}>
+              <ActionButton
+                title="SIGSEGV (null dereference)"
+                tone="danger"
+                onPress={confirmNdkCrash}
+              />
+            </View>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

@@ -71,6 +71,12 @@ android {
         compose = true
         buildConfig = true
     }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+        }
+    }
 }
 
 // Grafana Faro symbol upload. Secrets come from the environment / CI — never hardcode the key.
