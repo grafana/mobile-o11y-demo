@@ -110,6 +110,10 @@ dependencies {
     implementation(libs.opentelemetry.okhttp3)
     byteBuddy(libs.opentelemetry.android.okhttp3.agent)
 
+    // TODO(opentelemetry-android#764): remove with com.grafana.quickpizza.nativecrash package.
+    // Protobuf tombstone decode for ApplicationExitInfo.traceInputStream (API 31+).
+    implementation("com.google.protobuf:protobuf-javalite:3.25.1")
+
     // Testing
     androidTestImplementation(libs.test.runner)
     androidTestImplementation(libs.test.espresso.core)
