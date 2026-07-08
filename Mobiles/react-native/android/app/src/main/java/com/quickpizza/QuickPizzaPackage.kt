@@ -8,7 +8,11 @@ import com.facebook.react.uimanager.ViewManager
 class QuickPizzaPackage : ReactPackage {
   override fun createNativeModules(
     reactContext: ReactApplicationContext
-  ): List<NativeModule> = listOf(QuickPizzaCrashModule(reactContext))
+  ): List<NativeModule> =
+    listOf(
+      QuickPizzaCrashModule(reactContext),
+      QuickPizzaNdkCrashModule(reactContext),
+    )
 
   override fun createViewManagers(
     reactContext: ReactApplicationContext
