@@ -12,6 +12,7 @@ await mkdir(runtimeDir, { recursive: true });
 
 const children = [];
 const logDescriptors = [];
+let stopping = false;
 children.push(await start('loki', ['-config.file=config/loki.local.yaml'], 'loki.log'));
 await waitFor('http://127.0.0.1:3100/ready');
 children.push(
@@ -45,6 +46,12 @@ async function start(command, args, logName) {
     cwd: benchmarkDir,
     stdio: ['ignore', logDescriptor, logDescriptor],
   });
+  child.on('error', (error) => {
+    process.stderr.write(
+      `Failed to start ${command}: ${error.message}. Is it installed and available on PATH?\n`,
+    );
+    shutdown(1);
+  });
   child.on('exit', (code) => {
     if (code !== 0 && code != null) {
       process.stderr.write(`${command} exited with code ${code}; see ${logName}\n`);
@@ -71,6 +78,10 @@ async function waitFor(url) {
 }
 
 function shutdown(code = 0) {
+  if (stopping) {
+    return;
+  }
+  stopping = true;
   for (const child of children) {
     child.kill('SIGTERM');
   }

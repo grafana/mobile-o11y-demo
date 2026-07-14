@@ -2,6 +2,8 @@
 
 import { parseArgs } from 'node:util';
 
+import { quoteLogQLString } from './lib/logql.mjs';
+
 const { values } = parseArgs({
   options: {
     run: { type: 'string', short: 'r' },
@@ -16,9 +18,10 @@ if (!values.run) {
 }
 
 const durationMs = parseDuration(values.since);
-const end = Date.now() * 1_000_000;
-const start = (Date.now() - durationMs) * 1_000_000;
-const query = `{app_id="${values.app}", kind="event"} |= "${values.run}" |~ "session_start|session_extend|session_resume" | logfmt | event_name=~"session_start|session_extend|session_resume"`;
+const now = Date.now();
+const end = now * 1_000_000;
+const start = (now - durationMs) * 1_000_000;
+const query = `{app_id=${quoteLogQLString(values.app)}, kind="event"} |~ "session_start|session_extend|session_resume" | logfmt | session_attr_benchmark_run_id=${quoteLogQLString(values.run)} | event_name=~"session_start|session_extend|session_resume"`;
 const url = new URL('/loki/api/v1/query_range', values.loki);
 url.searchParams.set('query', query);
 url.searchParams.set('start', String(start));

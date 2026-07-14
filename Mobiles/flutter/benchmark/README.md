@@ -87,7 +87,7 @@ Sanitized capture and replay summaries live under [`results`](results). Raw payl
 ## Tests
 
 ```bash
-node --test lib/telemetry.test.mjs
+node --test lib/*.test.mjs
 alloy validate config/alloy.local.alloy
 loki -config.file=config/loki.local.yaml -verify-config
 ```

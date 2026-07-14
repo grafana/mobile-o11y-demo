@@ -24,6 +24,9 @@ const outputDir = resolve(values.output);
 const rawDir = join(outputDir, 'raw');
 const manifestPath = join(outputDir, 'capture-manifest.json');
 const port = Number(values.port);
+if (!Number.isInteger(port) || port < 1 || port > 65_535) {
+  throw new Error(`--port must be an integer between 1 and 65535: ${values.port}`);
+}
 await mkdir(rawDir, { recursive: true });
 
 const manifest = {
@@ -95,8 +98,9 @@ async function writeManifest() {
 }
 
 function queueManifestWrite() {
-  manifestWrite = manifestWrite.then(writeManifest);
-  return manifestWrite;
+  const nextWrite = manifestWrite.catch(() => {}).then(writeManifest);
+  manifestWrite = nextWrite.catch(() => {});
+  return nextWrite;
 }
 
 async function shutdown() {
