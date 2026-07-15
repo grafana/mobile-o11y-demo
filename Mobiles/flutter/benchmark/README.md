@@ -37,13 +37,23 @@ make build-go
 ./bin/quickpizza
 ```
 
-Run the Flutter app with the proxy as its collector:
+Run the Flutter app with the proxy as its collector. For an iOS simulator, use the host loopback address:
 
 ```bash
 cd Mobiles/flutter
 flutter run \
   --dart-define=FARO_COLLECTOR_URL=http://127.0.0.1:12348/collect/local-benchmark-key \
   --dart-define=BASE_URL=http://127.0.0.1:3333 \
+  --dart-define=PORT=3333
+```
+
+For an Android emulator, use its `10.0.2.2` alias for the host machine:
+
+```bash
+cd Mobiles/flutter
+flutter run \
+  --dart-define=FARO_COLLECTOR_URL=http://10.0.2.2:12348/collect/local-benchmark-key \
+  --dart-define=BASE_URL=http://10.0.2.2:3333 \
   --dart-define=PORT=3333
 ```
 
@@ -75,10 +85,12 @@ The command:
 node replay.mjs \
   --input .captures/flutter-session-001/replay/flutter-session-001-replay
 
-node validate-loki.mjs --run flutter-session-001-replay
+node validate-loki.mjs \
+  --run flutter-session-001-replay \
+  --manifest .captures/flutter-session-001/replay/flutter-session-001-replay/replay-manifest.json
 ```
 
-The validation runs the same lifecycle-event shape used by Mobile O11y Sessions and requires at least one parsed `session_id`.
+The validation runs the same lifecycle-event shape used by Mobile O11y Sessions, requires at least one parsed `session_id`, and checks that Loki received the expected event, measurement, log, and exception counts from the replay manifest. Trace counts are checked when preparing the replay but are not included in the Loki comparison because this local stack does not route traces to Loki.
 
 ## Recorded validations
 

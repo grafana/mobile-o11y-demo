@@ -5,6 +5,7 @@ import { mkdir, rename, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
+import { isCollectorRequest } from './lib/http.mjs';
 import { sha256 } from './lib/telemetry.mjs';
 
 const { values } = parseArgs({
@@ -43,6 +44,12 @@ let stopping = false;
 
 const server = createServer(async (request, response) => {
   try {
+    if (!isCollectorRequest(request.method, request.url)) {
+      response.writeHead(404, { 'content-type': 'text/plain' });
+      response.end('Not found');
+      return;
+    }
+
     const chunks = [];
     for await (const chunk of request) {
       chunks.push(chunk);
