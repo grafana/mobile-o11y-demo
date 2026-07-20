@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/config/debug_settings.dart';
+import '../../../core/o11y/demo_rum/sdk/demo_rum.dart';
 import '../../../core/o11y/errors/o11y_errors.dart';
 import '../../../core/o11y/events/o11y_events.dart';
 import '../../../core/o11y/loggers/o11y_logger.dart';
@@ -150,8 +151,9 @@ class _DebugScreenState extends ConsumerState<DebugScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Emit one-off Faro signals (logs and custom events) to '
-                    'verify the SDK pipeline end-to-end.',
+                    'Emit one-off signals (logs and custom events) to both '
+                    'Faro and the DemoRum SDK to verify the pipelines '
+                    'end-to-end.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -201,7 +203,8 @@ class _DebugScreenState extends ConsumerState<DebugScreen> {
                   const SizedBox(height: 4),
                   Text(
                     'Throws an exception inside a try/catch and reports it '
-                    'via the Faro error API. Tests the manual reporting path.',
+                    'via the O11y error API, which fans out to both Faro and '
+                    'the DemoRum SDK. Tests the manual reporting path.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -232,9 +235,10 @@ class _DebugScreenState extends ConsumerState<DebugScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Throws a Dart exception outside any try/catch. Faro\'s '
-                    'global error handler (installed by faro.runApp) captures '
-                    'it and reports it. The app keeps running.',
+                    'Throws a Dart exception outside any try/catch. The '
+                    'chained global error handlers installed by both Faro and '
+                    'the DemoRum SDK both see it (Faro chains to DemoRum, which '
+                    'echoes it to the console). The app keeps running.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -246,6 +250,40 @@ class _DebugScreenState extends ConsumerState<DebugScreen> {
                       onPressed: _throwUnhandledException,
                       icon: const Icon(Icons.bolt),
                       label: const Text('Throw Unhandled Exception'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Verify DemoRum',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Captures a handled exception directly through the DemoRum '
+                    'SDK only (bypassing the shared O11y layer). Use this to '
+                    'confirm the DemoRum pipeline in isolation from Faro — '
+                    'watch for the "[DemoRum]" console echo.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.tonalIcon(
+                      onPressed: _captureDemoRumTestException,
+                      icon: const Icon(Icons.verified_outlined),
+                      label: const Text('Capture DemoRum Test Exception'),
                     ),
                   ),
                 ],
@@ -409,6 +447,19 @@ class _DebugScreenState extends ConsumerState<DebugScreen> {
           );
     }
     _showAction('Sent handled exception');
+  }
+
+  void _captureDemoRumTestException() {
+    try {
+      throw StateError('DemoRum verification exception from Debug tab');
+    } catch (e, stackTrace) {
+      DemoRum.captureException(
+        e,
+        stackTrace: stackTrace,
+        withScope: (scope) => scope.setContexts('o11y', _debugTabContext),
+      );
+    }
+    _showAction('Captured DemoRum test exception');
   }
 
   /// Throws synchronously inside a setState callback so it escapes the

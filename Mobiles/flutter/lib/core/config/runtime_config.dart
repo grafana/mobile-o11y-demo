@@ -23,16 +23,14 @@ class RuntimeConfig {
   final String faroCollectorUrl;
 }
 
-/// Resolves the effective backend + Faro URLs once, via the service
-/// providers. Bootstrap awaits [runtimeConfigProvider.future] before
-/// running the app, so downstream consumers can safely use
-/// `ref.watch(runtimeConfigProvider).requireValue` without dealing
-/// with a loading state.
-final runtimeConfigProvider = FutureProvider<RuntimeConfig>((ref) async {
-  final backendBaseUrl = await ref.watch(backendUrlServiceProvider).getUrl();
-  final faroCollectorUrl = await ref
-      .watch(faroCollectorServiceProvider)
-      .getUrl();
+/// Resolves the effective backend + Faro values once, via the service
+/// providers. These reads are synchronous because the underlying
+/// [SharedPreferences] instance is resolved once at bootstrap and exposed
+/// via [sharedPreferencesProvider], so consumers can read
+/// `ref.watch(runtimeConfigProvider)` directly without a loading state.
+final runtimeConfigProvider = Provider<RuntimeConfig>((ref) {
+  final backendBaseUrl = ref.watch(backendUrlServiceProvider).getUrl();
+  final faroCollectorUrl = ref.watch(faroCollectorServiceProvider).getUrl();
   return RuntimeConfig(
     backendBaseUrl: backendBaseUrl,
     faroCollectorUrl: faroCollectorUrl,

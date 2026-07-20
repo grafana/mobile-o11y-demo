@@ -6,24 +6,31 @@ import 'package:http/http.dart' as http;
 
 import '../config/debug_settings.dart';
 import '../config/runtime_config.dart';
+import '../o11y/demo_rum/sdk/demo_rum.dart';
 import '../o11y/errors/o11y_errors.dart';
 import '../o11y/metrics/o11y_metrics.dart';
 import '../storage/token_storage.dart';
 
 final apiClientProvider = Provider((ref) {
   // baseUrl is fixed for the session — captured from RuntimeConfig at bootstrap.
-  // Bootstrap awaits runtimeConfigProvider.future before runApp, so
-  // requireValue is always safe here.
+  // runtimeConfigProvider is synchronous (backed by sharedPreferencesProvider),
+  // so this read never sees a loading state.
   //
   // Error-injection headers are read live via a lambda, so toggles take
   // effect without needing to recreate the client.
-  final runtimeConfig = ref.watch(runtimeConfigProvider).requireValue;
+  final runtimeConfig = ref.watch(runtimeConfigProvider);
   final apiClient = ApiClient(
     baseUrl: runtimeConfig.backendBaseUrl,
     tokenStorage: ref.watch(tokenStorageProvider),
     o11yMetrics: ref.watch(o11yMetricsProvider),
     o11yErrors: ref.watch(o11yErrorsProvider),
-    httpClient: http.Client(),
+    // Dual HTTP instrumentation, wrapping at two different layers so they
+    // stack rather than conflict: DemoRumHttpClient (where a real second SDK
+    // would emit its HTTP span) -> http.Client()/IOClient -> Faro's
+    // HttpOverrides-wrapped HttpClient (Faro event). The inner http.Client()
+    // must stay constructed here, after installFaroHttpOverrides() ran in
+    // bootstrap, so Faro still sees traffic.
+    httpClient: DemoRumHttpClient(client: http.Client()),
     errorHeadersProvider: () =>
         ref.read(debugSettingsProvider).errorInjectionHeaders,
   );

@@ -94,14 +94,14 @@ class ConfigScreenUiState extends Equatable {
 
 /// Defines the actions available on the Config screen.
 abstract interface class ConfigScreenActions {
-  /// Persist both URL overrides atomically. Empty/whitespace values clear
+  /// Persist all overrides atomically. Empty/whitespace values clear
   /// the corresponding override.
   Future<void> save({
     required String? backendUrl,
     required String? faroCollectorUrl,
   });
 
-  /// Clear both URL overrides and fall back to build-time defaults on the
+  /// Clear all overrides and fall back to build-time defaults on the
   /// next app launch.
   Future<void> clear();
 }
@@ -115,7 +115,7 @@ class _ConfigScreenViewModel extends Notifier<ConfigScreenUiState>
   @override
   ConfigScreenUiState build() {
     final settings = ref.watch(debugSettingsProvider);
-    final runtime = ref.watch(runtimeConfigProvider).requireValue;
+    final runtime = ref.watch(runtimeConfigProvider);
     final configService = ref.watch(configServiceProvider);
 
     final defaultFaroCollector = _safeDefaultFaroCollectorUrl();

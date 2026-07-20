@@ -1,6 +1,6 @@
 # QuickPizza Flutter Mobile App
 
-A Flutter mobile application that replicates the QuickPizza web application functionality. This app allows users to get pizza recommendations, rate pizzas, and manage their profile, and demonstrates Grafana Faro mobile telemetry.
+A Flutter mobile application that replicates the QuickPizza web application functionality. This app allows users to get pizza recommendations, rate pizzas, and manage their profile, and demonstrates Grafana Faro mobile telemetry. It also runs a second, made-up RUM SDK alongside Faro to show how two mobile RUM SDKs coexist in one app — see [Running a second RUM SDK alongside Faro](#running-a-second-rum-sdk-alongside-faro).
 
 > **New here?** Start at [`../README.md`](../README.md) for the overview of all
 > four apps, the backend, and how to get a demo running. This page covers the
@@ -204,6 +204,39 @@ onPressed: () => actions.ratePizza(stars: 5);
 - **Readability**: No Riverpod-specific syntax (`.notifier`) in widget code
 - **Separation**: UI state is a pure data class, actions are interface methods
 - **Discoverability**: New developers see plain Dart interfaces
+
+## Running a second RUM SDK alongside Faro
+
+Grafana Faro is the primary — and only *real* — instrumentation for this app.
+Alongside it runs **DemoRum**, a small **made-up, no-op RUM SDK** defined
+locally in [`core/o11y/demo_rum/`](lib/core/o11y/demo_rum/). Its whole purpose is
+to demonstrate *how you would wire a second mobile RUM SDK into an app that
+already uses Faro* — the shared `core/o11y/` layer fans every error, log, event
+and span out to both, so you can see the exact call sites a second SDK plugs
+into.
+
+- **It's a stand-in, not a real backend.** DemoRum sends nothing over the
+  network. Every method is a no-op that echoes to the console (look for
+  `[DemoRum]` logs) so you can *see* it receiving the same telemetry as Faro. To
+  ship a real second SDK, swap the types in `core/o11y/demo_rum/sdk/demo_rum.dart`
+  for the vendor's and keep the surrounding code essentially unchanged. Its API
+  is deliberately shaped like a typical RUM SDK (init + options, root widget,
+  navigation observer, HTTP client wrapper, exception capture, structured logs,
+  scope/user, and spans).
+- **It behaves like a real SDK where it matters.** DemoRum installs *chained*
+  `FlutterError.onError` / `PlatformDispatcher.onError` handlers (the same
+  cooperative pattern real SDKs use — save + call the previous handler), so both
+  Faro and DemoRum observe every Dart error. Its HTTP client wrapper forwards
+  each request (Faro's `HttpOverrides` underneath still does the real capture),
+  and its spans run their callbacks so instrumenting a call site never changes
+  behavior.
+- **How it's wired:** `bootstrap.dart` nests the two (DemoRum wraps Faro wraps
+  the app). Each SDK's init + widget wrapper live in
+  [`core/o11y/demo_rum/`](lib/core/o11y/demo_rum/) and
+  [`core/o11y/faro/`](lib/core/o11y/faro/).
+- **Verify:** the in-app **Debug** tab triggers errors/logs/events (they reach
+  Faro *and* echo through DemoRum), plus a dedicated "Capture DemoRum Test
+  Exception" button.
 
 ## API Endpoints Used
 

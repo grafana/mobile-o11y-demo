@@ -1,9 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'shared_preferences_provider.dart';
+
 /// SharedPreferences keys used by debug settings. Exposed so other
-/// services (e.g. FaroCollectorService) can read the same values
-/// before Riverpod is available.
+/// services (e.g. FaroCollectorService) can read the same values.
 abstract class DebugSettingsKeys {
   static const backendUrl = 'debug_backend_url';
   static const faroCollectorUrl = 'debug_faro_collector_url';
@@ -113,57 +114,43 @@ class DebugSettings {
 }
 
 class DebugSettingsNotifier extends Notifier<DebugSettings> {
+  /// Cached, synchronously-available prefs (resolved at bootstrap and
+  /// exposed via [sharedPreferencesProvider]).
+  SharedPreferences get _prefs => ref.read(sharedPreferencesProvider);
+
   @override
-  DebugSettings build() {
-    _loadFromPrefs();
-    return const DebugSettings();
-  }
+  DebugSettings build() => _readFromPrefs();
 
-  /// Synchronously populates from prefs (best-effort). Callers who need
-  /// guaranteed up-to-date state should await [reload].
-  Future<void> _loadFromPrefs() async {
-    state = await _readFromPrefs();
-  }
-
-  Future<DebugSettings> _readFromPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
+  DebugSettings _readFromPrefs() {
     return DebugSettings(
-      backendUrlOverride: prefs.getString(DebugSettingsKeys.backendUrl),
-      faroCollectorUrlOverride: prefs.getString(
+      backendUrlOverride: _prefs.getString(DebugSettingsKeys.backendUrl),
+      faroCollectorUrlOverride: _prefs.getString(
         DebugSettingsKeys.faroCollectorUrl,
       ),
       errorOnRecommendations:
-          prefs.getBool(DebugSettingsKeys.errorRecommendations) ?? false,
+          _prefs.getBool(DebugSettingsKeys.errorRecommendations) ?? false,
       errorOnIngredients:
-          prefs.getBool(DebugSettingsKeys.errorIngredients) ?? false,
+          _prefs.getBool(DebugSettingsKeys.errorIngredients) ?? false,
       slowRecommendations:
-          prefs.getBool(DebugSettingsKeys.slowRecommendations) ?? false,
+          _prefs.getBool(DebugSettingsKeys.slowRecommendations) ?? false,
       slowIngredients:
-          prefs.getBool(DebugSettingsKeys.slowIngredients) ?? false,
+          _prefs.getBool(DebugSettingsKeys.slowIngredients) ?? false,
       useV2PizzaSchema:
-          prefs.getBool(DebugSettingsKeys.useV2PizzaSchema) ?? false,
+          _prefs.getBool(DebugSettingsKeys.useV2PizzaSchema) ?? false,
       skipAuthDepInTools:
-          prefs.getBool(DebugSettingsKeys.skipAuthDepInTools) ?? false,
+          _prefs.getBool(DebugSettingsKeys.skipAuthDepInTools) ?? false,
     );
   }
 
-  /// Force a re-read from SharedPreferences. Useful in bootstrap where
-  /// we want state to be guaranteed-loaded before the UI renders.
-  Future<void> reload() async {
-    state = await _readFromPrefs();
-  }
-
-  /// Persists both URL overrides atomically. Empty/whitespace values
-  /// clear the corresponding override.
+  /// Persists the backend URL and Faro collector URL overrides atomically.
+  /// Empty/whitespace values clear the corresponding override.
   ///
-  /// Returns `true` if either URL override actually changed, so the
-  /// caller can decide whether to show the restart banner.
+  /// Returns `true` if either override actually changed, so the caller can
+  /// decide whether to show the restart banner.
   Future<bool> saveUrls({
     required String? backendUrl,
     required String? faroCollectorUrl,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-
     final normalizedBackend = _normalize(backendUrl);
     final normalizedFaro = _normalize(faroCollectorUrl);
 
@@ -171,15 +158,18 @@ class DebugSettingsNotifier extends Notifier<DebugSettings> {
     final prevFaro = state.faroCollectorUrlOverride;
 
     if (normalizedBackend != null) {
-      await prefs.setString(DebugSettingsKeys.backendUrl, normalizedBackend);
+      await _prefs.setString(DebugSettingsKeys.backendUrl, normalizedBackend);
     } else {
-      await prefs.remove(DebugSettingsKeys.backendUrl);
+      await _prefs.remove(DebugSettingsKeys.backendUrl);
     }
 
     if (normalizedFaro != null) {
-      await prefs.setString(DebugSettingsKeys.faroCollectorUrl, normalizedFaro);
+      await _prefs.setString(
+        DebugSettingsKeys.faroCollectorUrl,
+        normalizedFaro,
+      );
     } else {
-      await prefs.remove(DebugSettingsKeys.faroCollectorUrl);
+      await _prefs.remove(DebugSettingsKeys.faroCollectorUrl);
     }
 
     state = state.copyWith(
@@ -197,51 +187,44 @@ class DebugSettingsNotifier extends Notifier<DebugSettings> {
   }
 
   Future<void> setErrorOnRecommendations(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(DebugSettingsKeys.errorRecommendations, value);
+    await _prefs.setBool(DebugSettingsKeys.errorRecommendations, value);
     state = state.copyWith(errorOnRecommendations: value);
   }
 
   Future<void> setErrorOnIngredients(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(DebugSettingsKeys.errorIngredients, value);
+    await _prefs.setBool(DebugSettingsKeys.errorIngredients, value);
     state = state.copyWith(errorOnIngredients: value);
   }
 
   Future<void> setSlowRecommendations(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(DebugSettingsKeys.slowRecommendations, value);
+    await _prefs.setBool(DebugSettingsKeys.slowRecommendations, value);
     state = state.copyWith(slowRecommendations: value);
   }
 
   Future<void> setSlowIngredients(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(DebugSettingsKeys.slowIngredients, value);
+    await _prefs.setBool(DebugSettingsKeys.slowIngredients, value);
     state = state.copyWith(slowIngredients: value);
   }
 
   Future<void> setUseV2PizzaSchema(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(DebugSettingsKeys.useV2PizzaSchema, value);
+    await _prefs.setBool(DebugSettingsKeys.useV2PizzaSchema, value);
     state = state.copyWith(useV2PizzaSchema: value);
   }
 
   Future<void> setSkipAuthDepInTools(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(DebugSettingsKeys.skipAuthDepInTools, value);
+    await _prefs.setBool(DebugSettingsKeys.skipAuthDepInTools, value);
     state = state.copyWith(skipAuthDepInTools: value);
   }
 
   Future<void> resetAll() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(DebugSettingsKeys.backendUrl);
-    await prefs.remove(DebugSettingsKeys.faroCollectorUrl);
-    await prefs.remove(DebugSettingsKeys.errorRecommendations);
-    await prefs.remove(DebugSettingsKeys.errorIngredients);
-    await prefs.remove(DebugSettingsKeys.slowRecommendations);
-    await prefs.remove(DebugSettingsKeys.slowIngredients);
-    await prefs.remove(DebugSettingsKeys.useV2PizzaSchema);
-    await prefs.remove(DebugSettingsKeys.skipAuthDepInTools);
+    await _prefs.remove(DebugSettingsKeys.backendUrl);
+    await _prefs.remove(DebugSettingsKeys.faroCollectorUrl);
+    await _prefs.remove(DebugSettingsKeys.errorRecommendations);
+    await _prefs.remove(DebugSettingsKeys.errorIngredients);
+    await _prefs.remove(DebugSettingsKeys.slowRecommendations);
+    await _prefs.remove(DebugSettingsKeys.slowIngredients);
+    await _prefs.remove(DebugSettingsKeys.useV2PizzaSchema);
+    await _prefs.remove(DebugSettingsKeys.skipAuthDepInTools);
     state = const DebugSettings();
   }
 }
