@@ -151,7 +151,7 @@ class DemoRum {
           onError: (Object error, StackTrace stackTrace) {
             span.status = DemoRumSpanStatus.error;
             span.end();
-            throw error;
+            Error.throwWithStackTrace(error, stackTrace);
           },
         );
       }
