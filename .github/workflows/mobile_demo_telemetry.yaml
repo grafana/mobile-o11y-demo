@@ -9,9 +9,9 @@ on:
         required: false
         default: false
         type: boolean
-  # Scheduled run every hour for continuous telemetry
+  # Scheduled run every two hours for continuous telemetry
   schedule:
-    - cron: "0 * * * *"
+    - cron: "0 */2 * * *"
   # Post-merge full telemetry on main (PR compile checks use mobile_demo_telemetry_build.yaml)
   push:
     branches:
@@ -57,15 +57,17 @@ jobs:
           run_handled_exception=false
           run_crash=false
           hour_bucket=n/a
+          schedule_bucket=n/a
 
           if [ "$FORCE_DIAGNOSTICS" = "true" ]; then
             run_crash=true
           elif [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
             hour_bucket=$(($(date -u +%s) / 3600))
-            if [ $((hour_bucket % 3)) -eq 0 ]; then
+            schedule_bucket=$((hour_bucket / 2))
+            if [ $((schedule_bucket % 3)) -eq 0 ]; then
               run_handled_exception=true
             fi
-            if [ $((hour_bucket % 10)) -eq 0 ]; then
+            if [ $((schedule_bucket % 10)) -eq 0 ]; then
               run_crash=true
               # The crash diagnostics flow already emits one handled exception first.
               run_handled_exception=false
@@ -76,6 +78,7 @@ jobs:
           echo "run_crash=${run_crash}" >> "$GITHUB_OUTPUT"
           echo "Diagnostics event: ${GITHUB_EVENT_NAME}"
           echo "Diagnostics hour bucket: ${hour_bucket}"
+          echo "Diagnostics schedule bucket: ${schedule_bucket}"
           echo "Handled-exception diagnostics: ${run_handled_exception}"
           echo "Crash diagnostics: ${run_crash}"
 
@@ -83,7 +86,7 @@ jobs:
     name: Run Android Mobile Demo
     needs: resolve-diagnostics-cadence
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 75
     environment: mobile-demo-telemetry
     permissions:
       id-token: write
@@ -310,6 +313,7 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Run Android emulator and e2e tests
+        timeout-minutes: 45
         uses: reactivecircus/android-emulator-runner@b530d96654c385303d652368551fb075bc2f0b6b # v2.35.0
         env:
           OPENAI_API_KEY: ${{ env.OPENAI_API_KEY }}
@@ -342,21 +346,21 @@ jobs:
 
             echo "==> Flutter APK: install and E2E"
             adb install -r apk/flutter/app-debug.apk
-            timeout --foreground 25m bash Mobiles/e2e/run_e2e_tests.sh --app=flutter --platform=android
+            bash Mobiles/e2e/run_e2e_tests.sh --app=flutter --platform=android
             adb shell am force-stop com.example.flutter_mobile_o11y_demo || true
             adb reverse --remove tcp:3333 || true
             adb reverse tcp:3333 tcp:3333
 
             echo "==> React Native APK: install and E2E"
             adb install -r apk/react-native/app-debug.apk
-            timeout --foreground 25m bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=android
+            bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=android
             adb shell am force-stop com.quickpizza || true
             adb reverse --remove tcp:3333 || true
             adb reverse tcp:3333 tcp:3333
 
             echo "==> Android Native APK: install and E2E"
             adb install -r apk/android-native/app-debug.apk
-            timeout --foreground 25m bash Mobiles/e2e/run_e2e_tests.sh --app=android-native --platform=android
+            bash Mobiles/e2e/run_e2e_tests.sh --app=android-native --platform=android
             adb shell am force-stop com.grafana.quickpizza || true
             adb reverse --remove tcp:3333 || true
             adb reverse tcp:3333 tcp:3333
@@ -366,19 +370,19 @@ jobs:
             # multi-line shell if block.
             [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" = "true" ] || echo "Skipping handled-exception diagnostics for this run."
             [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || echo "==> Flutter APK: handled-exception diagnostics E2E"
-            [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || timeout --foreground 15m bash Mobiles/e2e/run_e2e_tests.sh --app=flutter --platform=android --flow=handled-exception
+            [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || bash Mobiles/e2e/run_e2e_tests.sh --app=flutter --platform=android --flow=handled-exception
             [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || echo "==> React Native APK: handled-exception diagnostics E2E"
-            [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || timeout --foreground 15m bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=android --flow=handled-exception
+            [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=android --flow=handled-exception
             [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || echo "==> Android Native APK: handled-exception diagnostics E2E"
-            [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || timeout --foreground 15m bash Mobiles/e2e/run_e2e_tests.sh --app=android-native --platform=android --flow=handled-exception
+            [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || bash Mobiles/e2e/run_e2e_tests.sh --app=android-native --platform=android --flow=handled-exception
 
             [ "$RUN_CRASH_DIAGNOSTICS" = "true" ] || echo "Skipping crash diagnostics for this run. Manual runs can force this with run_diagnostics=true."
             [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || echo "==> Flutter APK: crash diagnostics E2E"
-            [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || timeout --foreground 20m bash Mobiles/e2e/run_e2e_tests.sh --app=flutter --platform=android --flow=diagnostics
+            [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || bash Mobiles/e2e/run_e2e_tests.sh --app=flutter --platform=android --flow=diagnostics
             [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || echo "==> React Native APK: crash diagnostics E2E"
-            [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || timeout --foreground 20m bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=android --flow=diagnostics
+            [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=android --flow=diagnostics
             [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || echo "==> Android Native APK: crash diagnostics E2E"
-            [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || timeout --foreground 20m bash Mobiles/e2e/run_e2e_tests.sh --app=android-native --platform=android --flow=diagnostics
+            [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || bash Mobiles/e2e/run_e2e_tests.sh --app=android-native --platform=android --flow=diagnostics
 
             echo "E2E tests completed (Flutter, React Native, Android Native on same emulator)."
 
@@ -415,7 +419,7 @@ jobs:
     needs: resolve-diagnostics-cadence
     # macOS-only: xcrun simctl + the booted iOS simulator only work on macOS.
     runs-on: macos-26
-    timeout-minutes: 180
+    timeout-minutes: 75
     environment: mobile-demo-telemetry
     permissions:
       id-token: write
@@ -825,6 +829,7 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Install iOS apps and run e2e tests
+        timeout-minutes: 45
         env:
           OPENAI_API_KEY: ${{ env.OPENAI_API_KEY }}
           IOS_NATIVE_APP_PATH: ${{ steps.build-ios-app.outputs.app_path }}

@@ -10,6 +10,12 @@
 # by bundle id (works for both physical-button and gesture-only simulators),
 # falling back to tapping the QPizza icon on Springboard if Maestro can't.
 
+settings:
+  aiOptions:
+    useResponsesApi: true
+    extraBody:
+      reasoning_effort: "low"
+
 scenarios:
   - id: "start_app"
     goal: |

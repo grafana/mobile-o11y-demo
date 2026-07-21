@@ -19,8 +19,8 @@
 #   OPENAI_API_KEY    OpenAI API key used by Arbigent.
 #
 # Optional env vars:
-#   ARBIGENT_VERSION         Arbigent CLI version to download (default: 0.72.0).
-#   ARBIGENT_MODEL           OpenAI model name passed to Arbigent (default: gpt-5.2).
+#   ARBIGENT_VERSION         Arbigent CLI version to download (default: 0.76.1).
+#   ARBIGENT_MODEL           OpenAI model name passed to Arbigent (default: gpt-5.6-luna).
 #   ARBIGENT_LOG_AI_API      When 'true', appends --ai-api-logging to Arbigent so the
 #                            full AI API request/response payloads are logged. Off by
 #                            default since it dramatically increases log volume.
@@ -31,8 +31,8 @@ set -e
 
 ### Configuration #############################################################
 
-ARBIGENT_VERSION="${ARBIGENT_VERSION:-0.72.0}"
-ARBIGENT_MODEL="${ARBIGENT_MODEL:-gpt-5.2}"
+ARBIGENT_VERSION="${ARBIGENT_VERSION:-0.76.1}"
+ARBIGENT_MODEL="${ARBIGENT_MODEL:-gpt-5.6-luna}"
 ARBIGENT_LOG_AI_API="${ARBIGENT_LOG_AI_API:-false}"
 ARBIGENT_DOWNLOAD_URL="https://github.com/takahirom/arbigent/releases/download/${ARBIGENT_VERSION}/arbigent-${ARBIGENT_VERSION}.zip"
 ARBIGENT_DIR="/tmp/arbigent-${ARBIGENT_VERSION}"
@@ -145,8 +145,8 @@ Required env vars:
   OPENAI_API_KEY                    OpenAI key used by Arbigent
 
 Optional env vars:
-  ARBIGENT_VERSION       (default 0.72.0)
-  ARBIGENT_MODEL         (default gpt-5.2)
+  ARBIGENT_VERSION       (default 0.76.1)
+  ARBIGENT_MODEL         (default gpt-5.6-luna)
   ARBIGENT_LOG_AI_API    (default false) — set 'true' to log AI API payloads
   QUICKPIZZA_BACKEND_URL (default http://localhost:3333)
 EOF

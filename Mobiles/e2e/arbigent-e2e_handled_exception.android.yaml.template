@@ -8,6 +8,12 @@
 # control. The scheduled telemetry workflow can run it more often than crash
 # diagnostics, keeping demo error data realistic without crashing every run.
 
+settings:
+  aiOptions:
+    useResponsesApi: true
+    extraBody:
+      reasoning_effort: "low"
+
 scenarios:
   - id: "start_app"
     goal: |
