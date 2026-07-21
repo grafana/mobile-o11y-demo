@@ -10,6 +10,7 @@ import '../../features/debug/presentation/debug_screen.dart';
 import '../../features/pizza/presentation/home_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/shell/presentation/main_shell.dart';
+import '../o11y/demo_rum/sdk/demo_rum.dart';
 
 /// Route paths as constants for type-safe navigation
 abstract class AppRoutes {
@@ -32,7 +33,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: AppRoutes.home,
-    observers: [FaroNavigationObserver()],
+    // Both RUM SDKs derive screen names from `route.settings.name`. The
+    // pageBuilder routes below set an explicit `name:` so Faro view meta and
+    // DemoRum screen views are both populated (builder routes get their name
+    // from go_router automatically).
+    observers: [FaroNavigationObserver(), DemoRumNavigatorObserver()],
     routes: [
       // ShellRoute wraps the bottom navigation bar
       ShellRoute(
@@ -43,15 +48,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: AppRoutes.home,
-            pageBuilder: (_, _) => const NoTransitionPage(child: HomeScreen()),
+            pageBuilder: (_, _) => const NoTransitionPage(
+              name: AppRoutes.home,
+              child: HomeScreen(),
+            ),
           ),
           GoRoute(
             path: AppRoutes.about,
-            pageBuilder: (_, _) => const NoTransitionPage(child: AboutScreen()),
+            pageBuilder: (_, _) => const NoTransitionPage(
+              name: AppRoutes.about,
+              child: AboutScreen(),
+            ),
           ),
           GoRoute(
             path: AppRoutes.debug,
-            pageBuilder: (_, _) => const NoTransitionPage(child: DebugScreen()),
+            pageBuilder: (_, _) => const NoTransitionPage(
+              name: AppRoutes.debug,
+              child: DebugScreen(),
+            ),
           ),
         ],
       ),

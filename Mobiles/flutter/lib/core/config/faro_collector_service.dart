@@ -3,9 +3,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'config_service.dart';
 import 'debug_settings.dart';
+import 'shared_preferences_provider.dart';
 
 final faroCollectorServiceProvider = Provider<FaroCollectorService>((ref) {
-  return const FaroCollectorService();
+  return FaroCollectorService(ref.watch(sharedPreferencesProvider));
 });
 
 /// Thin wrapper around the Faro collector URL source.
@@ -14,16 +15,17 @@ final faroCollectorServiceProvider = Provider<FaroCollectorService>((ref) {
 /// directly, because it transparently applies any runtime override the
 /// user saved from the debug Config screen.
 class FaroCollectorService {
-  const FaroCollectorService();
+  const FaroCollectorService(this._prefs);
+
+  final SharedPreferences _prefs;
 
   /// Returns the effective collector URL to use for this session.
   ///
   /// Order of precedence:
   /// 1. Override in SharedPreferences (set via debug Config screen)
   /// 2. Build-time env (`FARO_COLLECTOR_URL`)
-  Future<String> getUrl() async {
-    final prefs = await SharedPreferences.getInstance();
-    final override = prefs.getString(DebugSettingsKeys.faroCollectorUrl);
+  String getUrl() {
+    final override = _prefs.getString(DebugSettingsKeys.faroCollectorUrl);
     if (override != null && override.trim().isNotEmpty) {
       return override.trim();
     }
