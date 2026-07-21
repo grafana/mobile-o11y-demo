@@ -44,7 +44,11 @@ final class OTelService {
     // MARK: - Sessions
 
     private func setupSessions() {
-        let sessionConfig = SessionConfig(sessionTimeout: 15 * 60) // 15 min, matching Faro inactivity rule
+        let sessionConfig = SessionConfig(
+            sessionTimeout: 15 * 60, // 15 min, matching Faro inactivity rule
+            maxLifetime: 4 * 60 * 60, // 4 hours, matching Faro max lifetime rule
+            restorePersistedSession: false // new session on each cold start, matching Faro session rule
+        )
         SessionManagerProvider.register(sessionManager: SessionManager(configuration: sessionConfig))
         SessionEventInstrumentation.install()
     }
