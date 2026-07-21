@@ -1,7 +1,7 @@
 name: Mobile Demo Telemetry (build only)
 
 # Compile-only validation on pull requests. No Vault secrets, no e2e, no Cloud telemetry.
-# Full build + telemetry: merge to main, hourly schedule, or workflow_dispatch on
+# Full build + telemetry: merge to main, two-hour schedule, or workflow_dispatch on
 # mobile_demo_telemetry.yaml.
 
 on:

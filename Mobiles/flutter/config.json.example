@@ -6,7 +6,7 @@
   
   "PORT": "3333",
 
-  "_CI_DEMO_VERSIONING_comment": "Set to true only for CI demo builds to vary telemetry app version hourly",
+  "_CI_DEMO_VERSIONING_comment": "Set to true only for CI demo builds to vary telemetry app version by UTC hour",
   "CI_DEMO_VERSIONING": "false"
 }
 

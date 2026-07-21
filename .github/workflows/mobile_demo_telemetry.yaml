@@ -57,15 +57,17 @@ jobs:
           run_handled_exception=false
           run_crash=false
           hour_bucket=n/a
+          schedule_bucket=n/a
 
           if [ "$FORCE_DIAGNOSTICS" = "true" ]; then
             run_crash=true
           elif [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
             hour_bucket=$(($(date -u +%s) / 3600))
-            if [ $((hour_bucket % 3)) -eq 0 ]; then
+            schedule_bucket=$((hour_bucket / 2))
+            if [ $((schedule_bucket % 3)) -eq 0 ]; then
               run_handled_exception=true
             fi
-            if [ $((hour_bucket % 10)) -eq 0 ]; then
+            if [ $((schedule_bucket % 10)) -eq 0 ]; then
               run_crash=true
               # The crash diagnostics flow already emits one handled exception first.
               run_handled_exception=false
@@ -76,6 +78,7 @@ jobs:
           echo "run_crash=${run_crash}" >> "$GITHUB_OUTPUT"
           echo "Diagnostics event: ${GITHUB_EVENT_NAME}"
           echo "Diagnostics hour bucket: ${hour_bucket}"
+          echo "Diagnostics schedule bucket: ${schedule_bucket}"
           echo "Handled-exception diagnostics: ${run_handled_exception}"
           echo "Crash diagnostics: ${run_crash}"
 
