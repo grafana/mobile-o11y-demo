@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/config_service.dart';
 import '../../../core/config/debug_settings.dart';
+import '../../../core/config/faro_sample_rate_service.dart';
 import '../../../core/config/runtime_config.dart';
 import '../../../core/utils/faro_utils.dart';
 
@@ -16,11 +17,14 @@ class ConfigScreenUiState extends Equatable {
     required this.backendInUse,
     required this.faroCollectorInUse,
     required this.faroCollectorInUseDisplay,
+    required this.faroSampleRateInUse,
     required this.defaultBackend,
     required this.defaultFaroCollector,
     required this.defaultFaroCollectorDisplay,
+    required this.defaultFaroSampleRate,
     required this.savedBackendOverride,
     required this.savedFaroCollectorOverride,
+    required this.savedFaroSampleRateOverride,
     required this.saving,
     required this.statusMessage,
   });
@@ -34,6 +38,9 @@ class ConfigScreenUiState extends Equatable {
   /// Faro collector URL with the API key partially masked, safe to render.
   final String faroCollectorInUseDisplay;
 
+  /// Faro session sampling rate Faro initialized with this session (0.0–1.0).
+  final double faroSampleRateInUse;
+
   /// Build-time default backend URL.
   final String defaultBackend;
 
@@ -43,9 +50,15 @@ class ConfigScreenUiState extends Equatable {
   /// Masked build-time default, safe to render (null if not configured).
   final String? defaultFaroCollectorDisplay;
 
+  /// Default Faro sampling rate when no override is saved.
+  final double defaultFaroSampleRate;
+
   /// Saved override in SharedPreferences — empty string means "no override".
   final String? savedBackendOverride;
   final String? savedFaroCollectorOverride;
+
+  /// Saved sampling-rate override — `null` means "no override".
+  final double? savedFaroSampleRateOverride;
 
   /// Whether a save/clear is in-flight.
   final bool saving;
@@ -61,11 +74,14 @@ class ConfigScreenUiState extends Equatable {
       backendInUse: backendInUse,
       faroCollectorInUse: faroCollectorInUse,
       faroCollectorInUseDisplay: faroCollectorInUseDisplay,
+      faroSampleRateInUse: faroSampleRateInUse,
       defaultBackend: defaultBackend,
       defaultFaroCollector: defaultFaroCollector,
       defaultFaroCollectorDisplay: defaultFaroCollectorDisplay,
+      defaultFaroSampleRate: defaultFaroSampleRate,
       savedBackendOverride: savedBackendOverride,
       savedFaroCollectorOverride: savedFaroCollectorOverride,
+      savedFaroSampleRateOverride: savedFaroSampleRateOverride,
       saving: saving ?? this.saving,
       statusMessage: statusMessage != null
           ? statusMessage()
@@ -78,11 +94,14 @@ class ConfigScreenUiState extends Equatable {
     backendInUse,
     faroCollectorInUse,
     faroCollectorInUseDisplay,
+    faroSampleRateInUse,
     defaultBackend,
     defaultFaroCollector,
     defaultFaroCollectorDisplay,
+    defaultFaroSampleRate,
     savedBackendOverride,
     savedFaroCollectorOverride,
+    savedFaroSampleRateOverride,
     saving,
     statusMessage,
   ];
@@ -94,11 +113,14 @@ class ConfigScreenUiState extends Equatable {
 
 /// Defines the actions available on the Config screen.
 abstract interface class ConfigScreenActions {
-  /// Persist all overrides atomically. Empty/whitespace values clear
-  /// the corresponding override.
+  /// Persist all overrides atomically. Empty/whitespace URL values clear the
+  /// corresponding override; an empty [faroSampleRateText] clears the rate
+  /// override. Returns silently after setting an error status if the sample
+  /// rate is present but invalid.
   Future<void> save({
     required String? backendUrl,
     required String? faroCollectorUrl,
+    required String? faroSampleRateText,
   });
 
   /// Clear all overrides and fall back to build-time defaults on the
@@ -124,13 +146,16 @@ class _ConfigScreenViewModel extends Notifier<ConfigScreenUiState>
       backendInUse: runtime.backendBaseUrl,
       faroCollectorInUse: runtime.faroCollectorUrl,
       faroCollectorInUseDisplay: maskCollectorUrl(runtime.faroCollectorUrl),
+      faroSampleRateInUse: runtime.faroSampleRate,
       defaultBackend: configService.baseUrl,
       defaultFaroCollector: defaultFaroCollector,
       defaultFaroCollectorDisplay: defaultFaroCollector == null
           ? null
           : maskCollectorUrl(defaultFaroCollector),
+      defaultFaroSampleRate: kDefaultFaroSampleRate,
       savedBackendOverride: settings.backendUrlOverride,
       savedFaroCollectorOverride: settings.faroCollectorUrlOverride,
+      savedFaroSampleRateOverride: settings.faroSampleRateOverride,
       saving: false,
       statusMessage: null,
     );
@@ -140,11 +165,22 @@ class _ConfigScreenViewModel extends Notifier<ConfigScreenUiState>
   Future<void> save({
     required String? backendUrl,
     required String? faroCollectorUrl,
+    required String? faroSampleRateText,
   }) async {
+    final (sampleRate, sampleRateError) = _parseSampleRate(faroSampleRateText);
+    if (sampleRateError != null) {
+      state = state.copyWith(statusMessage: () => sampleRateError);
+      return;
+    }
+
     state = state.copyWith(saving: true, statusMessage: () => null);
     await ref
         .read(debugSettingsProvider.notifier)
-        .saveUrls(backendUrl: backendUrl, faroCollectorUrl: faroCollectorUrl);
+        .saveConfigOverrides(
+          backendUrl: backendUrl,
+          faroCollectorUrl: faroCollectorUrl,
+          faroSampleRate: sampleRate,
+        );
     // State is re-derived automatically via ref.watch(debugSettingsProvider)
     // in build(), so we only need to update the transient fields here.
     state = state.copyWith(
@@ -159,12 +195,30 @@ class _ConfigScreenViewModel extends Notifier<ConfigScreenUiState>
     state = state.copyWith(saving: true, statusMessage: () => null);
     await ref
         .read(debugSettingsProvider.notifier)
-        .saveUrls(backendUrl: null, faroCollectorUrl: null);
+        .saveConfigOverrides(
+          backendUrl: null,
+          faroCollectorUrl: null,
+          faroSampleRate: null,
+        );
     state = state.copyWith(
       saving: false,
       statusMessage: () =>
           'Overrides cleared. Kill and relaunch to use defaults.',
     );
+  }
+
+  /// Parses the sample-rate text field. Returns `(rate, error)`:
+  /// - empty → `(null, null)` (clear the override)
+  /// - a number in [0.0, 1.0] → `(value, null)`
+  /// - anything else → `(null, <message>)`
+  (double?, String?) _parseSampleRate(String? text) {
+    final trimmed = text?.trim() ?? '';
+    if (trimmed.isEmpty) return (null, null);
+    final value = double.tryParse(trimmed);
+    if (value == null || value < 0.0 || value > 1.0) {
+      return (null, 'Faro sample rate must be a number between 0.0 and 1.0.');
+    }
+    return (value, null);
   }
 
   /// [ConfigService.faroCollectorUrl] throws if `FARO_COLLECTOR_URL` isn't

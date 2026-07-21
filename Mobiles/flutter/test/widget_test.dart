@@ -30,6 +30,7 @@ void main() {
           const RuntimeConfig(
             backendBaseUrl: 'http://localhost:3333',
             faroCollectorUrl: '',
+            faroSampleRate: 1.0,
           ),
         ),
       ],

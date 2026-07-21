@@ -37,9 +37,8 @@ Future<void> startFaro({
   required String appVersion,
   required FutureOr<void> Function() appRunner,
 }) async {
-  final faroCollectorUrl = container
-      .read(runtimeConfigProvider)
-      .faroCollectorUrl;
+  final runtimeConfig = container.read(runtimeConfigProvider);
+  final faroCollectorUrl = runtimeConfig.faroCollectorUrl;
   final apiKey = extractTokenFromCollectorUrl(faroCollectorUrl);
   final faro = container.read(faroProvider);
 
@@ -54,6 +53,25 @@ Future<void> startFaro({
       appEnv: appEnv,
       apiKey: apiKey,
       collectorUrl: faroCollectorUrl,
+      // Session sampling rate (0.0–1.0), overridable via debug Config screen.
+      // Decided once per session at init, hence the restart-to-apply semantics.
+      sampling: SamplingRate(runtimeConfig.faroSampleRate),
+      // Alternatively, Faro supports a callback-style sampler for dynamic,
+      // per-session decisions based on the session metadata available at init
+      // (user, app env, custom session attributes, ...). Swap the line above
+      // for something like this:
+      //
+      // sampling: SamplingFunction((context) {
+      //   // Always sample beta users
+      //   if (context.meta.user?.attributes?['role'] == 'beta') {
+      //     return 1.0;
+      //   }
+      //   // Sample only 10% of production sessions
+      //   if (context.meta.app?.environment == 'production') {
+      //     return 0.1;
+      //   }
+      //   return runtimeConfig.faroSampleRate;
+      // }),
       cpuUsageVitals: true,
       memoryUsageVitals: true,
       anrTracking: true,

@@ -8,6 +8,7 @@ import 'shared_preferences_provider.dart';
 abstract class DebugSettingsKeys {
   static const backendUrl = 'debug_backend_url';
   static const faroCollectorUrl = 'debug_faro_collector_url';
+  static const faroSampleRate = 'debug_faro_sample_rate';
   static const errorRecommendations = 'debug_error_recommendations';
   static const errorIngredients = 'debug_error_ingredients';
   static const slowRecommendations = 'debug_slow_recommendations';
@@ -24,6 +25,10 @@ final debugSettingsProvider =
 class DebugSettings {
   final String? backendUrlOverride;
   final String? faroCollectorUrlOverride;
+
+  /// Faro session sampling rate override (0.0–1.0). `null` = use the default
+  /// ([kDefaultFaroSampleRate]). Applied at Faro init, so it needs a restart.
+  final double? faroSampleRateOverride;
   final bool errorOnRecommendations;
   final bool errorOnIngredients;
   final bool slowRecommendations;
@@ -34,6 +39,7 @@ class DebugSettings {
   const DebugSettings({
     this.backendUrlOverride,
     this.faroCollectorUrlOverride,
+    this.faroSampleRateOverride,
     this.errorOnRecommendations = false,
     this.errorOnIngredients = false,
     this.slowRecommendations = false,
@@ -45,6 +51,7 @@ class DebugSettings {
   DebugSettings copyWith({
     String? Function()? backendUrlOverride,
     String? Function()? faroCollectorUrlOverride,
+    double? Function()? faroSampleRateOverride,
     bool? errorOnRecommendations,
     bool? errorOnIngredients,
     bool? slowRecommendations,
@@ -59,6 +66,9 @@ class DebugSettings {
       faroCollectorUrlOverride: faroCollectorUrlOverride != null
           ? faroCollectorUrlOverride()
           : this.faroCollectorUrlOverride,
+      faroSampleRateOverride: faroSampleRateOverride != null
+          ? faroSampleRateOverride()
+          : this.faroSampleRateOverride,
       errorOnRecommendations:
           errorOnRecommendations ?? this.errorOnRecommendations,
       errorOnIngredients: errorOnIngredients ?? this.errorOnIngredients,
@@ -72,6 +82,7 @@ class DebugSettings {
   bool get hasActiveOverrides =>
       backendUrlOverride != null ||
       faroCollectorUrlOverride != null ||
+      faroSampleRateOverride != null ||
       errorOnRecommendations ||
       errorOnIngredients ||
       slowRecommendations ||
@@ -127,6 +138,9 @@ class DebugSettingsNotifier extends Notifier<DebugSettings> {
       faroCollectorUrlOverride: _prefs.getString(
         DebugSettingsKeys.faroCollectorUrl,
       ),
+      faroSampleRateOverride: _prefs.getDouble(
+        DebugSettingsKeys.faroSampleRate,
+      ),
       errorOnRecommendations:
           _prefs.getBool(DebugSettingsKeys.errorRecommendations) ?? false,
       errorOnIngredients:
@@ -142,20 +156,23 @@ class DebugSettingsNotifier extends Notifier<DebugSettings> {
     );
   }
 
-  /// Persists the backend URL and Faro collector URL overrides atomically.
-  /// Empty/whitespace values clear the corresponding override.
+  /// Persists the backend URL, Faro collector URL, and Faro sample-rate
+  /// overrides atomically. A `null` value clears the corresponding override
+  /// (empty/whitespace URLs are treated as `null`).
   ///
-  /// Returns `true` if either override actually changed, so the caller can
-  /// decide whether to show the restart banner.
-  Future<bool> saveUrls({
+  /// Returns `true` if any override actually changed, so the caller can decide
+  /// whether to show the restart banner.
+  Future<bool> saveConfigOverrides({
     required String? backendUrl,
     required String? faroCollectorUrl,
+    required double? faroSampleRate,
   }) async {
     final normalizedBackend = _normalize(backendUrl);
     final normalizedFaro = _normalize(faroCollectorUrl);
 
     final prevBackend = state.backendUrlOverride;
     final prevFaro = state.faroCollectorUrlOverride;
+    final prevRate = state.faroSampleRateOverride;
 
     if (normalizedBackend != null) {
       await _prefs.setString(DebugSettingsKeys.backendUrl, normalizedBackend);
@@ -172,12 +189,21 @@ class DebugSettingsNotifier extends Notifier<DebugSettings> {
       await _prefs.remove(DebugSettingsKeys.faroCollectorUrl);
     }
 
+    if (faroSampleRate != null) {
+      await _prefs.setDouble(DebugSettingsKeys.faroSampleRate, faroSampleRate);
+    } else {
+      await _prefs.remove(DebugSettingsKeys.faroSampleRate);
+    }
+
     state = state.copyWith(
       backendUrlOverride: () => normalizedBackend,
       faroCollectorUrlOverride: () => normalizedFaro,
+      faroSampleRateOverride: () => faroSampleRate,
     );
 
-    return prevBackend != normalizedBackend || prevFaro != normalizedFaro;
+    return prevBackend != normalizedBackend ||
+        prevFaro != normalizedFaro ||
+        prevRate != faroSampleRate;
   }
 
   String? _normalize(String? value) {
@@ -219,6 +245,7 @@ class DebugSettingsNotifier extends Notifier<DebugSettings> {
   Future<void> resetAll() async {
     await _prefs.remove(DebugSettingsKeys.backendUrl);
     await _prefs.remove(DebugSettingsKeys.faroCollectorUrl);
+    await _prefs.remove(DebugSettingsKeys.faroSampleRate);
     await _prefs.remove(DebugSettingsKeys.errorRecommendations);
     await _prefs.remove(DebugSettingsKeys.errorIngredients);
     await _prefs.remove(DebugSettingsKeys.slowRecommendations);
