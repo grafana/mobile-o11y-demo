@@ -8,6 +8,12 @@
 # happy path. It emits a handled exception, triggers a native crash, and
 # relaunches the app so persisted crash telemetry can flush on next startup.
 
+settings:
+  aiOptions:
+    useResponsesApi: true
+    extraBody:
+      reasoning_effort: "low"
+
 scenarios:
   - id: "start_app"
     goal: |

@@ -8,6 +8,12 @@
 # is not on the first home page; the AI fallback in bring_app_to_foreground matches on the
 # pizza icon + the "QPizza" prefix to cover all three apps without per-app branching.
 
+settings:
+  aiOptions:
+    useResponsesApi: true
+    extraBody:
+      reasoning_effort: "low"
+
 scenarios:
   - id: "start_app"
     goal: |

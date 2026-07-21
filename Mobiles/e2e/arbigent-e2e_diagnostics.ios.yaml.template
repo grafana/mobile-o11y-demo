@@ -10,6 +10,12 @@
 # delivered later, so the immediate verification is that the flow triggered the
 # crash and relaunched the app.
 
+settings:
+  aiOptions:
+    useResponsesApi: true
+    extraBody:
+      reasoning_effort: "low"
+
 scenarios:
   - id: "start_app"
     goal: |

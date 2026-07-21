@@ -131,10 +131,13 @@ The runner reads these environment variables (all optional except
 | Variable                 | Default                 | Purpose                                            |
 | ------------------------ | ----------------------- | -------------------------------------------------- |
 | `OPENAI_API_KEY`         | _(required)_            | Passed to Arbigent for AI decisions.               |
-| `ARBIGENT_VERSION`       | `0.72.0`                | Arbigent CLI release to download.                  |
-| `ARBIGENT_MODEL`         | `gpt-5.2`               | OpenAI model used by Arbigent.                     |
+| `ARBIGENT_VERSION`       | `0.76.1`                | Arbigent CLI release to download.                  |
+| `ARBIGENT_MODEL`         | `gpt-5.6-luna`          | OpenAI model used by Arbigent.                     |
 | `ARBIGENT_LOG_AI_API`    | `false`                 | Set `true` to log AI API request/response payloads (system prompt, per-step prompts). |
 | `QUICKPIZZA_BACKEND_URL` | `http://localhost:3333` | Backend reachability probe before launching tests. |
+
+The scenario templates use OpenAI's Responses API with low reasoning effort,
+which is required for Luna to execute function tools through Arbigent.
 
 ## Scenario templates
 
