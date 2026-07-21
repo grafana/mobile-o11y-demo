@@ -310,6 +310,7 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Run Android emulator and e2e tests
+        timeout-minutes: 45
         uses: reactivecircus/android-emulator-runner@b530d96654c385303d652368551fb075bc2f0b6b # v2.35.0
         env:
           OPENAI_API_KEY: ${{ env.OPENAI_API_KEY }}
@@ -342,21 +343,21 @@ jobs:
 
             echo "==> Flutter APK: install and E2E"
             adb install -r apk/flutter/app-debug.apk
-            python3 .github/scripts/run-with-timeout.py 1500 bash Mobiles/e2e/run_e2e_tests.sh --app=flutter --platform=android
+            bash Mobiles/e2e/run_e2e_tests.sh --app=flutter --platform=android
             adb shell am force-stop com.example.flutter_mobile_o11y_demo || true
             adb reverse --remove tcp:3333 || true
             adb reverse tcp:3333 tcp:3333
 
             echo "==> React Native APK: install and E2E"
             adb install -r apk/react-native/app-debug.apk
-            python3 .github/scripts/run-with-timeout.py 1500 bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=android
+            bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=android
             adb shell am force-stop com.quickpizza || true
             adb reverse --remove tcp:3333 || true
             adb reverse tcp:3333 tcp:3333
 
             echo "==> Android Native APK: install and E2E"
             adb install -r apk/android-native/app-debug.apk
-            python3 .github/scripts/run-with-timeout.py 1500 bash Mobiles/e2e/run_e2e_tests.sh --app=android-native --platform=android
+            bash Mobiles/e2e/run_e2e_tests.sh --app=android-native --platform=android
             adb shell am force-stop com.grafana.quickpizza || true
             adb reverse --remove tcp:3333 || true
             adb reverse tcp:3333 tcp:3333
@@ -366,19 +367,19 @@ jobs:
             # multi-line shell if block.
             [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" = "true" ] || echo "Skipping handled-exception diagnostics for this run."
             [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || echo "==> Flutter APK: handled-exception diagnostics E2E"
-            [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || python3 .github/scripts/run-with-timeout.py 900 bash Mobiles/e2e/run_e2e_tests.sh --app=flutter --platform=android --flow=handled-exception
+            [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || bash Mobiles/e2e/run_e2e_tests.sh --app=flutter --platform=android --flow=handled-exception
             [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || echo "==> React Native APK: handled-exception diagnostics E2E"
-            [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || python3 .github/scripts/run-with-timeout.py 900 bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=android --flow=handled-exception
+            [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=android --flow=handled-exception
             [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || echo "==> Android Native APK: handled-exception diagnostics E2E"
-            [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || python3 .github/scripts/run-with-timeout.py 900 bash Mobiles/e2e/run_e2e_tests.sh --app=android-native --platform=android --flow=handled-exception
+            [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || bash Mobiles/e2e/run_e2e_tests.sh --app=android-native --platform=android --flow=handled-exception
 
             [ "$RUN_CRASH_DIAGNOSTICS" = "true" ] || echo "Skipping crash diagnostics for this run. Manual runs can force this with run_diagnostics=true."
             [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || echo "==> Flutter APK: crash diagnostics E2E"
-            [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || python3 .github/scripts/run-with-timeout.py 1200 bash Mobiles/e2e/run_e2e_tests.sh --app=flutter --platform=android --flow=diagnostics
+            [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || bash Mobiles/e2e/run_e2e_tests.sh --app=flutter --platform=android --flow=diagnostics
             [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || echo "==> React Native APK: crash diagnostics E2E"
-            [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || python3 .github/scripts/run-with-timeout.py 1200 bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=android --flow=diagnostics
+            [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=android --flow=diagnostics
             [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || echo "==> Android Native APK: crash diagnostics E2E"
-            [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || python3 .github/scripts/run-with-timeout.py 1200 bash Mobiles/e2e/run_e2e_tests.sh --app=android-native --platform=android --flow=diagnostics
+            [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || bash Mobiles/e2e/run_e2e_tests.sh --app=android-native --platform=android --flow=diagnostics
 
             echo "E2E tests completed (Flutter, React Native, Android Native on same emulator)."
 
@@ -825,6 +826,7 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Install iOS apps and run e2e tests
+        timeout-minutes: 45
         env:
           OPENAI_API_KEY: ${{ env.OPENAI_API_KEY }}
           IOS_NATIVE_APP_PATH: ${{ steps.build-ios-app.outputs.app_path }}
@@ -841,14 +843,14 @@ jobs:
           xcrun simctl uninstall booted com.grafana.QuickPizzaIos || true
           xcrun simctl install booted "$IOS_NATIVE_APP_PATH"
           xcrun simctl get_app_container booted com.grafana.QuickPizzaIos
-          python3 .github/scripts/run-with-timeout.py 1500 bash Mobiles/e2e/run_e2e_tests.sh --app=ios-native --platform=ios
+          bash Mobiles/e2e/run_e2e_tests.sh --app=ios-native --platform=ios
 
           [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" = "true" ] || echo "Skipping Native iOS handled-exception diagnostics for this run."
           [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || echo "==> Native iOS .app: handled-exception diagnostics E2E"
-          [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || python3 .github/scripts/run-with-timeout.py 900 bash Mobiles/e2e/run_e2e_tests.sh --app=ios-native --platform=ios --flow=handled-exception
+          [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || bash Mobiles/e2e/run_e2e_tests.sh --app=ios-native --platform=ios --flow=handled-exception
           [ "$RUN_CRASH_DIAGNOSTICS" = "true" ] || echo "Skipping Native iOS crash diagnostics for this run. Manual runs can force this with run_diagnostics=true."
           [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || echo "==> Native iOS .app: crash diagnostics E2E"
-          [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || python3 .github/scripts/run-with-timeout.py 1200 bash Mobiles/e2e/run_e2e_tests.sh --app=ios-native --platform=ios --flow=diagnostics
+          [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || bash Mobiles/e2e/run_e2e_tests.sh --app=ios-native --platform=ios --flow=diagnostics
 
           echo "==> Flutter iOS .app: install and E2E"
           if [ ! -d "$FLUTTER_IOS_APP_PATH" ]; then
@@ -858,11 +860,11 @@ jobs:
           xcrun simctl uninstall booted com.example.flutterMobileO11yDemo || true
           xcrun simctl install booted "$FLUTTER_IOS_APP_PATH"
           xcrun simctl get_app_container booted com.example.flutterMobileO11yDemo
-          python3 .github/scripts/run-with-timeout.py 1500 bash Mobiles/e2e/run_e2e_tests.sh --app=flutter --platform=ios
+          bash Mobiles/e2e/run_e2e_tests.sh --app=flutter --platform=ios
           [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || echo "==> Flutter iOS .app: handled-exception diagnostics E2E"
-          [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || python3 .github/scripts/run-with-timeout.py 900 bash Mobiles/e2e/run_e2e_tests.sh --app=flutter --platform=ios --flow=handled-exception
+          [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || bash Mobiles/e2e/run_e2e_tests.sh --app=flutter --platform=ios --flow=handled-exception
           [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || echo "==> Flutter iOS .app: crash diagnostics E2E"
-          [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || python3 .github/scripts/run-with-timeout.py 1200 bash Mobiles/e2e/run_e2e_tests.sh --app=flutter --platform=ios --flow=diagnostics
+          [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || bash Mobiles/e2e/run_e2e_tests.sh --app=flutter --platform=ios --flow=diagnostics
 
           echo "==> React Native iOS .app: install and E2E"
           if [ ! -d "$REACT_NATIVE_IOS_APP_PATH" ]; then
@@ -872,11 +874,11 @@ jobs:
           xcrun simctl uninstall booted com.quickpizza || true
           xcrun simctl install booted "$REACT_NATIVE_IOS_APP_PATH"
           xcrun simctl get_app_container booted com.quickpizza
-          python3 .github/scripts/run-with-timeout.py 1500 bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=ios
+          bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=ios
           [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || echo "==> React Native iOS .app: handled-exception diagnostics E2E"
-          [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || python3 .github/scripts/run-with-timeout.py 900 bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=ios --flow=handled-exception
+          [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=ios --flow=handled-exception
           [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || echo "==> React Native iOS .app: crash diagnostics E2E"
-          [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || python3 .github/scripts/run-with-timeout.py 1200 bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=ios --flow=diagnostics
+          [ "$RUN_CRASH_DIAGNOSTICS" != "true" ] || bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=ios --flow=diagnostics
 
           echo "iOS E2E tests completed (Native iOS, Flutter iOS, React Native iOS on same simulator)."
 
