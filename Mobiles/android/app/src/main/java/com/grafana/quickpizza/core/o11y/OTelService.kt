@@ -53,6 +53,11 @@ class OTelService @Inject constructor(
                 diskBuffering {
                     enabled(diskBufferingEnabled)
                 }
+                semanticConventions {
+                    // Pin the pre-1.5.0 convention names (device.crash, screen.name, …) so the
+                    // existing consumer keeps matching after the SDK bump.
+                    useLatestExperimental = false
+                }
                 resource {
                     put(AttributeKey.stringKey("service.name"), "quickpizza-android")
                     put(AttributeKey.stringKey("service.namespace"), "quickpizza")
