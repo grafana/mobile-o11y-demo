@@ -36,6 +36,8 @@ export function hasActiveDebugSettings(settings: DebugSettings): boolean {
     settings.backendSlowIngredients ||
     settings.backendErrorIngredients ||
     settings.clientFaultyPizzaJson ||
-    settings.clientSkipAuthDependency
+    settings.clientSkipAuthDependency ||
+    settings.clientRandomFrozenFrames ||
+    settings.clientMemoryStress
   );
 }
