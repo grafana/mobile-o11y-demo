@@ -7,9 +7,9 @@ import { useEffect } from 'react';
 
 import { useDebugSettingsStore } from './debugSettingsStore';
 
-const CHUNK_BYTES = 24 * 1024 * 1024; // 24 MiB
+const CHUNK_BYTES = 24 * 1024 * 1024; // 24 MiB ArrayBuffer per chunk
 const INTERVAL_MS = 400;
-/** ~720 MiB cap — painful on a small AVD; turn off to free. */
+/** Up to 30 chunks (~24 MiB buffer + ~1 MiB string each); turn off to free. */
 const MAX_CHUNKS = 30;
 const BURST_ON_ENABLE = 4;
 

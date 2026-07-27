@@ -1,6 +1,7 @@
 /**
  * Demo-only: aggressively blocks the JS thread to induce obvious UI freezes
- * and Faro slow/frozen frame measurements. Stays under ~3s per stall to avoid ANR.
+ * and Faro slow/frozen frame measurements. Each scheduled burst stays under
+ * MAX_BLOCK_MS total to avoid ANR.
  */
 
 import { useEffect } from 'react';
@@ -25,6 +26,17 @@ function blockJsThread(durationMs: number): void {
   }
   if (sink === Number.MIN_SAFE_INTEGER) {
     console.debug('randomFrozenFrames sink', sink);
+  }
+}
+
+/** Split totalBudgetMs into 1–3 back-to-back stalls (sum never exceeds budget). */
+function blockJsThreadBurst(totalBudgetMs: number): void {
+  const bursts = randomBetween(1, 3);
+  const baseDuration = Math.floor(totalBudgetMs / bursts);
+  const remainder = totalBudgetMs % bursts;
+
+  for (let i = 0; i < bursts; i++) {
+    blockJsThread(baseDuration + (i < remainder ? 1 : 0));
   }
 }
 
@@ -54,20 +66,13 @@ export function RandomFrozenFramesEffect(): null {
         if (cancelled) {
           return;
         }
-        // Burst of 1–3 stalls so freezes feel continuous.
-        const bursts = randomBetween(1, 3);
-        for (let i = 0; i < bursts; i++) {
-          if (cancelled) {
-            break;
-          }
-          blockJsThread(randomBetween(MIN_BLOCK_MS, MAX_BLOCK_MS));
-        }
+        blockJsThreadBurst(randomBetween(MIN_BLOCK_MS, MAX_BLOCK_MS));
         scheduleNext();
       }, delay);
     };
 
     // Immediate hit so the toggle feels on right away.
-    blockJsThread(randomBetween(MIN_BLOCK_MS, MAX_BLOCK_MS));
+    blockJsThreadBurst(randomBetween(MIN_BLOCK_MS, MAX_BLOCK_MS));
     scheduleNext();
 
     return () => {

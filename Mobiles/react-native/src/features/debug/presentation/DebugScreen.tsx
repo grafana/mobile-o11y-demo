@@ -293,7 +293,7 @@ export function DebugScreen({ onNavigateToConfig }: DebugScreenProps) {
           />
           <SettingSwitch
             title="Memory stress"
-            subtitle="Aggressive: ~24 MiB every 0.4s (burst on enable, cap ~720 MiB)"
+            subtitle="Aggressive: ~25 MiB/chunk every 0.4s (buffer + string, up to 30 chunks)"
             value={settings.clientMemoryStress}
             onValueChange={(value) =>
               updateSetting({ clientMemoryStress: value })
