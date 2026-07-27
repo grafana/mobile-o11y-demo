@@ -142,7 +142,8 @@ final class OTelService {
                 },
                 spanCustomization: { _, spanBuilder in
                     spanBuilder.setSpanKind(spanKind: .client)
-                }
+                },
+                semanticConvention: .stable
             )
         )
     }
