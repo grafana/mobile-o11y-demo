@@ -1,19 +1,15 @@
-import 'dart:io';
-
-import 'package:faro/faro.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/config/app_version_resolver.dart';
 import 'core/config/app_version_provider.dart';
 import 'core/config/config_service.dart';
-import 'core/config/debug_settings.dart';
-import 'core/config/runtime_config.dart';
+import 'core/config/shared_preferences_provider.dart';
 import 'core/localization/app_localizations.dart';
-import 'core/o11y/faro/faro.dart';
+import 'core/o11y/demo_rum/demo_rum_init.dart';
+import 'core/o11y/faro/faro_init.dart';
 import 'core/o11y/loggers/o11y_logger.dart';
 import 'core/router/app_router.dart';
-import 'core/utils/faro_utils.dart';
 import 'core/widgets/toast_listener.dart';
 import 'features/auth/domain/auth_provider.dart';
 
@@ -37,22 +33,15 @@ class BootstrapConfig {
 Future<void> bootstrap(BootstrapConfig config) async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // IMPORTANT: Set HttpOverrides BEFORE creating any http.Client instances!
-  // The http package uses IOClient on mobile, which creates an HttpClient
-  // at construction time. If HttpOverrides is set after the client is created,
-  // Faro won't intercept those HTTP requests.
-  HttpOverrides.global = FaroHttpOverrides(HttpOverrides.current);
+  // Install Faro's HttpOverrides FIRST — before anything can construct an
+  // http.Client, or that client would permanently bypass Faro's HTTP
+  // auto-instrumentation. See installFaroHttpOverrides for the full rationale.
+  installFaroHttpOverrides();
 
-  final container = ProviderContainer();
-
-  // Resolve the RuntimeConfig BEFORE Riverpod / Faro init, so any
-  // debug override the user saved in a previous session is honored for
-  // this entire session. Awaiting here guarantees that downstream
-  // consumers can safely use requireValue on runtimeConfigProvider.
-  final runtimeConfig = await container.read(runtimeConfigProvider.future);
-
-  // Force-load debug settings so the UI sees saved values on first frame.
-  await container.read(debugSettingsProvider.notifier).reload();
+  // Root container with SharedPreferences resolved + bound, so config +
+  // debug providers can read overrides synchronously (see
+  // createAppProviderContainer).
+  final container = await createAppProviderContainer();
 
   // Access the logger via Riverpod
   final logger = container.read(o11yLoggerProvider);
@@ -61,10 +50,49 @@ Future<void> bootstrap(BootstrapConfig config) async {
       : '';
   logger.debug('App initialization started$driverSuffix');
 
-  // Restore auth session if user was previously logged in
-  await container.read(authStateProvider.notifier).restoreSession();
+  final appVersion = await _resolveTelemetryAppVersion(container, logger);
 
-  // Get app version from package info provider (warms up the provider for later use)
+  // Telemetry nesting: DemoRum (outer) -> Faro (inner) -> runApp. DemoRum is a
+  // no-op stand-in SDK (see core/o11y/demo_rum/) run alongside Faro purely to
+  // demo how a second RUM SDK plugs in; the nesting order is illustrative. The
+  // widget tree wraps as wrapWithDemoRum(wrapWithFaro(app)).
+  await startDemoRum(
+    appEnv: config.appEnv,
+    appVersion: appVersion,
+    appRunner: () async {
+      // Restore the auth session here (inside the app runners, after
+      // installFaroHttpOverrides ran). restoreSession pulls in
+      // apiClientProvider, which constructs the app's http.Client — it must
+      // happen AFTER the Faro HttpOverrides are installed so Faro still sees
+      // the traffic. See installFaroHttpOverrides for the full rationale.
+      await container.read(authStateProvider.notifier).restoreSession();
+
+      // Explicit await so the Faro startup Future is always awaited end-to-end,
+      // even if this closure is later refactored to a block body.
+      await startFaro(
+        container: container,
+        appEnv: config.appEnv,
+        appVersion: appVersion,
+        appRunner: () {
+          runApp(
+            // Used by Riverpod to provide providers to the app
+            UncontrolledProviderScope(
+              container: container,
+              child: wrapWithDemoRum(wrapWithFaro(const QuickPizzaApp())),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+/// Resolves the app version used across all telemetry SDKs (Faro appVersion,
+/// DemoRum release). Warms [packageInfoProvider] for later use.
+Future<String> _resolveTelemetryAppVersion(
+  ProviderContainer container,
+  O11yLogger logger,
+) async {
   final packageInfo = await container.read(packageInfoProvider.future);
   final baseAppVersion = packageInfo.version;
   final versionResolver = container.read(appVersionResolverProvider);
@@ -80,42 +108,7 @@ Future<void> bootstrap(BootstrapConfig config) async {
       'ciDemoVersioning': ConfigService.ciDemoVersioning.toString(),
     },
   );
-
-  final apiKey = extractTokenFromCollectorUrl(runtimeConfig.faroCollectorUrl);
-
-  // Access Faro instance from the container
-  final faro = container.read(faroProvider);
-
-  faro.transports.add(
-    OfflineTransport(maxCacheDuration: const Duration(days: 3)),
-  );
-
-  faro.runApp(
-    optionsConfiguration: FaroConfig(
-      appName: 'QuickPizza_Flutter',
-      appVersion: appVersion,
-      appEnv: config.appEnv,
-      apiKey: apiKey,
-      collectorUrl: runtimeConfig.faroCollectorUrl,
-      cpuUsageVitals: true,
-      memoryUsageVitals: true,
-      anrTracking: true,
-      refreshRateVitals: true,
-      fetchVitalsInterval: const Duration(seconds: 30),
-      enableCrashReporting: true,
-    ),
-    appRunner: () {
-      runApp(
-        // Used by Riverpod to provide providers to the app
-        UncontrolledProviderScope(
-          container: container,
-          child: FaroAssetTracking(
-            child: const FaroUserInteractionWidget(child: QuickPizzaApp()),
-          ),
-        ),
-      );
-    },
-  );
+  return appVersion;
 }
 
 /// The main QuickPizza application widget.

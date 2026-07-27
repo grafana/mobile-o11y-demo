@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:faro/faro.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../demo_rum/sdk/demo_rum.dart';
 import '../faro/faro.dart';
 
 final consoleO11yLoggerProvider = Provider((ref) {
@@ -13,11 +14,16 @@ final faroO11yLoggerProvider = Provider((ref) {
   return FaroO11yLogger(faro: ref.watch(faroProvider));
 });
 
+final demoRumO11yLoggerProvider = Provider((ref) {
+  return DemoRumO11yLogger();
+});
+
 final o11yLoggerProvider = Provider<O11yLogger>((ref) {
-  return MultiO11yLogger(
-    loggers: [
+  return CompositeO11yLogger(
+    delegates: [
       ref.watch(consoleO11yLoggerProvider),
       ref.watch(faroO11yLoggerProvider),
+      ref.watch(demoRumO11yLoggerProvider),
     ],
   );
 });
@@ -33,22 +39,23 @@ abstract class O11yLogger {
   });
 }
 
-class MultiO11yLogger implements O11yLogger {
-  MultiO11yLogger({required List<O11yLogger> loggers}) : _loggers = loggers;
+class CompositeO11yLogger implements O11yLogger {
+  CompositeO11yLogger({required List<O11yLogger> delegates})
+    : _delegates = delegates;
 
-  final List<O11yLogger> _loggers;
+  final List<O11yLogger> _delegates;
 
   @override
   void debug(String message, {Map<String, String>? context}) {
-    for (final logger in _loggers) {
-      logger.debug(message, context: context);
+    for (final delegate in _delegates) {
+      delegate.debug(message, context: context);
     }
   }
 
   @override
   void warning(String message, {Map<String, String>? context}) {
-    for (final logger in _loggers) {
-      logger.warning(message, context: context);
+    for (final delegate in _delegates) {
+      delegate.warning(message, context: context);
     }
   }
 
@@ -59,8 +66,8 @@ class MultiO11yLogger implements O11yLogger {
     StackTrace? stackTrace,
     Map<String, String>? context,
   }) {
-    for (final logger in _loggers) {
-      logger.error(
+    for (final delegate in _delegates) {
+      delegate.error(
         message,
         error: error,
         stackTrace: stackTrace,
@@ -148,5 +155,42 @@ class FaroO11yLogger implements O11yLogger {
       allContext = {...allContext, 'stackTrace': stackTrace.toString()};
     }
     _faro.pushLog(message, level: LogLevel.error, context: allContext);
+  }
+}
+
+/// Routes O11y logs into the DemoRum SDK's structured Logs. Context entries
+/// become attributes.
+class DemoRumO11yLogger implements O11yLogger {
+  static Map<String, Object> _attributes(
+    Map<String, String>? context, [
+    Map<String, String>? extra,
+  ]) {
+    final attributes = <String, Object>{};
+    context?.forEach((k, v) => attributes[k] = v);
+    extra?.forEach((k, v) => attributes[k] = v);
+    return attributes;
+  }
+
+  @override
+  void debug(String message, {Map<String, String>? context}) {
+    DemoRum.logger.debug(message, attributes: _attributes(context));
+  }
+
+  @override
+  void warning(String message, {Map<String, String>? context}) {
+    DemoRum.logger.warn(message, attributes: _attributes(context));
+  }
+
+  @override
+  void error(
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, String>? context,
+  }) {
+    final extra = <String, String>{};
+    if (error != null) extra['error'] = error.toString();
+    if (stackTrace != null) extra['stackTrace'] = stackTrace.toString();
+    DemoRum.logger.error(message, attributes: _attributes(context, extra));
   }
 }

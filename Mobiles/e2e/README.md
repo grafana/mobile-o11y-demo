@@ -131,10 +131,13 @@ The runner reads these environment variables (all optional except
 | Variable                 | Default                 | Purpose                                            |
 | ------------------------ | ----------------------- | -------------------------------------------------- |
 | `OPENAI_API_KEY`         | _(required)_            | Passed to Arbigent for AI decisions.               |
-| `ARBIGENT_VERSION`       | `0.72.0`                | Arbigent CLI release to download.                  |
-| `ARBIGENT_MODEL`         | `gpt-5.2`               | OpenAI model used by Arbigent.                     |
+| `ARBIGENT_VERSION`       | `0.76.1`                | Arbigent CLI release to download.                  |
+| `ARBIGENT_MODEL`         | `gpt-5.6-luna`          | OpenAI model used by Arbigent.                     |
 | `ARBIGENT_LOG_AI_API`    | `false`                 | Set `true` to log AI API request/response payloads (system prompt, per-step prompts). |
 | `QUICKPIZZA_BACKEND_URL` | `http://localhost:3333` | Backend reachability probe before launching tests. |
+
+The scenario templates use OpenAI's Responses API with low reasoning effort,
+which is required for Luna to execute function tools through Arbigent.
 
 ## Scenario templates
 
@@ -179,7 +182,7 @@ Two workflows cover mobile telemetry — **PR builds never fetch Vault secrets**
 
 **After opening a mobile PR:** wait for the four **Build check — …** jobs in *Mobile Demo Telemetry (build only)*.
 
-**Full Cloud telemetry before merge:** run **Mobile Demo Telemetry** manually via Actions → *Run workflow* on your branch (`workflow_dispatch`), or rely on the hourly schedule / post-merge run on `main`.
+**Full Cloud telemetry before merge:** run **Mobile Demo Telemetry** manually via Actions → *Run workflow* on your branch (`workflow_dispatch`), or rely on the two-hour schedule / post-merge run on `main`.
 
 The full telemetry workflow has two independent legs that run in parallel:
 
@@ -197,12 +200,11 @@ The full telemetry workflow has two independent legs that run in parallel:
 
 ### Scheduled diagnostic data
 
-The hourly full telemetry workflow also emits a small amount of diagnostic data
+The two-hour full telemetry workflow also emits a small amount of diagnostic data
 so the demo apps show realistic error/crash signals:
 
-- handled exceptions run every third scheduled hour, based on the shared UTC
-  hour bucket;
-- crash diagnostics run every tenth scheduled hour, based on the same bucket;
+- handled exceptions run every third scheduled run (roughly every six hours);
+- crash diagnostics run every tenth scheduled run (roughly every 20 hours);
 - when crash diagnostics run, the separate handled-exception flow is skipped
   because the crash flow emits one handled exception before the crash;
 - manual `workflow_dispatch` runs with `run_diagnostics=true` still force the
@@ -210,5 +212,5 @@ so the demo apps show realistic error/crash signals:
 
 This targets roughly 90% crash-free scheduled demo sessions over time. Any
 error signal is more frequent: handled-exception diagnostics run about every
-third scheduled hour, and crash diagnostics run about every tenth scheduled
-hour.
+third scheduled run, and crash diagnostics run about every tenth scheduled
+run.

@@ -5,6 +5,7 @@ import '../../../core/o11y/actions/o11y_actions.dart';
 import '../../../core/o11y/events/o11y_events.dart';
 import '../../../core/o11y/loggers/o11y_logger.dart';
 import '../../../core/o11y/metrics/o11y_metrics.dart';
+import '../../../core/o11y/traces/o11y_traces.dart';
 import '../../auth/domain/auth_provider.dart';
 import '../models/pizza.dart';
 import '../models/restrictions.dart';
@@ -60,6 +61,7 @@ class PizzaStateNotifier extends Notifier<PizzaState> {
   late O11yEvents _o11yEvents;
   late O11yLogger _o11yLogger;
   late O11yMetrics _o11yMetrics;
+  late O11yTraces _o11yTraces;
 
   @override
   PizzaState build() {
@@ -68,6 +70,7 @@ class PizzaStateNotifier extends Notifier<PizzaState> {
     _o11yEvents = ref.watch(o11yEventsProvider);
     _o11yLogger = ref.watch(o11yLoggerProvider);
     _o11yMetrics = ref.watch(o11yMetricsProvider);
+    _o11yTraces = ref.watch(o11yTracesProvider);
 
     // Reset pizza state when user logs out, clear error when user logs in
     ref.listen(isLoggedInProvider, (prev, next) {
@@ -97,31 +100,49 @@ class PizzaStateNotifier extends Notifier<PizzaState> {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
-      final pizza = await _pizzaRepository.getPizzaRecommendation(restrictions);
+      // startSpan (callback form) runs the fetch *inside* the span's context,
+      // so Faro's HTTP auto-instrumentation nests the request under this span.
+      // The span is mirrored into the DemoRum SDK too (see O11yTraces).
+      await _o11yTraces.startSpan(
+        'pizza.get_recommendation',
+        (span) async {
+          final pizza = await _pizzaRepository.getPizzaRecommendation(
+            restrictions,
+          );
 
-      if (pizza != null) {
-        _o11yEvents.trackEvent(
-          'pizza_received',
-          context: {
-            'pizza_id': pizza.pizza.id.toString(),
-            'pizza_name': pizza.pizza.name,
-          },
-        );
-        _o11yMetrics.addMeasurement('pizza.recommendation', {
-          'pizza_id': pizza.pizza.id,
-          'calories': pizza.calories ?? 0,
-          'vegetarian': pizza.vegetarian == true ? 1 : 0,
-        });
-        state = state.copyWith(pizza: pizza, isLoading: false);
-      } else {
-        _o11yLogger.warning('Pizza recommendation returned null');
-        state = state.copyWith(
-          isLoading: false,
-          errorMessage:
-              'Failed to get pizza recommendation. Please log in and try again.',
-        );
-      }
+          if (pizza != null) {
+            span.setAttribute('pizza.found', true);
+            span.setAttribute('pizza.id', pizza.pizza.id);
+            span.setAttribute('pizza.name', pizza.pizza.name);
+            _o11yEvents.trackEvent(
+              'pizza_received',
+              context: {
+                'pizza_id': pizza.pizza.id.toString(),
+                'pizza_name': pizza.pizza.name,
+              },
+            );
+            _o11yMetrics.addMeasurement('pizza.recommendation', {
+              'pizza_id': pizza.pizza.id,
+              'calories': pizza.calories ?? 0,
+              'vegetarian': pizza.vegetarian == true ? 1 : 0,
+            });
+            state = state.copyWith(pizza: pizza, isLoading: false);
+          } else {
+            // Not an error — the repo returns null for expected non-success
+            // (mainly 401 "needs login"). Mark it and let the span finish OK.
+            span.setAttribute('pizza.found', false);
+            _o11yLogger.warning('Pizza recommendation returned null');
+            state = state.copyWith(
+              isLoading: false,
+              errorMessage:
+                  'Failed to get pizza recommendation. Please log in and try again.',
+            );
+          }
+        },
+        attributes: {'vegetarian': restrictions.mustBeVegetarian},
+      );
     } catch (error, stackTrace) {
+      // startSpan already recorded the exception + marked the span failed.
       _o11yLogger.error(
         'Failed to get pizza recommendation',
         error: error,

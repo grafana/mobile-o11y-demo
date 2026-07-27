@@ -63,3 +63,5 @@ logs.txt
 /Mobiles/android/.gradle
 /Mobiles/android/app/src/main/res/raw/config.json
 /Mobiles/android/local.properties
+/Mobiles/flutter/benchmark/.captures/
+/Mobiles/flutter/benchmark/.runtime/

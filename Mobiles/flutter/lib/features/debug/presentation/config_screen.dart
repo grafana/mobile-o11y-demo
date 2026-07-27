@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/o11y/faro/faro_data_collection_provider.dart';
 import 'config_screen_view_model.dart';
 import 'restart_required_banner.dart';
 
@@ -18,12 +20,14 @@ class ConfigScreen extends ConsumerStatefulWidget {
 class _ConfigScreenState extends ConsumerState<ConfigScreen> {
   final _backendController = TextEditingController();
   final _faroController = TextEditingController();
+  final _sampleRateController = TextEditingController();
   bool _controllersSeeded = false;
 
   @override
   void dispose() {
     _backendController.dispose();
     _faroController.dispose();
+    _sampleRateController.dispose();
     super.dispose();
   }
 
@@ -33,6 +37,8 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
     if (_controllersSeeded) return;
     _backendController.text = uiState.savedBackendOverride ?? '';
     _faroController.text = uiState.savedFaroCollectorOverride ?? '';
+    _sampleRateController.text =
+        uiState.savedFaroSampleRateOverride?.toString() ?? '';
     _controllersSeeded = true;
   }
 
@@ -55,10 +61,12 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           const RestartRequiredBanner(),
+          const _FaroDataCollectionCard(),
+          const SizedBox(height: 24),
           Text(
-            'Override the URLs used by this app. Changes only take effect '
-            'after you kill and restart the app — this keeps traces, logs '
-            'and metrics correlated within a single session.',
+            'Override the values used by this app. Changes here only take '
+            'effect after you kill and restart the app — this keeps traces, '
+            'logs and metrics correlated within a single session.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
@@ -81,6 +89,18 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
             defaultDisplay: uiState.defaultFaroCollectorDisplay,
             hintText: 'https://faro-collector.../collect/<api-key>',
           ),
+          const SizedBox(height: 24),
+          _UrlField(
+            label: 'Faro session sample rate',
+            controller: _sampleRateController,
+            inUseValue: uiState.faroSampleRateInUse.toString(),
+            defaultValue: uiState.defaultFaroSampleRate.toString(),
+            hintText: 'e.g. 0.25 — fraction of sessions sampled (0.0–1.0)',
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+            ],
+          ),
           const SizedBox(height: 32),
           SizedBox(
             width: double.infinity,
@@ -90,6 +110,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                   : () => actions.save(
                       backendUrl: _backendController.text,
                       faroCollectorUrl: _faroController.text,
+                      faroSampleRateText: _sampleRateController.text,
                     ),
               icon: uiState.saving
                   ? const SizedBox(
@@ -111,6 +132,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                       await actions.clear();
                       _backendController.clear();
                       _faroController.clear();
+                      _sampleRateController.clear();
                     },
               icon: const Icon(Icons.restart_alt),
               label: const Text('Use defaults (clear overrides)'),
@@ -144,6 +166,38 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
   }
 }
 
+/// Live switch for Faro's global data-collection flag. Unlike the override
+/// fields below, this takes effect immediately (no restart) and Faro persists
+/// the value across app launches on its own.
+class _FaroDataCollectionCard extends ConsumerWidget {
+  const _FaroDataCollectionCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final enabled = ref.watch(faroDataCollectionProvider);
+
+    return Card(
+      child: SwitchListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        title: const Text('Faro data collection'),
+        subtitle: Text(
+          enabled
+              ? 'Faro is collecting and sending telemetry. Applies immediately.'
+              : 'Faro telemetry is paused — nothing is sent. Applies '
+                    'immediately.',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        value: enabled,
+        onChanged: (value) =>
+            ref.read(faroDataCollectionProvider.notifier).setEnabled(value),
+      ),
+    );
+  }
+}
+
 class _UrlField extends StatelessWidget {
   const _UrlField({
     required this.label,
@@ -153,6 +207,8 @@ class _UrlField extends StatelessWidget {
     required this.hintText,
     this.inUseDisplay,
     this.defaultDisplay,
+    this.keyboardType = TextInputType.url,
+    this.inputFormatters,
   });
 
   final String label;
@@ -162,6 +218,8 @@ class _UrlField extends StatelessWidget {
   final String hintText;
   final String? inUseDisplay;
   final String? defaultDisplay;
+  final TextInputType keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
 
   @override
   Widget build(BuildContext context) {
@@ -198,7 +256,8 @@ class _UrlField extends StatelessWidget {
                 labelText: 'Override (empty = use default)',
                 border: const OutlineInputBorder(),
               ),
-              keyboardType: TextInputType.url,
+              keyboardType: keyboardType,
+              inputFormatters: inputFormatters,
               autocorrect: false,
               enableSuggestions: false,
             ),

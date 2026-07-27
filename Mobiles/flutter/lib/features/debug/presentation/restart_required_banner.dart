@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/config_service.dart';
 import '../../../core/config/debug_settings.dart';
+import '../../../core/config/faro_sample_rate_service.dart';
 import '../../../core/config/runtime_config.dart';
 
 // =============================================================================
@@ -40,19 +41,22 @@ class RestartBannerUiState extends Equatable {
 /// is the right tool here; a [Notifier] would be ceremony.
 final restartBannerUiStateProvider = Provider<RestartBannerUiState>((ref) {
   final settings = ref.watch(debugSettingsProvider);
-  final runtime = ref.watch(runtimeConfigProvider).requireValue;
+  final runtime = ref.watch(runtimeConfigProvider);
   final configService = ref.watch(configServiceProvider);
 
   final savedBackend = settings.backendUrlOverride ?? configService.baseUrl;
   final savedFaroCollector =
       settings.faroCollectorUrlOverride ?? _safeDefaultFaroCollectorUrl();
+  final savedSampleRate =
+      settings.faroSampleRateOverride ?? kDefaultFaroSampleRate;
 
   final backendChanged = savedBackend != runtime.backendBaseUrl;
   final faroCollectorChanged =
       savedFaroCollector != null &&
       savedFaroCollector != runtime.faroCollectorUrl;
+  final sampleRateChanged = savedSampleRate != runtime.faroSampleRate;
 
-  if (!backendChanged && !faroCollectorChanged) {
+  if (!backendChanged && !faroCollectorChanged && !sampleRateChanged) {
     return const RestartBannerUiState.hidden();
   }
 
@@ -61,6 +65,7 @@ final restartBannerUiStateProvider = Provider<RestartBannerUiState>((ref) {
     changedLabel: [
       if (backendChanged) 'Backend URL',
       if (faroCollectorChanged) 'Faro collector URL',
+      if (sampleRateChanged) 'Faro sample rate',
     ].join(' and '),
   );
 });
@@ -79,8 +84,9 @@ String? _safeDefaultFaroCollectorUrl() {
 // Widget
 // =============================================================================
 
-/// Shown at the top of the Debug and Config screens whenever the saved
-/// URL overrides differ from the URLs currently-in-use in the session.
+/// Shown at the top of the Debug and Config screens whenever a saved override
+/// (backend URL, Faro collector URL, or Faro sample rate) differs from the
+/// value currently-in-use in the session.
 ///
 /// Returns a zero-size widget when no restart is needed.
 class RestartRequiredBanner extends ConsumerWidget {

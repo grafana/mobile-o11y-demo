@@ -113,6 +113,7 @@ read [`Mobiles/docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](./Mobiles/docs/MOBILE_OBS
 - **Where it lands:** Frontend Observability plugin (Faro app `QuickPizza_Flutter`, id `69`). SDK is configured to send `app_name=QuickPizza_Flutter` to match the registry; older telemetry may still carry the legacy `quickpizza-flutter` kebab-case name.
 - **Config:** `config.json` at project root — `BASE_URL`, `FARO_COLLECTOR_URL`.
 - **Build:** `flutter run --dart-define-from-file=config.json` or `./scripts/run-android.sh` / `./scripts/run-ios.sh`.
+- **Also runs a second, made-up "DemoRum" RUM SDK** alongside Faro purely to demo how two mobile RUM SDKs coexist in one app — this is intentional, not a mistake to "clean up". DemoRum is a local **no-op stand-in** (no third-party SDK, no network): every call is inert and echoes to the console (`[DemoRum]` logs), except it installs chained `FlutterError`/`PlatformDispatcher` error handlers and forwards HTTP so the demo is honest. Swap `core/o11y/demo_rum/sdk/demo_rum.dart` for a real vendor SDK to make it live. Details are local to `Mobiles/flutter/` (see its README and `core/o11y/{demo_rum,faro}/`).
 
 ### React Native (`Mobiles/react-native/`)
 
