@@ -285,7 +285,7 @@ export function DebugScreen({ onNavigateToConfig }: DebugScreenProps) {
           />
           <SettingSwitch
             title="Random frozen frames"
-            subtitle="Frequent JS stalls (~0.7–2.8s bursts) — UI should visibly freeze"
+            subtitle="UI-thread stall episodes (~10–15s), then ~30s quiet, repeat"
             value={settings.clientRandomFrozenFrames}
             onValueChange={(value) =>
               updateSetting({ clientRandomFrozenFrames: value })

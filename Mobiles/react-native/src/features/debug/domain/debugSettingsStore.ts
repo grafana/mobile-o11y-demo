@@ -12,7 +12,7 @@ export interface DebugSettings {
   backendErrorIngredients: boolean;
   clientFaultyPizzaJson: boolean;
   clientSkipAuthDependency: boolean;
-  /** Demo-only: randomly block the JS thread to induce slow/frozen frames. */
+  /** Demo-only: randomly block the UI thread to induce slow/frozen frames. */
   clientRandomFrozenFrames: boolean;
   /** Demo-only: retain growing buffers to stress process memory. */
   clientMemoryStress: boolean;
