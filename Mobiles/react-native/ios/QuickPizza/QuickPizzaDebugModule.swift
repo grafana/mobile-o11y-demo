@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import React
 
@@ -19,7 +20,7 @@ class QuickPizzaDebug: NSObject {
     DispatchQueue.main.async {
       let deadline = Date().addingTimeInterval(clampedMs / 1000.0)
       while Date() < deadline {
-        Thread.yield()
+        sched_yield()
       }
       resolve(nil)
     }
