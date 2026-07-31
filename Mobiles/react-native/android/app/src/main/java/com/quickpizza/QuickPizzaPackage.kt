@@ -12,6 +12,7 @@ class QuickPizzaPackage : ReactPackage {
     listOf(
       QuickPizzaCrashModule(reactContext),
       QuickPizzaNdkCrashModule(reactContext),
+      QuickPizzaDebugModule(reactContext),
     )
 
   override fun createViewManagers(

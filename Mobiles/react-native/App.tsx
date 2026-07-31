@@ -22,6 +22,8 @@ import { AppNavigator } from './src/navigation/AppNavigator';
 import { useAdminStore } from './src/features/admin/domain/adminStore';
 import { useAuthStore } from './src/features/auth/domain/authStore';
 import { useDebugSettingsStore } from './src/features/debug/domain/debugSettingsStore';
+import { MemoryStressEffect } from './src/features/debug/domain/memoryStress';
+import { RandomFrozenFramesEffect } from './src/features/debug/domain/randomFrozenFrames';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -60,6 +62,8 @@ function App() {
     >
       <SafeAreaProvider>
         <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+        <RandomFrozenFramesEffect />
+        <MemoryStressEffect />
         <AppNavigator />
       </SafeAreaProvider>
     </O11yErrorBoundary>
