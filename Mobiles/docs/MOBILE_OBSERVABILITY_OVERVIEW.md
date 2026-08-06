@@ -109,13 +109,17 @@ is code we wrote in `core/o11y/` or in the feature repositories.
 
 ### Flutter (Faro)
 
-- **SDK:** `faro-mobile-flutter` 0.14.0
+- **SDK:** `faro-mobile-flutter` 0.17.0-beta.1
 - **Init:** `Mobiles/flutter/lib/bootstrap.dart` → `Faro` from
   `package:faro`
 - **Faro app:** registry name `QuickPizza_Flutter`, id `69`. The SDK is
   configured in `Mobiles/flutter/lib/bootstrap.dart` to send
   `app_name=QuickPizza_Flutter`, matching the React Native app
   (`QuickPizza_ReactNative`).
+- **View names:** go_router paths such as `/`, `/about`, `/debug`, and
+  `/debug/config`. The root and shell navigators each register Faro's
+  navigation observer so bottom navigation tabs and full-screen routes use the
+  same path-based naming convention.
 
 | Signal kind | Examples | Source |
 | --- | --- | --- |
