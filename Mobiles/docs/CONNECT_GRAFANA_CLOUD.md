@@ -92,6 +92,11 @@ https://faro-collector-<region>.grafana.net/otlp/<appKey>
 Leave `OTLP_INSTANCE_ID` and `OTLP_API_KEY` empty — the apps send no
 `Authorization` header when either value is blank.
 
+> **Every signal needs a `session.id`.** When the collector runs with session
+> management on, it rejects an OTLP request that carries a signal without one:
+> `400 session.id is required on every signal`. Both native apps track sessions
+> and stamp the attribute, so this only bites a hand-rolled OTLP client.
+
 On the demo stack these are registered as `QuickPizza_Android` and
 `QuickPizza_iOS`.
 
