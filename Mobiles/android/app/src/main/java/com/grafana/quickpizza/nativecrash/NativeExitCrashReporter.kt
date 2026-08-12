@@ -9,7 +9,8 @@ import android.util.Log
 import io.opentelemetry.api.common.AttributeKey
 import io.opentelemetry.api.common.Attributes
 import io.opentelemetry.api.logs.Severity
-import io.opentelemetry.sdk.OpenTelemetrySdk
+import io.opentelemetry.sdk.logs.SdkLoggerProvider
+import io.opentelemetry.sdk.trace.SdkTracerProvider
 import java.util.concurrent.TimeUnit
 
 /**
@@ -32,7 +33,11 @@ object NativeExitCrashReporter {
     private const val INSTALL_TIME_GRACE_MS = 2_000L
     private const val MAX_EXIT_REASONS = 20
 
-    fun reportPendingNativeCrashes(context: Context, sdk: OpenTelemetrySdk) {
+    fun reportPendingNativeCrashes(
+        context: Context,
+        loggerProvider: SdkLoggerProvider,
+        tracerProvider: SdkTracerProvider?,
+    ) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             return
         }
@@ -97,7 +102,7 @@ object NativeExitCrashReporter {
                 pendingTraceUsed = true
             }
 
-            emitNativeCrash(sdk, exitInfo, trace, parsedExit.signal)
+            emitNativeCrash(loggerProvider, tracerProvider, exitInfo, trace, parsedExit.signal)
         }
 
         if (latestTimestamp > lastProcessed) {
@@ -109,7 +114,8 @@ object NativeExitCrashReporter {
     }
 
     private fun emitNativeCrash(
-        sdk: OpenTelemetrySdk,
+        loggerProvider: SdkLoggerProvider,
+        tracerProvider: SdkTracerProvider?,
         exitInfo: ApplicationExitInfo,
         trace: String,
         parsedSignal: String,
@@ -139,16 +145,16 @@ object NativeExitCrashReporter {
             attrs.put(AttributeKey.stringKey("signal"), signal)
         }
 
-        sdk.logsBridge.get(CRASH_INSTRUMENTATION_SCOPE)
+        loggerProvider.get(CRASH_INSTRUMENTATION_SCOPE)
             .logRecordBuilder()
             .setEventName(DEVICE_CRASH_EVENT_NAME)
             .setSeverity(Severity.ERROR)
             .setAllAttributes(attrs.build())
             .emit()
 
-        val logsFlush = sdk.sdkLoggerProvider.forceFlush()
+        val logsFlush = loggerProvider.forceFlush()
         logsFlush.join(FLUSH_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-        sdk.sdkTracerProvider.forceFlush().join(FLUSH_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        tracerProvider?.forceFlush()?.join(FLUSH_TIMEOUT_MS, TimeUnit.MILLISECONDS)
         if (logsFlush.isSuccess) {
             Log.i(TAG, "CRASH_NATIVE OTLP flush succeeded")
         } else {
