@@ -7,7 +7,18 @@ families that authenticate differently:
 | Apps | SDK family | What you configure | Where the data lands |
 | --- | --- | --- | --- |
 | Flutter, React Native | Grafana **Faro** | `FARO_COLLECTOR_URL` | Frontend Observability plugin |
-| iOS native, Android native | **OpenTelemetry** | `OTLP_ENDPOINT` + `OTLP_INSTANCE_ID` + `OTLP_API_KEY` | Tempo (traces) + Loki (logs), viewed via the [Mobile OTel RUM dashboard](./MOBILE_OTEL_RUM_DASHBOARD.md) |
+| iOS native, Android native | **OpenTelemetry** | `OTLP_ENDPOINT` | Frontend Observability plugin |
+
+Both families reach the same place. The Faro apps post Faro payloads to
+`/collect/<appKey>`; the native OTel apps post OTLP/HTTP to `/otlp/<appKey>` on
+the same collector, which translates OTLP to Faro on the way in. Each app has
+its own key, so each shows up as its own app in the plugin.
+
+The native apps can also send to the Grafana Cloud OTLP gateway instead, which
+lands the data in Tempo and Loki for the
+[Mobile OTel RUM dashboard](./MOBILE_OTEL_RUM_DASHBOARD.md). That path needs
+`OTLP_INSTANCE_ID` and `OTLP_API_KEY` as well — see
+[Alternative: the OTLP gateway](#alternative-the-otlp-gateway) below.
 
 > **Faro apps require a collector URL.** The Flutter and React Native apps
 > throw at startup if `FARO_COLLECTOR_URL` is empty, so you must set it (see
@@ -62,28 +73,27 @@ these are registered as `QuickPizza_Flutter` and `QuickPizza_ReactNative`.
 
 ## OpenTelemetry apps (iOS native, Android native)
 
-OTel apps send OTLP/HTTP to the Grafana Cloud OTLP gateway and authenticate
-with an **instance ID + access token**.
+OTel apps send OTLP/HTTP to the **Faro collector**, which translates OTLP to
+Faro and registers the app in Frontend Observability. The app key sits in the
+URL path, so there is no separate token to manage.
 
-### Find your endpoint and credentials
+### Find your endpoint
 
-The OTLP endpoint follows the standard Grafana Cloud pattern:
+1. In Grafana Cloud, open **Frontend Observability**.
+2. Create a new app (or open an existing one).
+3. Copy the app's **Faro collector URL** (looks like
+   `https://faro-collector-<region>.grafana.net/collect/<appKey>`).
+4. Replace `/collect/` with `/otlp/` to get the OTLP ingest URL:
 
 ```
-https://otlp-gateway-<clusterSlug>.grafana.net/otlp
+https://faro-collector-<region>.grafana.net/otlp/<appKey>
 ```
 
-To find `clusterSlug`, the numeric Instance ID, and a token:
+Leave `OTLP_INSTANCE_ID` and `OTLP_API_KEY` empty — the apps send no
+`Authorization` header when either value is blank.
 
-1. Go to your Grafana Cloud org page (`https://grafana.com/orgs/<your-org>`).
-2. Open the stack — the **cluster slug** and **numeric Instance ID** are listed
-   on its details page.
-3. Generate an **Access Policy token** with scopes `metrics:write`,
-   `logs:write`, `traces:write` (the native apps need logs + traces; metrics is
-   harmless to include).
-
-The app computes `Authorization: Basic base64(instanceId:apiKey)` for you — you
-only supply the three raw values.
+On the demo stack these are registered as `QuickPizza_Android` and
+`QuickPizza_iOS`.
 
 ### Where to put them
 
@@ -98,15 +108,38 @@ them itself, and on Android the OpenTelemetry SDK exporter handles them.
 
 ### View the data
 
-Traces appear in **Explore → Tempo** within seconds (filter by
-`resource.service.name="quickpizza-ios"` / `"quickpizza-android"`); logs in
-**Explore → Loki** (`service_name="quickpizza-ios"` / `"quickpizza-android"`).
-For a RUM-style view, import the
-[Mobile OTel RUM dashboard](./MOBILE_OTEL_RUM_DASHBOARD.md).
+The app appears in the **Frontend Observability** plugin, next to the Flutter
+and React Native apps.
 
 > **Android latency note:** the OTel-Android SDK buffers exports to disk
 > (~30–45 s) for offline resilience. For live demos, flip **Debug →
 > OpenTelemetry SDK → Disable disk buffering** to drop latency to ~1–6 s.
+
+### Alternative: the OTLP gateway
+
+To land the native telemetry in Tempo and Loki instead — which is what the
+[Mobile OTel RUM dashboard](./MOBILE_OTEL_RUM_DASHBOARD.md) reads — point the
+apps at the Grafana Cloud OTLP gateway:
+
+```
+https://otlp-gateway-<clusterSlug>.grafana.net/otlp
+```
+
+This path authenticates with an **instance ID + access token**:
+
+1. Go to your Grafana Cloud org page (`https://grafana.com/orgs/<your-org>`).
+2. Open the stack — the **cluster slug** and **numeric Instance ID** are listed
+   on its details page.
+3. Generate an **Access Policy token** with scopes `metrics:write`,
+   `logs:write`, `traces:write` (the native apps need logs + traces; metrics is
+   harmless to include).
+
+Put all three values in the same config file. The app computes
+`Authorization: Basic base64(instanceId:apiKey)` for you.
+
+Traces then appear in **Explore → Tempo** within seconds (filter by
+`resource.service.name="quickpizza-ios"` / `"quickpizza-android"`); logs in
+**Explore → Loki** (`service_name="quickpizza-ios"` / `"quickpizza-android"`).
 
 ---
 
@@ -118,8 +151,9 @@ For a RUM-style view, import the
   the Debug → Config overrides) and you relaunched the app.
 - Faro: confirm the collector URL is complete (includes the `/collect/<token>`
   path).
-- OTel: confirm the endpoint is OTLP/**HTTP** (not gRPC), has no trailing slash,
-  and the token allows `logs:write` + `traces:write`.
+- OTel: confirm the endpoint is OTLP/**HTTP** (not gRPC) and has no trailing
+  slash. For Faro OTLP ingest, confirm the URL ends with `/otlp/<appKey>`. For
+  the OTLP gateway, confirm the token allows `logs:write` + `traces:write`.
 - Use the in-app **Debug** tab to emit a test log / handled exception and
   confirm it arrives.
 

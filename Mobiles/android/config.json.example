@@ -1,11 +1,11 @@
 {
   "_comment": "Copy this file to app/src/main/res/raw/config.json and fill in your values.",
   "OTLP_ENDPOINT": "",
-  "_OTLP_ENDPOINT_comment": "e.g. https://otlp-gateway-prod-eu-west-0.grafana.net/otlp",
+  "_OTLP_ENDPOINT_comment": "Faro OTLP ingest URL, e.g. https://faro-collector-<region>.grafana.net/otlp/<appKey>. The app key in the path identifies the app, so leave OTLP_INSTANCE_ID and OTLP_API_KEY empty. To send to the Grafana Cloud OTLP gateway instead, use https://otlp-gateway-<clusterSlug>.grafana.net/otlp and fill in both credentials.",
   "OTLP_INSTANCE_ID": "",
-  "_OTLP_INSTANCE_ID_comment": "Your Grafana Cloud OTLP Gateway instance ID (numeric).",
+  "_OTLP_INSTANCE_ID_comment": "Grafana Cloud OTLP gateway instance ID (numeric). Leave empty for the Faro OTLP ingest URL.",
   "OTLP_API_KEY": "",
-  "_OTLP_API_KEY_comment": "Your Grafana Cloud access token (e.g. glc_xxxxxxxx). Combined with the instance ID, the app will compute Authorization: Basic <base64(instanceId:apiKey)>.",
+  "_OTLP_API_KEY_comment": "Grafana Cloud access token (e.g. glc_xxxxxxxx). Combined with the instance ID, the app will compute Authorization: Basic <base64(instanceId:apiKey)>. Leave empty for the Faro OTLP ingest URL.",
   "BASE_URL": "",
   "_BASE_URL_comment": "Leave empty for emulator (uses http://10.0.2.2:3333 automatically). For physical devices, set to your machine's IP e.g. http://192.168.1.100:3333"
 }

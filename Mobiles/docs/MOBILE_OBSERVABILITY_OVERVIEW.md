@@ -45,8 +45,12 @@ It is intended for two audiences:
 | --- | --- | --- | --- | --- |
 | Flutter (Android + iOS) | `Mobiles/flutter/` | `faro` Dart SDK | `QuickPizza_Flutter` (app_id `69`) | Faro collector → Grafana Cloud Frontend Observability |
 | React Native (Android + iOS) | `Mobiles/react-native/` | `@grafana/faro-react-native` | `QuickPizza_ReactNative` (app_id `123`) | Faro collector → Grafana Cloud Frontend Observability |
-| iOS native (SwiftUI) | `Mobiles/ios/` | `opentelemetry-swift` | `quickpizza-ios` | OTLP/HTTP → Grafana Cloud Tempo + Loki |
-| Android native (Compose) | `Mobiles/android/` | `opentelemetry-android` (RUM agent) | `quickpizza-android` | OTLP/HTTP → Grafana Cloud Tempo + Loki |
+| iOS native (SwiftUI) | `Mobiles/ios/` | `opentelemetry-swift` | `quickpizza-ios` → `QuickPizza_iOS` | OTLP/HTTP → Faro collector → Grafana Cloud Frontend Observability |
+| Android native (Compose) | `Mobiles/android/` | `opentelemetry-android` (RUM agent) | `quickpizza-android` → `QuickPizza_Android` (app_id `182`) | OTLP/HTTP → Faro collector → Grafana Cloud Frontend Observability |
+
+The native apps set `service.name` to `quickpizza-ios` / `quickpizza-android`,
+but the Faro collector replaces it with the registered app name on ingest, so
+they surface as `QuickPizza_iOS` / `QuickPizza_Android`.
 
 All four apps talk to the same QuickPizza backend (`/api/pizza`,
 `/api/ratings`, `/api/users/token/login`, …) and implement the same core
@@ -81,22 +85,25 @@ Common feature set:
 | --- | --- |
 | Flutter | Frontend Observability plugin → `/a/grafana-kowalski-app/apps/<faro-app-id>` on your Grafana Cloud stack |
 | React Native | Frontend Observability plugin → `/a/grafana-kowalski-app/apps/<faro-app-id>` on your Grafana Cloud stack |
-| iOS native | [Mobile OTel RUM dashboard](./MOBILE_OTEL_RUM_DASHBOARD.md) on your Grafana Cloud stack |
-| Android native | [Mobile OTel RUM dashboard](./MOBILE_OTEL_RUM_DASHBOARD.md) on your Grafana Cloud stack |
+| iOS native | Frontend Observability plugin → `/a/grafana-kowalski-app/apps/<faro-app-id>` on your Grafana Cloud stack |
+| Android native | Frontend Observability plugin → `/a/grafana-kowalski-app/apps/<faro-app-id>` on your Grafana Cloud stack |
 
 Underlying datasources on whichever Grafana Cloud stack you target:
 
 - Faro signals → the stack's Loki datasource (`grafanacloud-<stack>-logs`).
   Faro stores all four signal kinds (`event`, `log`, `measurement`,
   `exception`) as Loki streams with `app_id` / `app_name` labels.
-- OTel signals → the stack's Tempo datasource
-  (`grafanacloud-<stack>-traces`) for spans and the stack's Loki datasource
-  for log records, both labeled with `service_name` / `service_namespace`.
+- Native OTel signals reach the same place. The collector translates OTLP to
+  Faro on ingest, so spans still land in the stack's Tempo datasource
+  (`grafanacloud-<stack>-traces`) and log records in Loki, but both carry the
+  registered app identity and the plugin can read them.
 
-The Frontend Observability plugin queries Loki for Faro-shaped data; the
-Mobile OTel RUM dashboard queries Tempo + Loki for OTel-shaped data.
-To import and configure the reusable dashboard, see
-[`MOBILE_OTEL_RUM_DASHBOARD.md`](./MOBILE_OTEL_RUM_DASHBOARD.md).
+The Frontend Observability plugin queries Loki for Faro-shaped data.
+
+Point the native apps at the Grafana Cloud OTLP gateway instead
+([Connect to Grafana Cloud](./CONNECT_GRAFANA_CLOUD.md#alternative-the-otlp-gateway))
+and the data bypasses the collector, landing as raw OTel in Tempo + Loki. That
+is what the [Mobile OTel RUM dashboard](./MOBILE_OTEL_RUM_DASHBOARD.md) reads.
 
 ---
 
@@ -252,14 +259,14 @@ events.
 
 | | Faro (Flutter, RN) | OpenTelemetry (iOS, Android) |
 | --- | --- | --- |
-| Wire format | Faro JSON → Faro collector | OTLP/HTTP → Grafana Alloy / Grafana Cloud |
+| Wire format | Faro JSON → Faro collector `/collect/<appKey>` | OTLP/HTTP → Faro collector `/otlp/<appKey>`, translated to Faro on ingest |
 | Signal model | Four kinds: `event`, `log`, `measurement`, `exception`. All flattened into Loki. | Two kinds we use today: spans (Tempo) + log records (Loki). |
 | Auto HTTP | Faro fetch/XHR instrumentation emits `event_name=faro.tracing.*` events that double as spans (with `traceID`/`spanID`) | Native HTTP client wrappers emit OTel spans |
 | Auto user actions | `event_name=faro.user.action` (Flutter + RN) | _None_ |
 | Auto perf metrics | `app_memory`, `app_cpu_usage`, `app_frames_rate`, `app_frozen_frame`, `app_startup` (both) | _None on iOS_; `app.jank` events on Android |
 | Crashes | Native crash → `kind=exception, type=crash` (FaroCrashKit) | iOS: MetricKit (delayed); Android: `device.crash` event (next launch) |
-| Where to query | Frontend Observability plugin (Loki under the hood) | Tempo + Loki via Explore + custom dashboards |
-| Where to view | Frontend Observability plugin (per-app drilldown UI) | [Mobile OTel RUM dashboard](./MOBILE_OTEL_RUM_DASHBOARD.md) |
+| Where to query | Frontend Observability plugin (Loki under the hood) | Same, once translated. Raw Tempo + Loki when sent to the OTLP gateway instead |
+| Where to view | Frontend Observability plugin (per-app drilldown UI) | Same. [Mobile OTel RUM dashboard](./MOBILE_OTEL_RUM_DASHBOARD.md) on the OTLP gateway path |
 | User context | `user_id` / `user_username` (Faro auto when set via SDK) | Not yet attached on every signal — `enduser.id` is the OTel attribute to use; tracked in [#48](https://github.com/grafana/mobile-o11y-demo/issues/48) / [`OTEL_MOBILE_MATURITY.md` § M-001](./OTEL_MOBILE_MATURITY.md#m-001--no-first-class-user-context-enduserid-on-mobile-sdks) |
 
 ---

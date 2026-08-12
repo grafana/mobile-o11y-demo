@@ -103,9 +103,8 @@ jobs:
           repo_secrets: |
             FARO_COLLECTOR_URL=faro_collector_url:value
             FARO_COLLECTOR_URL_RN=faro_collector_url_rn:value
-            OTLP_ENDPOINT=otlp_endpoint_android_native:value
-            OTLP_INSTANCE_ID=otlp_instance_id_android_native:value
-            OTLP_API_KEY=otlp_api_key_android_native:value
+            FARO_OTLP_URL_ANDROID=faro_otlp_url_android:value
+            FARO_OTLP_URL_IOS=faro_otlp_url_ios:value
             GRAFANA_CLOUD_STACK=grafana_cloud_stack:value
             GRAFANA_CLOUD_TOKEN=grafana_cloud_token:value
             OPENAI_API_KEY=openai_api_key:value
@@ -224,20 +223,20 @@ jobs:
       - name: Create Android Native config.json for CI
         working-directory: Mobiles/android
         env:
-          OTLP_ENDPOINT: ${{ env.OTLP_ENDPOINT }}
-          OTLP_INSTANCE_ID: ${{ env.OTLP_INSTANCE_ID }}
-          OTLP_API_KEY: ${{ env.OTLP_API_KEY }}
+          OTLP_ENDPOINT: ${{ env.FARO_OTLP_URL_ANDROID }}
         run: |
+          # The Faro OTLP ingest URL carries the app key in its path, so the
+          # instance ID and token stay empty and no auth header is sent.
           mkdir -p app/src/main/res/raw
           cat > app/src/main/res/raw/config.json << EOF
           {
             "OTLP_ENDPOINT": "${OTLP_ENDPOINT}",
-            "OTLP_INSTANCE_ID": "${OTLP_INSTANCE_ID}",
-            "OTLP_API_KEY": "${OTLP_API_KEY}",
+            "OTLP_INSTANCE_ID": "",
+            "OTLP_API_KEY": "",
             "BASE_URL": ""
           }
           EOF
-          echo "Created Android Native config.json (secrets redacted)"
+          echo "Created Android Native config.json (OTLP endpoint redacted)"
 
       - name: Resolve Android Native demo app version
         run: |
@@ -436,9 +435,8 @@ jobs:
           repo_secrets: |
             FARO_COLLECTOR_URL=faro_collector_url:value
             FARO_COLLECTOR_URL_RN=faro_collector_url_rn:value
-            OTLP_ENDPOINT=otlp_endpoint_android_native:value
-            OTLP_INSTANCE_ID=otlp_instance_id_android_native:value
-            OTLP_API_KEY=otlp_api_key_android_native:value
+            FARO_OTLP_URL_ANDROID=faro_otlp_url_android:value
+            FARO_OTLP_URL_IOS=faro_otlp_url_ios:value
             GRAFANA_CLOUD_STACK=grafana_cloud_stack:value
             GRAFANA_CLOUD_TOKEN=grafana_cloud_token:value
             OPENAI_API_KEY=openai_api_key:value
@@ -456,21 +454,21 @@ jobs:
       - name: Create Config.xcconfig for CI
         working-directory: Mobiles/ios
         env:
-          OTLP_ENDPOINT: ${{ env.OTLP_ENDPOINT }}
-          OTLP_INSTANCE_ID: ${{ env.OTLP_INSTANCE_ID }}
-          OTLP_API_KEY: ${{ env.OTLP_API_KEY }}
+          OTLP_ENDPOINT: ${{ env.FARO_OTLP_URL_IOS }}
         run: |
           # BASE_URL points at localhost on the host running the simulator,
           # which is the same machine as the runner. xcconfig URLs require
           # /$()/ to escape the :// since semicolons split values.
+          # The Faro OTLP ingest URL carries the app key in its path, so the
+          # instance ID and token stay empty and no auth header is sent.
           cat > Config.xcconfig <<EOF
           BASE_URL = http:/\$()/localhost:3333
           PORT = 3333
           OTLP_ENDPOINT = ${OTLP_ENDPOINT}
-          OTLP_INSTANCE_ID = ${OTLP_INSTANCE_ID}
-          OTLP_API_KEY = ${OTLP_API_KEY}
+          OTLP_INSTANCE_ID =
+          OTLP_API_KEY =
           EOF
-          echo "Created Config.xcconfig (secrets redacted)"
+          echo "Created Config.xcconfig (OTLP endpoint redacted)"
 
       - name: Set up Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0

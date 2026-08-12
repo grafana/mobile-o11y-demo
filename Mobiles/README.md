@@ -17,15 +17,21 @@ places.
 | --- | --- | --- | --- | --- | --- |
 | **Flutter** (Android + iOS) | Cross-platform | [`flutter/`](./flutter/) | Grafana **Faro** | Frontend Observability | [Flutter README](./flutter/README.md) |
 | **React Native** (Android + iOS) | Cross-platform | [`react-native/`](./react-native/) | Grafana **Faro** | Frontend Observability | [React Native README](./react-native/README.md) |
-| **iOS native** (SwiftUI) | Native | [`ios/`](./ios/) | **OpenTelemetry** Swift | Tempo + Loki | [iOS README](./ios/README.md) |
-| **Android native** (Compose) | Native | [`android/`](./android/) | **OpenTelemetry** Android | Tempo + Loki | [Android README](./android/README.md) |
+| **iOS native** (SwiftUI) | Native | [`ios/`](./ios/) | **OpenTelemetry** Swift | Frontend Observability | [iOS README](./ios/README.md) |
+| **Android native** (Compose) | Native | [`android/`](./android/) | **OpenTelemetry** Android | Frontend Observability | [Android README](./android/README.md) |
 
-Two telemetry stories, one backend:
+Two wire formats, one destination:
 
-- **Faro** (Flutter, React Native) → exports to the Grafana Cloud **Frontend
-  Observability** plugin.
-- **OpenTelemetry** (iOS, Android) → exports OTLP/HTTP to **Tempo + Loki**,
-  visualized with the [Mobile OTel RUM dashboard](./docs/MOBILE_OTEL_RUM_DASHBOARD.md).
+- **Faro** (Flutter, React Native) → posts Faro payloads to the collector's
+  `/collect/<appKey>` endpoint.
+- **OpenTelemetry** (iOS, Android) → posts OTLP/HTTP to the same collector's
+  `/otlp/<appKey>` endpoint, which translates OTLP to Faro on ingest.
+
+Both end up in the Grafana Cloud **Frontend Observability** plugin, one app per
+key. The native apps can target the Grafana Cloud OTLP gateway instead, which
+lands raw OTel in Tempo + Loki for the
+[Mobile OTel RUM dashboard](./docs/MOBILE_OTEL_RUM_DASHBOARD.md) — see
+[Connect to Grafana Cloud](./docs/CONNECT_GRAFANA_CLOUD.md#alternative-the-otlp-gateway).
 
 For a side-by-side of what each app actually emits, see
 [`docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](./docs/MOBILE_OBSERVABILITY_OVERVIEW.md).

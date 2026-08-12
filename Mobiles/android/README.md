@@ -114,9 +114,13 @@ session attributes) is inventoried in
 
 Where to view the data on the demo stack:
 
-- **Dashboard:** import and configure the shared [Mobile OTel RUM dashboard](../docs/MOBILE_OTEL_RUM_DASHBOARD.md)
-- **Explore Tempo:** filter by `resource.service.name="quickpizza-android"`
-- **Explore Loki:** filter by `service_name="quickpizza-android"`
+- **Frontend Observability:** open the `QuickPizza_Android` app. The Faro
+  collector translates the OTLP payloads to Faro on ingest.
+- **OTLP gateway path only** (see
+  [Connect to Grafana Cloud](../docs/CONNECT_GRAFANA_CLOUD.md#alternative-the-otlp-gateway)):
+  the shared [Mobile OTel RUM dashboard](../docs/MOBILE_OTEL_RUM_DASHBOARD.md),
+  Tempo (`resource.service.name="quickpizza-android"`), and Loki
+  (`service_name="quickpizza-android"`).
 
 ---
 
@@ -126,9 +130,9 @@ Where to view the data on the demo stack:
 
 ```json
 {
-  "OTLP_ENDPOINT": "https://otlp-gateway-prod-eu-west-0.grafana.net/otlp",
-  "OTLP_INSTANCE_ID": "1234567",
-  "OTLP_API_KEY": "glc_xxxxxxxxxxxx",
+  "OTLP_ENDPOINT": "https://faro-collector-<region>.grafana.net/otlp/<appKey>",
+  "OTLP_INSTANCE_ID": "",
+  "OTLP_API_KEY": "",
   "BASE_URL": ""
 }
 ```
@@ -136,8 +140,8 @@ Where to view the data on the demo stack:
 | Field | Description |
 | --- | --- |
 | `OTLP_ENDPOINT` | OTLP/HTTP base URL (without `/v1/traces`). Empty disables export. |
-| `OTLP_INSTANCE_ID` | Numeric Grafana Cloud OTLP gateway instance ID. |
-| `OTLP_API_KEY` | Grafana Cloud access token (combined with the instance ID into `Authorization: Basic`). |
+| `OTLP_INSTANCE_ID` | Numeric Grafana Cloud OTLP gateway instance ID. Leave empty for Faro OTLP ingest. |
+| `OTLP_API_KEY` | Grafana Cloud access token (combined with the instance ID into `Authorization: Basic`). Leave empty for Faro OTLP ingest. |
 | `BASE_URL` | QuickPizza backend URL. Empty auto-resolves to `http://10.0.2.2:3333` on emulators. Set to your machine's LAN IP for physical devices ([details](../README.md#shared-basics)). |
 
 To obtain the OTLP endpoint, instance ID, and token, see
