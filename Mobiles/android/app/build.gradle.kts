@@ -115,6 +115,7 @@ dependencies {
     implementation("com.google.protobuf:protobuf-javalite:3.25.1")
 
     // Testing
+    testImplementation(libs.junit)
     androidTestImplementation(libs.test.runner)
     androidTestImplementation(libs.test.espresso.core)
     androidTestImplementation(libs.test.junit.ext)

@@ -104,9 +104,6 @@ class OTelService @Inject constructor(
     private val sdkTracerProvider: SdkTracerProvider?
         get() = rum?.openTelemetry?.tracerProvider?.let { it as? SdkTracerProvider ?: it.unobfuscate() }
 
-    private inline fun <reified T : Any> Any.unobfuscate(): T? =
-        runCatching { javaClass.getMethod("unobfuscate").invoke(this) as? T }.getOrNull()
-
     /**
      * Guarantees unhandled-crash telemetry actually reaches the collector.
      *
@@ -175,3 +172,13 @@ class OTelService @Inject constructor(
         private const val CRASH_FLUSH_TIMEOUT_MS = 3_000L
     }
 }
+
+// Top-level (rather than a class member) so the unit test can call it directly; `internal`
+// keeps it out of the public API surface. `getMethod` only requires the *method* to be public,
+// but `invoke` still enforces that the *declaring class* is accessible — which it isn't, since
+// `Obfuscated*Provider` is package-private — so it throws IllegalAccessException unless we
+// suppress that check with `isAccessible = true`.
+internal inline fun <reified T : Any> Any.unobfuscate(): T? =
+    runCatching {
+        javaClass.getMethod("unobfuscate").apply { isAccessible = true }.invoke(this) as? T
+    }.getOrNull()
