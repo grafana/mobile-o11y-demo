@@ -4,10 +4,15 @@ This guide explains how to import and configure the reusable Mobile OTel RUM
 dashboard for native Android and iOS apps that send OpenTelemetry logs and
 traces to Grafana Cloud.
 
-The dashboard is a lightweight RUM-style view for mobile telemetry while
-Frontend Observability does not ingest native OTLP mobile data directly. It
-queries the stack's Loki and Tempo data sources, which are populated through
-Grafana Cloud OTLP ingest.
+This dashboard reads the **OTLP gateway** path: apps send OTLP/HTTP straight to
+Grafana Cloud, which lands raw OTel in Loki and Tempo. The dashboard queries
+those two data sources.
+
+The Faro collector also accepts OTLP at `/otlp/<appKey>` and translates it to
+Faro, which puts native apps in the Frontend Observability plugin instead. That
+route is not enabled in production yet. Use this dashboard for the gateway path,
+and see [Connect to Grafana Cloud](./CONNECT_GRAFANA_CLOUD.md) to choose between
+the two.
 
 ## Dashboard Artifact
 

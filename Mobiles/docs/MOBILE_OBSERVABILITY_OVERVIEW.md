@@ -45,7 +45,7 @@ It is intended for two audiences:
 | --- | --- | --- | --- | --- |
 | Flutter (Android + iOS) | `Mobiles/flutter/` | `faro` Dart SDK | `QuickPizza_Flutter` (app_id `69`) | Faro collector → Grafana Cloud Frontend Observability |
 | React Native (Android + iOS) | `Mobiles/react-native/` | `@grafana/faro-react-native` | `QuickPizza_ReactNative` (app_id `123`) | Faro collector → Grafana Cloud Frontend Observability |
-| iOS native (SwiftUI) | `Mobiles/ios/` | `opentelemetry-swift` | `quickpizza-ios` → `QuickPizza_iOS` (app_id `202`) | OTLP/HTTP → Faro collector → Grafana Cloud Frontend Observability |
+| iOS native (SwiftUI) | `Mobiles/ios/` | `opentelemetry-swift` | `quickpizza-ios` → `QuickPizza_iOS` (app_id `204`) | OTLP/HTTP → Faro collector → Grafana Cloud Frontend Observability |
 | Android native (Compose) | `Mobiles/android/` | `opentelemetry-android` (RUM agent) | `quickpizza-android` → `QuickPizza_Android` (app_id `182`) | OTLP/HTTP → Faro collector → Grafana Cloud Frontend Observability |
 
 The native apps set `service.name` to `quickpizza-ios` / `quickpizza-android`,

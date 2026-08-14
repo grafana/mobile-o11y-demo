@@ -109,7 +109,7 @@ read [`Mobiles/docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](./Mobiles/docs/MOBILE_OBS
 
 ### Flutter (`Mobiles/flutter/`)
 
-- **Stack:** Flutter/Dart, Riverpod, GoRouter, `faro` Dart SDK (`faro-mobile-flutter` 0.14.0).
+- **Stack:** Flutter/Dart, Riverpod, GoRouter, `faro` Dart SDK (`faro-mobile-flutter`). Version pinned in `Mobiles/flutter/pubspec.yaml`.
 - **Observability:** Faro emits `event` / `log` / `measurement` / `exception` signals; auto HTTP via `faro.tracing.fetch`; auto perf measurements (`app_memory`, `app_cpu_usage`, frame rates, `app_startup`); native crashes via custom `MethodChannel`-backed `NativeCrashService`.
 - **Where it lands:** Frontend Observability plugin (Faro app `QuickPizza_Flutter`, id `69`). SDK is configured to send `app_name=QuickPizza_Flutter` to match the registry; older telemetry may still carry the legacy `quickpizza-flutter` kebab-case name.
 - **Config:** `config.json` at project root — `BASE_URL`, `FARO_COLLECTOR_URL`.
@@ -118,7 +118,7 @@ read [`Mobiles/docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](./Mobiles/docs/MOBILE_OBS
 
 ### React Native (`Mobiles/react-native/`)
 
-- **Stack:** React Native 0.84.x, `@grafana/faro-react-native` 1.0.0-alpha.1, `faro-react-native` 2.3.1.
+- **Stack:** React Native 0.84.x, `@grafana/faro-react-native` + `@grafana/faro-react-native-tracing`. Versions pinned in `Mobiles/react-native/package.json`.
 - **Observability:** Faro signals as above, plus dual fetch + XMLHttpRequest auto tracing (`faro.tracing.fetch` + `faro.tracing.xml-http-request`), custom business measurements (`pizza.recommendation`, `pizza.rating`), native crash capture via Faro CrashKit (`type=crash`).
 - **Where it lands:** Frontend Observability plugin (Faro app `QuickPizza_ReactNative`, id `123`).
 - **Config:** `config.json` at `Mobiles/react-native/` — `BASE_URL`, `FARO_COLLECTOR_URL`.
@@ -126,21 +126,21 @@ read [`Mobiles/docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](./Mobiles/docs/MOBILE_OBS
 
 ### iOS native (`Mobiles/ios/`)
 
-- **Stack:** Swift, SwiftUI (iOS 17+), Swift Package Manager, `opentelemetry-swift` 2.3.0.
+- **Stack:** Swift, SwiftUI (iOS 17+), Swift Package Manager, `opentelemetry-swift`. Version pinned in the Xcode project's `Package.resolved`.
 - **Observability:** Manual spans (`pizza.get_recommendation`, `auth.login`, `pizza.rate`), auto HTTP via `URLSessionInstrumentation`, sessions via the `Sessions` library (15-min inactivity, `session.id` + `session.previous_id` on every signal), MetricKit crash/hang/CPU/disk-write diagnostics via `MetricKitInstrumentation` (delivered as logs + `MXMetricPayload` spans), manual `app.screen.view` events, OSLog + OTel dual logging.
-- **Where it lands:** OTLP/HTTP → Faro collector `/otlp/<appKey>` → Frontend Observability plugin (Faro app `QuickPizza_iOS`, id `202`). Point `OTLP_ENDPOINT` at the Grafana Cloud OTLP gateway instead to land raw OTel in Tempo + Loki for the "Android & iOS OTel RUM" dashboard (and an iOS-specific dashboard).
+- **Where it lands:** OTLP/HTTP → Faro collector `/otlp/<appKey>` → Frontend Observability plugin (Faro app `QuickPizza_iOS`, id `204`). Point `OTLP_ENDPOINT` at the Grafana Cloud OTLP gateway instead to land raw OTel in Tempo + Loki for the "Android & iOS OTel RUM" dashboard (and an iOS-specific dashboard).
 - **Config:** `Config.xcconfig` → auto-generates `BuildConfig.generated.swift` — `OTLP_ENDPOINT`, `OTLP_INSTANCE_ID`, `OTLP_API_KEY`. Runtime overrides via in-app Debug → Config.
 - **Build:** Xcode or `bash Mobiles/ios/Scripts/sim-run.sh`.
-- **Resource attrs:** `service.name=quickpizza-ios`, `service.namespace=quickpizza`, `service.version`, `service.build`, `deployment.environment`, `device.id`, `device.model.identifier`, `os.*`, `session.id`, `session.previous_id`, `telemetry.sdk.{language=swift, version=2.3.0}`.
+- **Resource attrs:** `service.name=quickpizza-ios`, `service.namespace=quickpizza`, `service.version`, `service.build`, `deployment.environment`, `device.id`, `device.model.identifier`, `os.*`, `session.id`, `session.previous_id`, `telemetry.sdk.{language=swift, version}`.
 
 ### Android native (`Mobiles/android/`)
 
-- **Stack:** Kotlin, Jetpack Compose, Hilt, OkHttp, `opentelemetry-android` 1.4.0-alpha (the OTel-Android **RUM agent**).
+- **Stack:** Kotlin, Jetpack Compose, Hilt, OkHttp, `opentelemetry-android` (the OTel-Android **RUM agent**, alpha). Version pinned in `Mobiles/android/gradle/libs.versions.toml`.
 - **Observability:** Manual spans (`pizza.get_recommendation`, `auth.login`, `pizza.rate`), auto OkHttp HTTP spans, auto lifecycle spans (`AppStart`, `Paused`, `Stopped`), auto `screen.view` / `app.jank` events, auto `device.crash` (next launch) and `device.anr` (runtime) events, 15-min session tracking, OTLP disk buffering for offline resilience (toggleable via Debug screen).
 - **Where it lands:** OTLP/HTTP → Faro collector `/otlp/<appKey>` → Frontend Observability plugin (Faro app `QuickPizza_Android`, id `182`). Point `OTLP_ENDPOINT` at the Grafana Cloud OTLP gateway instead to land raw OTel in Tempo + Loki for the "Android & iOS OTel RUM" dashboard.
 - **Config:** `app/src/main/res/raw/config.json` — `BASE_URL` (default `http://10.0.2.2:3333` on emulators), `OTLP_ENDPOINT`, `OTLP_INSTANCE_ID`, `OTLP_API_KEY`. Runtime overrides via in-app Debug → Config.
 - **Build:** Android Studio or `cd Mobiles/android && ./gradlew installDebug`. Use Android Studio's bundled JDK (system JDK is often too old).
-- **Resource attrs:** `service.name=quickpizza-android`, `service.namespace=quickpizza`, `service.version`, `deployment.environment`, `android.os.api_level`, `device.manufacturer`, `device.model.{identifier,name}`, `network.connection.type`, `app.installation.id`, `nav.{destination, previous_destination, kind}`, `telemetry.sdk.{language=java, version=1.4.0-alpha}`.
+- **Resource attrs:** `service.name=quickpizza-android`, `service.namespace=quickpizza`, `service.version`, `deployment.environment`, `android.os.api_level`, `device.manufacturer`, `device.model.{identifier,name}`, `network.connection.type`, `app.installation.id`, `nav.{destination, previous_destination, kind}`, `telemetry.sdk.{language=java, version}`.
 
 ### Shared Debug screen
 

@@ -14,6 +14,10 @@ Both families reach the same place. The Faro apps post Faro payloads to
 the same collector, which translates OTLP to Faro on the way in. Each app has
 its own key, so each shows up as its own app in the plugin.
 
+> **OTLP ingest is not enabled in production yet.** The `/otlp/<appKey>` route
+> is live on development collectors only. A production collector returns `404`
+> on that path today. Use the OTLP gateway below until the route ships.
+
 The native apps can also send to the Grafana Cloud OTLP gateway instead, which
 lands the data in Tempo and Loki for the
 [Mobile OTel RUM dashboard](./MOBILE_OTEL_RUM_DASHBOARD.md). That path needs
@@ -88,6 +92,12 @@ URL path, so there is no separate token to manage.
 ```
 https://faro-collector-<region>.grafana.net/otlp/<appKey>
 ```
+
+> **Development collectors only.** This route is not enabled in production yet.
+> A production collector returns `404` on `/otlp/<appKey>`, and the exporter
+> then drops every signal. To confirm a collector serves the route, send a `GET`
+> to `/otlp/probe/v1/traces`: `405` means the route exists, `404` means it does
+> not. The demo apps target a development collector for this reason.
 
 Leave `OTLP_INSTANCE_ID` and `OTLP_API_KEY` empty — the apps send no
 `Authorization` header when either value is blank.
