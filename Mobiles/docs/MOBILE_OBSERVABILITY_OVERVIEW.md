@@ -41,12 +41,17 @@ It is intended for two audiences:
 
 ## At a glance
 
-| Platform | App location | SDK | Service / app name in telemetry | Backend |
-| --- | --- | --- | --- | --- |
-| Flutter (Android + iOS) | `Mobiles/flutter/` | `faro` Dart SDK | `QuickPizza_Flutter` (app_id `69`) | Faro collector → Grafana Cloud Frontend Observability |
-| React Native (Android + iOS) | `Mobiles/react-native/` | `@grafana/faro-react-native` | `QuickPizza_ReactNative` (app_id `123`) | Faro collector → Grafana Cloud Frontend Observability |
-| iOS native (SwiftUI) | `Mobiles/ios/` | `opentelemetry-swift` | `quickpizza-ios` → `QuickPizza_iOS` (app_id `204`) | OTLP/HTTP → Faro collector → Grafana Cloud Frontend Observability |
-| Android native (Compose) | `Mobiles/android/` | `opentelemetry-android` (RUM agent) | `quickpizza-android` → `QuickPizza_Android` (app_id `182`) | OTLP/HTTP → Faro collector → Grafana Cloud Frontend Observability |
+| Platform | App location | SDK | Service / app name in telemetry |
+| --- | --- | --- | --- |
+| Flutter (Android + iOS) | `Mobiles/flutter/` | `faro` Dart SDK | `QuickPizza_Flutter` (app_id `69`) |
+| React Native (Android + iOS) | `Mobiles/react-native/` | `@grafana/faro-react-native` | `QuickPizza_ReactNative` (app_id `123`) |
+| iOS native (SwiftUI) | `Mobiles/ios/` | `opentelemetry-swift` | `quickpizza-ios` → `QuickPizza_iOS` (app_id `204`) |
+| Android native (Compose) | `Mobiles/android/` | `opentelemetry-android` (RUM agent) | `quickpizza-android` → `QuickPizza_Android` (app_id `182`) |
+
+All four reach Grafana Cloud Frontend Observability through the Faro collector —
+the Faro apps post to `/collect/<appKey>`, the native apps post OTLP/HTTP to
+`/otlp/<appKey>`. See [§ Where the data lives](#where-the-data-lives) for the
+datasources and the legacy OTLP gateway alternative.
 
 The native apps set `service.name` to `quickpizza-ios` / `quickpizza-android`,
 but the Faro collector replaces it with the registered app name on ingest, so
@@ -81,12 +86,8 @@ Common feature set:
 
 ## Where the data lives
 
-| App | Visualisation |
-| --- | --- |
-| Flutter | Frontend Observability plugin → `/a/grafana-kowalski-app/apps/<faro-app-id>` on your Grafana Cloud stack |
-| React Native | Frontend Observability plugin → `/a/grafana-kowalski-app/apps/<faro-app-id>` on your Grafana Cloud stack |
-| iOS native | Frontend Observability plugin → `/a/grafana-kowalski-app/apps/<faro-app-id>` on your Grafana Cloud stack |
-| Android native | Frontend Observability plugin → `/a/grafana-kowalski-app/apps/<faro-app-id>` on your Grafana Cloud stack |
+All four apps open in the Frontend Observability plugin at
+`/a/grafana-kowalski-app/apps/<faro-app-id>` on your Grafana Cloud stack.
 
 Underlying datasources on whichever Grafana Cloud stack you target:
 

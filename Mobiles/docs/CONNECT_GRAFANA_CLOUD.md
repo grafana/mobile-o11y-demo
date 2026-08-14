@@ -12,12 +12,9 @@ families that authenticate differently:
 Both families reach the same place. The Faro apps post Faro payloads to
 `/collect/<appKey>`; the native OTel apps post OTLP/HTTP to `/otlp/<appKey>` on
 the same collector, which translates OTLP to Faro on the way in. Each app has
-its own key, so each shows up as its own app in the plugin.
-
-> **Faro OTLP ingest runs on development collectors only.** The
-> `/otlp/<appKey>` route is not enabled in production yet — a production
-> collector returns `404` on that path today. The demo stack uses a development
-> collector for this reason.
+its own key, so each shows up as its own app in the plugin. The `/otlp/<appKey>`
+route runs on development collectors only for now — see
+[OpenTelemetry apps](#opentelemetry-apps-ios-native-android-native) below.
 
 A legacy option remains for the native apps: export to the Grafana Cloud OTLP
 gateway. That path lands **raw OTel** in Tempo and Loki, and the Frontend
