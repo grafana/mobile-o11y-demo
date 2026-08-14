@@ -146,6 +146,16 @@ read [`Mobiles/docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](./Mobiles/docs/MOBILE_OBS
 
 All four apps now expose an in-app **Debug** tab (Compose / SwiftUI / Flutter widgets / RN) for runtime config overrides, backend error/latency injection, client-side fault simulation, and triggering test logs / handled exceptions / native crashes. Code lives at `features/debug/` in each app. Android additionally exposes a `Disable disk buffering` toggle and an ANR card; iOS calls out the MetricKit delivery delay.
 
+### Telemetry CI (`.github/workflows/mobile_demo_telemetry.yaml`)
+
+Runs every 2 h on `main`, on push, and via `workflow_dispatch`. Two jobs — Android (emulator) and iOS (simulator) — each exercise all three apps, so six app×platform combinations per run.
+
+- **The driver is [Arbigent](Mobiles/e2e/), an AI UI agent**, not a scripted tap sequence. Scenarios are natural-language goals with `maxRetry` / `maxStep` budgets, so the run needs `OPENAI_API_KEY`.
+- **Three flows.** The basic pizza flow runs every time. Handled-exception runs every ~6 h (`schedule_bucket % 3`). Crash diagnostics runs every ~20 h (`% 10`), which suppresses the handled-exception flow on that run. `workflow_dispatch` runs the basic flow only, unless you pass `run_diagnostics=true`.
+- **A green run does not prove telemetry arrived.** The exporters are fire-and-forget and the e2e tests pass either way, so a wrong or 404 ingest URL still produces a green run. Confirm by querying the stack for the app.
+- **The `mobile-demo-telemetry` environment uses a branch allow-list.** You can dispatch from a feature branch and still get the Vault secrets, but only if the branch is listed: `gh api repos/grafana/mobile-o11y-demo/environments/mobile-demo-telemetry/deployment-branch-policies`.
+- **Do not restate SDK versions in this file.** Point at the manifest that holds the pin (`pubspec.yaml`, `package.json`, `Package.resolved`, `libs.versions.toml`). All four versions listed here had drifted before they were removed.
+
 ## Development Notes
 
 ### Error Injection
