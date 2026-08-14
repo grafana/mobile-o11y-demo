@@ -138,23 +138,23 @@ details.
 
 ## Sending Telemetry to Grafana Cloud
 
-To send traces and logs to a Grafana Cloud stack you need an OTLP endpoint,
-instance ID, and token. Finding those values is the same for both native apps —
-see [**Connect to Grafana Cloud**](../docs/CONNECT_GRAFANA_CLOUD.md#opentelemetry-apps-ios-native-android-native).
-Then fill them into `Config.xcconfig` as shown below.
+The app sends OTLP/HTTP to the Faro collector, which translates OTLP to Faro on
+ingest and registers the app in Frontend Observability. Finding the endpoint is
+the same for both native apps — see
+[**Connect to Grafana Cloud**](../docs/CONNECT_GRAFANA_CLOUD.md#opentelemetry-apps-ios-native-android-native).
+Then fill it into `Config.xcconfig` as shown below.
 
 ### Update Config.xcconfig
 
-The app computes `Authorization: Basic base64(instanceId:apiKey)` at runtime,
-so you only need to provide the raw values:
+The app key sits in the URL path, so no credentials are needed:
 
 ```
 BASE_URL = http:/$()/localhost:3333
 PORT = 3333
 
-OTLP_ENDPOINT = https://otlp-gateway-<clusterSlug>.grafana.net/otlp
-OTLP_INSTANCE_ID = 123456
-OTLP_API_KEY = glc_abc123...
+OTLP_ENDPOINT = https:/$()/faro-collector-<region>.grafana.net/otlp/<appKey>
+OTLP_INSTANCE_ID =
+OTLP_API_KEY =
 ```
 
 Then re-run the app:
@@ -163,9 +163,17 @@ Then re-run the app:
 bash Scripts/sim-run.sh
 ```
 
-Traces will appear in **Explore → Tempo** in your Grafana Cloud stack within seconds.
-To view native iOS telemetry in a RUM-style dashboard, import and configure the
-shared [Mobile OTel RUM dashboard](../docs/MOBILE_OTEL_RUM_DASHBOARD.md).
+The data appears under the `QuickPizza_iOS` app in **Frontend Observability**
+within seconds. The `/otlp/<appKey>` route runs on development collectors only
+for now — a production collector returns `404`.
+
+A legacy option: send to the Grafana Cloud OTLP gateway instead. Set
+`OTLP_ENDPOINT` to `https:/$()/otlp-gateway-<clusterSlug>.grafana.net/otlp` and
+fill in `OTLP_INSTANCE_ID` and `OTLP_API_KEY`; the app then computes
+`Authorization: Basic base64(instanceId:apiKey)` at runtime. That path keeps the
+data as raw OTel, so the app does **not** appear in Frontend Observability —
+traces go to Tempo and logs to Loki for the shared
+[Mobile OTel RUM dashboard](../docs/MOBILE_OTEL_RUM_DASHBOARD.md).
 
 ---
 

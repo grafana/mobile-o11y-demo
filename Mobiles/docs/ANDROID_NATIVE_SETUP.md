@@ -31,16 +31,20 @@ Edit `config.json`:
 
 ```json
 {
-  "OTLP_ENDPOINT": "https://otlp-gateway-prod-eu-west-0.grafana.net/otlp",
-  "OTLP_INSTANCE_ID": "1234567",
-  "OTLP_API_KEY": "glc_xxxxxxxxxxxx",
+  "OTLP_ENDPOINT": "https://faro-collector-<region>.grafana.net/otlp/<appKey>",
+  "OTLP_INSTANCE_ID": "",
+  "OTLP_API_KEY": "",
   "BASE_URL": ""
 }
 ```
 
-For what each field means, see the
+The app key in the path identifies the app, so the instance ID and token stay
+empty, and the app appears in Frontend Observability. This route runs on
+development collectors only for now — a production collector returns `404`. For
+what each field means, see the
 [config reference in the Android README](../android/README.md#configuration-reference).
-To obtain the OTLP endpoint, instance ID, and token, see
+To obtain the OTLP endpoint — or to send to the Grafana Cloud OTLP gateway
+instead — see
 [Connect to Grafana Cloud](./CONNECT_GRAFANA_CLOUD.md#opentelemetry-apps-ios-native-android-native).
 For `BASE_URL` emulator/device defaults (and why Android uses `10.0.2.2` rather
 than `localhost`), see [Shared basics](../README.md#shared-basics).
