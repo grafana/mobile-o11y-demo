@@ -28,9 +28,16 @@ Two wire formats, one destination:
   `/otlp/<appKey>` endpoint, which translates OTLP to Faro on ingest.
 
 Both end up in the Grafana Cloud **Frontend Observability** plugin, one app per
-key. The native apps can target the Grafana Cloud OTLP gateway instead, which
-lands raw OTel in Tempo + Loki for the
-[Mobile OTel RUM dashboard](./docs/MOBILE_OTEL_RUM_DASHBOARD.md) — see
+key.
+
+> **The `/otlp/<appKey>` route runs on development collectors only.** A
+> production collector returns `404` on that path today. The demo stack uses a
+> development collector for this reason.
+
+A legacy option remains for the native apps: export to the Grafana Cloud OTLP
+gateway, which lands **raw OTel** in Tempo + Loki. The Frontend Observability
+plugin cannot read that data — it carries no app identity — so you query it with
+the [Mobile OTel RUM dashboard](./docs/MOBILE_OTEL_RUM_DASHBOARD.md) instead. See
 [Connect to Grafana Cloud](./docs/CONNECT_GRAFANA_CLOUD.md#alternative-the-otlp-gateway).
 
 For a side-by-side of what each app actually emits, see

@@ -20,11 +20,15 @@ PORT = 3333
 // OpenTelemetry OTLP endpoint (optional)
 // Leave empty to disable OTLP export (stdout only)
 //
-// Faro OTLP ingest — the app key in the path identifies the app, so leave
-// OTLP_INSTANCE_ID and OTLP_API_KEY empty:
+// Faro OTLP ingest (preferred) — the app key in the path identifies the app, so
+// leave OTLP_INSTANCE_ID and OTLP_API_KEY empty. The app then appears in
+// Frontend Observability. This route runs on development collectors only for
+// now; a production collector returns 404.
 //   https:/$()/faro-collector-<region>.grafana.net/otlp/<appKey>
 //
-// Grafana Cloud OTLP gateway — needs both credentials below:
+// Grafana Cloud OTLP gateway (legacy) — needs both credentials below. Keeps the
+// data as raw OTel, so the app does NOT appear in Frontend Observability; query
+// Tempo/Loki or the Mobile OTel RUM dashboard instead.
 //   https:/$()/otlp-gateway-<clusterSlug>.grafana.net/otlp
 //
 // Local collector: http:/$()/localhost:4318

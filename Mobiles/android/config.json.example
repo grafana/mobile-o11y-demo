@@ -1,7 +1,7 @@
 {
   "_comment": "Copy this file to app/src/main/res/raw/config.json and fill in your values.",
   "OTLP_ENDPOINT": "",
-  "_OTLP_ENDPOINT_comment": "Faro OTLP ingest URL, e.g. https://faro-collector-<region>.grafana.net/otlp/<appKey>. The app key in the path identifies the app, so leave OTLP_INSTANCE_ID and OTLP_API_KEY empty. To send to the Grafana Cloud OTLP gateway instead, use https://otlp-gateway-<clusterSlug>.grafana.net/otlp and fill in both credentials.",
+  "_OTLP_ENDPOINT_comment": "Faro OTLP ingest URL, e.g. https://faro-collector-<region>.grafana.net/otlp/<appKey>. The app key in the path identifies the app, so leave OTLP_INSTANCE_ID and OTLP_API_KEY empty. The app then appears in Frontend Observability. NOTE: this route runs on development collectors only for now; a production collector returns 404. Legacy option: the Grafana Cloud OTLP gateway at https://otlp-gateway-<clusterSlug>.grafana.net/otlp with both credentials filled in — that path keeps the data as raw OTel, so the app does NOT appear in Frontend Observability (query Tempo/Loki or the Mobile OTel RUM dashboard instead).",
   "OTLP_INSTANCE_ID": "",
   "_OTLP_INSTANCE_ID_comment": "Grafana Cloud OTLP gateway instance ID (numeric). Leave empty for the Faro OTLP ingest URL.",
   "OTLP_API_KEY": "",

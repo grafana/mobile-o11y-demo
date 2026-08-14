@@ -115,11 +115,13 @@ session attributes) is inventoried in
 Where to view the data on the demo stack:
 
 - **Frontend Observability:** open the `QuickPizza_Android` app. The Faro
-  collector translates the OTLP payloads to Faro on ingest.
-- **OTLP gateway path only** (see
+  collector translates the OTLP payloads to Faro on ingest. The `/otlp/<appKey>`
+  route runs on development collectors only for now.
+- **Legacy OTLP gateway path only** (see
   [Connect to Grafana Cloud](../docs/CONNECT_GRAFANA_CLOUD.md#alternative-the-otlp-gateway)):
+  the data stays raw OTel and does not appear in Frontend Observability. Query
   the shared [Mobile OTel RUM dashboard](../docs/MOBILE_OTEL_RUM_DASHBOARD.md),
-  Tempo (`resource.service.name="quickpizza-android"`), and Loki
+  Tempo (`resource.service.name="quickpizza-android"`), or Loki
   (`service_name="quickpizza-android"`).
 
 ---

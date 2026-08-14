@@ -8,11 +8,15 @@ This dashboard reads the **OTLP gateway** path: apps send OTLP/HTTP straight to
 Grafana Cloud, which lands raw OTel in Loki and Tempo. The dashboard queries
 those two data sources.
 
-The Faro collector also accepts OTLP at `/otlp/<appKey>` and translates it to
-Faro, which puts native apps in the Frontend Observability plugin instead. That
-route is not enabled in production yet. Use this dashboard for the gateway path,
-and see [Connect to Grafana Cloud](./CONNECT_GRAFANA_CLOUD.md) to choose between
-the two.
+The gateway path is the legacy option. It keeps the data as raw OTel, so the
+streams carry no app identity and the Frontend Observability plugin cannot read
+them — this dashboard is how you query them.
+
+The preferred path sends OTLP to the Faro collector at `/otlp/<appKey>`, which
+translates it to Faro and puts the native apps in the Frontend Observability
+plugin next to the Flutter and React Native apps. That route runs on development
+collectors only for now. See
+[Connect to Grafana Cloud](./CONNECT_GRAFANA_CLOUD.md) for both paths.
 
 ## Dashboard Artifact
 

@@ -164,14 +164,16 @@ bash Scripts/sim-run.sh
 ```
 
 The data appears under the `QuickPizza_iOS` app in **Frontend Observability**
-within seconds.
+within seconds. The `/otlp/<appKey>` route runs on development collectors only
+for now — a production collector returns `404`.
 
-To send to the Grafana Cloud OTLP gateway instead — which lands traces in Tempo
-and logs in Loki for the shared
-[Mobile OTel RUM dashboard](../docs/MOBILE_OTEL_RUM_DASHBOARD.md) — set
+A legacy option: send to the Grafana Cloud OTLP gateway instead. Set
 `OTLP_ENDPOINT` to `https:/$()/otlp-gateway-<clusterSlug>.grafana.net/otlp` and
-fill in `OTLP_INSTANCE_ID` and `OTLP_API_KEY`. The app then computes
-`Authorization: Basic base64(instanceId:apiKey)` at runtime.
+fill in `OTLP_INSTANCE_ID` and `OTLP_API_KEY`; the app then computes
+`Authorization: Basic base64(instanceId:apiKey)` at runtime. That path keeps the
+data as raw OTel, so the app does **not** appear in Frontend Observability —
+traces go to Tempo and logs to Loki for the shared
+[Mobile OTel RUM dashboard](../docs/MOBILE_OTEL_RUM_DASHBOARD.md).
 
 ---
 
