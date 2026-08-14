@@ -94,8 +94,9 @@ The app uses [`opentelemetry-android`](https://github.com/open-telemetry/opentel
 | **Logs** | `screen.view` (auto), `app.jank` (auto, slow rendering), `session.start` (auto), `rum.sdk.init.*` (auto SDK self-telemetry), `exception` (manual `logger.exception`), `device.crash` (auto, next launch), `device.anr` (auto, runtime), `debug.test_event` (manual) |
 
 Core resource attributes: `service.name=quickpizza-android`,
-`service.namespace=quickpizza`, `service.version`,
-`deployment.environment=production`. The full set (device, network, nav, and
+`service.namespace=quickpizza`, `service.version`. The app does not set
+`deployment.environment`, so environment filters do not match it (the iOS app
+does). The full set (device, network, nav, and
 session attributes) is inventoried in
 [`MOBILE_OBSERVABILITY_OVERVIEW.md § Android native`](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md#android-native-opentelemetry-android).
 

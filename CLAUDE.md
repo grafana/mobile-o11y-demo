@@ -140,7 +140,7 @@ read [`Mobiles/docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](./Mobiles/docs/MOBILE_OBS
 - **Where it lands:** OTLP/HTTP → Faro collector `/otlp/<appKey>` → Frontend Observability plugin (Faro app `QuickPizza_Android`, id `182`); development collectors only for now. Legacy: point `OTLP_ENDPOINT` at the Grafana Cloud OTLP gateway to land raw OTel in Tempo + Loki — invisible to the plugin, read via the "Android & iOS OTel RUM" dashboard.
 - **Config:** `app/src/main/res/raw/config.json` — `BASE_URL` (default `http://10.0.2.2:3333` on emulators), `OTLP_ENDPOINT`, `OTLP_INSTANCE_ID`, `OTLP_API_KEY`. Runtime overrides via in-app Debug → Config.
 - **Build:** Android Studio or `cd Mobiles/android && ./gradlew installDebug`. Use Android Studio's bundled JDK (system JDK is often too old).
-- **Resource attrs:** `service.name=quickpizza-android`, `service.namespace=quickpizza`, `service.version`, `deployment.environment`, `android.os.api_level`, `device.manufacturer`, `device.model.{identifier,name}`, `network.connection.type`, `app.installation.id`, `nav.{destination, previous_destination, kind}`, `telemetry.sdk.{language=java, version}`.
+- **Resource attrs:** `service.name=quickpizza-android`, `service.namespace=quickpizza`, `service.version`, `android.os.api_level`, `device.manufacturer`, `device.model.{identifier,name}`, `network.connection.type`, `app.installation.id`, `nav.{destination, previous_destination, kind}`, `telemetry.sdk.{language=java, version}`.
 
 ### Shared Debug screen
 

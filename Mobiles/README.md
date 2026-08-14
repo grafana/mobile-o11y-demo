@@ -2,7 +2,7 @@
 
 **Start here.** This directory holds four mobile QuickPizza apps used to demo
 mobile observability with Grafana. They share the same screens and talk to the
-same backend — what differs is the telemetry SDK and where the data lands.
+same backend — what differs is the telemetry SDK and the wire format it sends.
 
 This page is the entry point: it tells you **which platforms are supported**,
 **how to get a demo running**, and **where to go for more detail**. Everything
@@ -13,12 +13,12 @@ places.
 
 ## Supported platforms
 
-| Platform | Type | Location | SDK | Data lands in | Run guide |
-| --- | --- | --- | --- | --- | --- |
-| **Flutter** (Android + iOS) | Cross-platform | [`flutter/`](./flutter/) | Grafana **Faro** | Frontend Observability | [Flutter README](./flutter/README.md) |
-| **React Native** (Android + iOS) | Cross-platform | [`react-native/`](./react-native/) | Grafana **Faro** | Frontend Observability | [React Native README](./react-native/README.md) |
-| **iOS native** (SwiftUI) | Native | [`ios/`](./ios/) | **OpenTelemetry** Swift | Frontend Observability | [iOS README](./ios/README.md) |
-| **Android native** (Compose) | Native | [`android/`](./android/) | **OpenTelemetry** Android | Frontend Observability | [Android README](./android/README.md) |
+| Platform | Type | Location | SDK | Run guide |
+| --- | --- | --- | --- | --- |
+| **Flutter** (Android + iOS) | Cross-platform | [`flutter/`](./flutter/) | Grafana **Faro** | [Flutter README](./flutter/README.md) |
+| **React Native** (Android + iOS) | Cross-platform | [`react-native/`](./react-native/) | Grafana **Faro** | [React Native README](./react-native/README.md) |
+| **iOS native** (SwiftUI) | Native | [`ios/`](./ios/) | **OpenTelemetry** Swift | [iOS README](./ios/README.md) |
+| **Android native** (Compose) | Native | [`android/`](./android/) | **OpenTelemetry** Android | [Android README](./android/README.md) |
 
 Two wire formats, one destination:
 

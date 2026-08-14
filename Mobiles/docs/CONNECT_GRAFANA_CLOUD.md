@@ -89,7 +89,7 @@ URL path, so there is no separate token to manage.
 2. Create a new app (or open an existing one).
 3. Copy the app's **Faro collector URL** (looks like
    `https://faro-collector-<region>.grafana.net/collect/<appKey>`).
-4. Replace `/collect/` with `/otlp/` to get the OTLP ingest URL:
+4. Replace `/collect/` with `/otlp/` to get the Faro OTLP ingest URL:
 
 ```
 https://faro-collector-<region>.grafana.net/otlp/<appKey>
@@ -133,8 +133,9 @@ and React Native apps.
 
 ### Alternative: the OTLP gateway
 
-This is the legacy path. Prefer Faro OTLP ingest above unless you specifically
-need the Mobile OTel RUM dashboard.
+This is the legacy path. Prefer Faro OTLP ingest above — unless you need the
+Mobile OTel RUM dashboard, or you target a production stack, where the
+`/otlp/<appKey>` route is not enabled yet.
 
 The gateway bypasses the collector, so nothing translates the payloads. The data
 stays **raw OTel**: Loki streams carry `service_name` and `service_namespace`

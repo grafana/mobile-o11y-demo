@@ -92,7 +92,7 @@ Underlying datasources on whichever Grafana Cloud stack you target:
 
 - Faro signals → the stack's Loki datasource (`grafanacloud-<stack>-logs`).
   Faro stores all four signal kinds (`event`, `log`, `measurement`,
-  `exception`) as Loki streams with `app_id` / `app_name` labels.
+  `exception`) as Loki streams with `app_id` / `app_key` / `kind` labels.
 - Native OTel signals land in the same datasources. The collector translates
   OTLP to Faro on ingest, so the Loki streams carry the same `app_id` /
   `app_key` / `kind` labels as the Faro apps, under the registered app name
@@ -216,7 +216,7 @@ For deeper iOS detail see
 | Metrics | _none custom_ — but the RUM agent computes things like jank counts and exposes them as events rather than metrics. | — |
 
 Resource attributes are **the richest of any platform**: `service.*`,
-`deployment.environment`, `os.name`, `os.version`, `os.description`,
+`os.name`, `os.version`, `os.description`,
 `android.os.api_level`, `device.manufacturer`, `device.model.identifier`,
 `device.model.name`, `network.connection.type` (e.g. `wifi`),
 `app.installation.id`, `screen.name` (current Activity), `nav.destination`

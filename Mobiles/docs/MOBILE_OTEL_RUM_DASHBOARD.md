@@ -32,7 +32,7 @@ Grafana 13 or later.
 ## Requirements
 
 - Grafana 13 or later.
-- A Grafana Cloud stack with OTLP ingest enabled for logs and traces.
+- A Grafana Cloud stack with OTLP gateway ingest enabled for logs and traces.
 - Native Android or iOS telemetry collected with the [OpenTelemetry Android SDK](https://github.com/open-telemetry/opentelemetry-android) or [OpenTelemetry Swift](https://github.com/open-telemetry/opentelemetry-swift), shaped like the QuickPizza demo apps.
 - A Loki data source named `grafanacloud-logs`.
 - A Tempo data source named `grafanacloud-traces`.
@@ -88,6 +88,9 @@ service.namespace
 service.version
 deployment.environment
 ```
+
+The Android demo app does not set `deployment.environment` today, so panels that
+filter on it drop its data. The iOS demo app sets it to `production`.
 
 Session-aware views expect session attributes to be present. In Grafana Cloud
 Loki queries, `session.id` is available as `session_id`.
