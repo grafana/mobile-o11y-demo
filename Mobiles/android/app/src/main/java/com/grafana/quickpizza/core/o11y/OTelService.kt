@@ -11,7 +11,8 @@ import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.api.common.AttributeKey
 import io.opentelemetry.api.common.Attributes
 import io.opentelemetry.api.logs.Severity
-import io.opentelemetry.sdk.OpenTelemetrySdk
+import io.opentelemetry.sdk.logs.SdkLoggerProvider
+import io.opentelemetry.sdk.trace.SdkTracerProvider
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -68,12 +69,16 @@ class OTelService @Inject constructor(
 
         if (rum != null) {
             installCrashFlushHandler(osHandler)
-            (rum?.openTelemetry as? OpenTelemetrySdk)?.let { sdk ->
+            sdkLoggerProvider?.let { loggerProvider ->
                 // TODO(opentelemetry-android#764): Remove NativeExitCrashReporter once OTel Android
                 // replays REASON_CRASH_NATIVE via ApplicationExitInfo in CrashReporter instrumentation.
                 Thread({
                     try {
-                        NativeExitCrashReporter.reportPendingNativeCrashes(application, sdk)
+                        NativeExitCrashReporter.reportPendingNativeCrashes(
+                            application,
+                            loggerProvider,
+                            sdkTracerProvider,
+                        )
                     } catch (t: Throwable) {
                         Log.w(TAG, "Native exit crash replay failed", t)
                     }
@@ -87,27 +92,43 @@ class OTelService @Inject constructor(
         }
     }
 
+    // Reaching the SDK providers takes two unwraps. Since OTel-Android 1.5.0 `rum.openTelemetry` is
+    // a `DisableableOpenTelemetry` wrapper rather than the SDK, and `OpenTelemetrySdk` then hands
+    // back package-private `Obfuscated*Provider` types from the plain getters, specifically so
+    // callers cannot cast to the SDK ones. Their `unobfuscate()` is public but the classes are not,
+    // hence reflection. The supported alternative — `OpenTelemetryRumBuilder.addOtelReadyListener`,
+    // which receives the raw SDK — is not reachable through the agent's `initialize` DSL.
+    private val sdkLoggerProvider: SdkLoggerProvider?
+        get() = rum?.openTelemetry?.logsBridge?.let { it as? SdkLoggerProvider ?: it.unobfuscate() }
+
+    private val sdkTracerProvider: SdkTracerProvider?
+        get() = rum?.openTelemetry?.tracerProvider?.let { it as? SdkTracerProvider ?: it.unobfuscate() }
+
     /**
      * Guarantees unhandled-crash telemetry actually reaches the collector.
      *
-     * OTel-Android (1.4.0-alpha) wires its crash flush incorrectly: the auto-installed
+     * OTel-Android (1.5.1-alpha) wires its crash flush incorrectly: the auto-installed
      * `CrashReporter` emits the `device.crash` log and then immediately delegates to the OS
      * process-killer, while the SDK's own `FlushOnCrashExceptionHandler` only force-flushes
      * *after* that delegation — i.e. after the process is already dead. The queued crash log is
      * dropped, so crashes never appear in the backend (handled exceptions are unaffected because
      * the process stays alive long enough for the normal batch flush).
+     *
+     * Delegating to `osHandler`, captured before SDK init, skips the SDK's handler chain entirely,
+     * so the crash is emitted once even though `CrashReporter` is still installed.
      */
     private fun installCrashFlushHandler(osHandler: Thread.UncaughtExceptionHandler?) {
-        val sdk = rum?.openTelemetry as? OpenTelemetrySdk ?: run {
-            Log.w(TAG, "Crash flush handler not installed: OpenTelemetry is not an SDK instance")
+        val loggerProvider = sdkLoggerProvider ?: run {
+            Log.w(TAG, "Crash flush handler not installed: logs bridge is not an SDK instance")
             return
         }
+        val tracerProvider = sdkTracerProvider
 
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             try {
-                emitDeviceCrash(sdk, thread, throwable)
-                sdk.sdkLoggerProvider.forceFlush().join(CRASH_FLUSH_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-                sdk.sdkTracerProvider.forceFlush().join(CRASH_FLUSH_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                emitDeviceCrash(thread, throwable)
+                loggerProvider.forceFlush().join(CRASH_FLUSH_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                tracerProvider?.forceFlush()?.join(CRASH_FLUSH_TIMEOUT_MS, TimeUnit.MILLISECONDS)
             } catch (t: Throwable) {
                 Log.w(TAG, "Failed to flush crash telemetry", t)
             } finally {
@@ -121,8 +142,8 @@ class OTelService @Inject constructor(
         }
     }
 
-    private fun emitDeviceCrash(sdk: OpenTelemetrySdk, thread: Thread, throwable: Throwable) {
-        sdk.logsBridge.get(CRASH_INSTRUMENTATION_SCOPE)
+    private fun emitDeviceCrash(thread: Thread, throwable: Throwable) {
+        openTelemetry.logsBridge.get(CRASH_INSTRUMENTATION_SCOPE)
             .logRecordBuilder()
             .setEventName(DEVICE_CRASH_EVENT_NAME)
             .setSeverity(Severity.ERROR)
@@ -151,3 +172,13 @@ class OTelService @Inject constructor(
         private const val CRASH_FLUSH_TIMEOUT_MS = 3_000L
     }
 }
+
+// Top-level (rather than a class member) so the unit test can call it directly; `internal`
+// keeps it out of the public API surface. `getMethod` only requires the *method* to be public,
+// but `invoke` still enforces that the *declaring class* is accessible — which it isn't, since
+// `Obfuscated*Provider` is package-private — so it throws IllegalAccessException unless we
+// suppress that check with `isAccessible = true`.
+internal inline fun <reified T : Any> Any.unobfuscate(): T? =
+    runCatching {
+        javaClass.getMethod("unobfuscate").apply { isAccessible = true }.invoke(this) as? T
+    }.getOrNull()
