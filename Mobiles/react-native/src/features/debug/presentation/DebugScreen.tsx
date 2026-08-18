@@ -283,6 +283,22 @@ export function DebugScreen({ onNavigateToConfig }: DebugScreenProps) {
               updateSetting({ clientSkipAuthDependency: value })
             }
           />
+          <SettingSwitch
+            title="Random frozen frames"
+            subtitle="UI-thread stall episodes (~10–15s), then ~30s quiet, repeat"
+            value={settings.clientRandomFrozenFrames}
+            onValueChange={(value) =>
+              updateSetting({ clientRandomFrozenFrames: value })
+            }
+          />
+          <SettingSwitch
+            title="Memory stress"
+            subtitle="Aggressive: ~25 MiB/chunk every 0.4s (buffer + string, up to 30 chunks)"
+            value={settings.clientMemoryStress}
+            onValueChange={(value) =>
+              updateSetting({ clientMemoryStress: value })
+            }
+          />
         </View>
 
         <View style={styles.section}>

@@ -2,7 +2,7 @@
 
 **Start here.** This directory holds four mobile QuickPizza apps used to demo
 mobile observability with Grafana. They share the same screens and talk to the
-same backend — what differs is the telemetry SDK and where the data lands.
+same backend — what differs is the telemetry SDK and the wire format it sends.
 
 This page is the entry point: it tells you **which platforms are supported**,
 **how to get a demo running**, and **where to go for more detail**. Everything
@@ -13,19 +13,25 @@ places.
 
 ## Supported platforms
 
-| Platform | Type | Location | SDK | Data lands in | Run guide |
-| --- | --- | --- | --- | --- | --- |
-| **Flutter** (Android + iOS) | Cross-platform | [`flutter/`](./flutter/) | Grafana **Faro** | Frontend Observability | [Flutter README](./flutter/README.md) |
-| **React Native** (Android + iOS) | Cross-platform | [`react-native/`](./react-native/) | Grafana **Faro** | Frontend Observability | [React Native README](./react-native/README.md) |
-| **iOS native** (SwiftUI) | Native | [`ios/`](./ios/) | **OpenTelemetry** Swift | Tempo + Loki | [iOS README](./ios/README.md) |
-| **Android native** (Compose) | Native | [`android/`](./android/) | **OpenTelemetry** Android | Tempo + Loki | [Android README](./android/README.md) |
+| Platform | Type | Location | SDK | Run guide |
+| --- | --- | --- | --- | --- |
+| **Flutter** (Android + iOS) | Cross-platform | [`flutter/`](./flutter/) | Grafana **Faro** | [Flutter README](./flutter/README.md) |
+| **React Native** (Android + iOS) | Cross-platform | [`react-native/`](./react-native/) | Grafana **Faro** | [React Native README](./react-native/README.md) |
+| **iOS native** (SwiftUI) | Native | [`ios/`](./ios/) | **OpenTelemetry** Swift | [iOS README](./ios/README.md) |
+| **Android native** (Compose) | Native | [`android/`](./android/) | **OpenTelemetry** Android | [Android README](./android/README.md) |
 
-Two telemetry stories, one backend:
+Two wire formats, one destination:
 
-- **Faro** (Flutter, React Native) → exports to the Grafana Cloud **Frontend
-  Observability** plugin.
-- **OpenTelemetry** (iOS, Android) → exports OTLP/HTTP to **Tempo + Loki**,
-  visualized with the [Mobile OTel RUM dashboard](./docs/MOBILE_OTEL_RUM_DASHBOARD.md).
+- **Faro** (Flutter, React Native) → posts Faro payloads to the collector's
+  `/collect/<appKey>` endpoint.
+- **OpenTelemetry** (iOS, Android) → posts OTLP/HTTP to the same collector's
+  `/otlp/<appKey>` endpoint, which translates OTLP to Faro on ingest.
+
+Both end up in the Grafana Cloud **Frontend Observability** plugin, one app per
+key. Two caveats, both covered in
+[Connect to Grafana Cloud](./docs/CONNECT_GRAFANA_CLOUD.md): the `/otlp/<appKey>`
+route runs on development collectors only for now, and the native apps have a
+legacy OTLP gateway path that the plugin cannot read.
 
 For a side-by-side of what each app actually emits, see
 [`docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](./docs/MOBILE_OBSERVABILITY_OVERVIEW.md).

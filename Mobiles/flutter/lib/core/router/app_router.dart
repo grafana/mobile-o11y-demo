@@ -22,49 +22,67 @@ abstract class AppRoutes {
   static const profile = '/profile';
 }
 
-/// Navigator key for the root navigator
-final _rootNavigatorKey = GlobalKey<NavigatorState>();
-
-/// Navigator key for the shell (bottom nav) navigator
-final _shellNavigatorKey = GlobalKey<NavigatorState>();
-
 /// Provider for the GoRouter instance
 final appRouterProvider = Provider<GoRouter>((ref) {
+  return createAppRouter();
+});
+
+/// Creates the app router with separate observers for its two navigators.
+///
+/// A NavigatorObserver can only be attached to one Navigator, so the root and
+/// shell navigators need distinct Faro and DemoRum observer instances.
+GoRouter createAppRouter({
+  List<NavigatorObserver>? rootObservers,
+  List<NavigatorObserver>? shellObservers,
+}) {
+  final rootNavigatorKey = GlobalKey<NavigatorState>();
+  final shellNavigatorKey = GlobalKey<NavigatorState>();
+
   return GoRouter(
-    navigatorKey: _rootNavigatorKey,
+    navigatorKey: rootNavigatorKey,
     initialLocation: AppRoutes.home,
-    // Both RUM SDKs derive screen names from `route.settings.name`. The
-    // pageBuilder routes below set an explicit `name:` so Faro view meta and
-    // DemoRum screen views are both populated (builder routes get their name
-    // from go_router automatically).
-    observers: [FaroNavigationObserver(), DemoRumNavigatorObserver()],
+    // Builder routes get their path as the RouteSettings name from go_router.
+    // Custom pages below set the same path explicitly for consistent RUM view
+    // names across both navigators.
+    observers: rootObservers ?? _createNavigationObservers(),
     routes: [
       // ShellRoute wraps the bottom navigation bar
       ShellRoute(
-        navigatorKey: _shellNavigatorKey,
-        builder: (_, _, child) {
-          return MainShell(child: child);
-        },
+        navigatorKey: shellNavigatorKey,
+        // Avoid forwarding the root observers in addition to the dedicated
+        // shell observers, which would report every shell navigation twice.
+        notifyRootObserver: false,
+        observers: shellObservers ?? _createNavigationObservers(),
+        pageBuilder: (_, state, child) => MaterialPage<void>(
+          key: state.pageKey,
+          // Keep the wrapper route aligned with its visible child. This also
+          // gives root-level pushes and pops a non-null previous route name.
+          name: state.uri.path,
+          child: MainShell(child: child),
+        ),
         routes: [
           GoRoute(
             path: AppRoutes.home,
-            pageBuilder: (_, _) => const NoTransitionPage(
+            pageBuilder: (_, state) => NoTransitionPage<void>(
+              key: state.pageKey,
               name: AppRoutes.home,
-              child: HomeScreen(),
+              child: const HomeScreen(),
             ),
           ),
           GoRoute(
             path: AppRoutes.about,
-            pageBuilder: (_, _) => const NoTransitionPage(
+            pageBuilder: (_, state) => NoTransitionPage<void>(
+              key: state.pageKey,
               name: AppRoutes.about,
-              child: AboutScreen(),
+              child: const AboutScreen(),
             ),
           ),
           GoRoute(
             path: AppRoutes.debug,
-            pageBuilder: (_, _) => const NoTransitionPage(
+            pageBuilder: (_, state) => NoTransitionPage<void>(
+              key: state.pageKey,
               name: AppRoutes.debug,
-              child: DebugScreen(),
+              child: const DebugScreen(),
             ),
           ),
         ],
@@ -72,20 +90,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // /debug/config is pushed on top of the shell (hides bottom nav)
       GoRoute(
         path: AppRoutes.debugConfig,
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (_, _) => const ConfigScreen(),
       ),
       // Routes outside the shell (full-screen, no bottom nav)
       GoRoute(
         path: AppRoutes.login,
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (_, _) => const LoginScreen(),
       ),
       GoRoute(
         path: AppRoutes.profile,
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (_, _) => const ProfileScreen(),
       ),
     ],
   );
-});
+}
+
+List<NavigatorObserver> _createNavigationObservers() => [
+  FaroNavigationObserver(),
+  DemoRumNavigatorObserver(),
+];

@@ -4,10 +4,19 @@ This guide explains how to import and configure the reusable Mobile OTel RUM
 dashboard for native Android and iOS apps that send OpenTelemetry logs and
 traces to Grafana Cloud.
 
-The dashboard is a lightweight RUM-style view for mobile telemetry while
-Frontend Observability does not ingest native OTLP mobile data directly. It
-queries the stack's Loki and Tempo data sources, which are populated through
-Grafana Cloud OTLP ingest.
+This dashboard reads the **OTLP gateway** path: apps send OTLP/HTTP straight to
+Grafana Cloud, which lands raw OTel in Loki and Tempo. The dashboard queries
+those two data sources.
+
+The gateway path is the legacy option. It keeps the data as raw OTel, so the
+streams carry no app identity and the Frontend Observability plugin cannot read
+them — this dashboard is how you query them.
+
+The preferred path sends OTLP to the Faro collector at `/otlp/<appKey>`, which
+translates it to Faro and puts the native apps in the Frontend Observability
+plugin next to the Flutter and React Native apps. That route runs on development
+collectors only for now. See
+[Connect to Grafana Cloud](./CONNECT_GRAFANA_CLOUD.md) for both paths.
 
 ## Dashboard Artifact
 
@@ -23,7 +32,7 @@ Grafana 13 or later.
 ## Requirements
 
 - Grafana 13 or later.
-- A Grafana Cloud stack with OTLP ingest enabled for logs and traces.
+- A Grafana Cloud stack with OTLP gateway ingest enabled for logs and traces.
 - Native Android or iOS telemetry collected with the [OpenTelemetry Android SDK](https://github.com/open-telemetry/opentelemetry-android) or [OpenTelemetry Swift](https://github.com/open-telemetry/opentelemetry-swift), shaped like the QuickPizza demo apps.
 - A Loki data source named `grafanacloud-logs`.
 - A Tempo data source named `grafanacloud-traces`.
@@ -79,6 +88,9 @@ service.namespace
 service.version
 deployment.environment
 ```
+
+The Android demo app does not set `deployment.environment` today, so panels that
+filter on it drop its data. The iOS demo app sets it to `production`.
 
 Session-aware views expect session attributes to be present. In Grafana Cloud
 Loki queries, `session.id` is available as `session_id`.

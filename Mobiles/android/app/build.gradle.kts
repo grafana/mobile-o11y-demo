@@ -132,7 +132,7 @@ dependencies {
     implementation("com.google.protobuf:protobuf-javalite:3.25.1")
 
     // Testing
-    testImplementation(libs.junit4)
+    testImplementation(libs.junit)
     testImplementation(libs.proguard.retrace)
     androidTestImplementation(libs.test.runner)
     androidTestImplementation(libs.test.espresso.core)

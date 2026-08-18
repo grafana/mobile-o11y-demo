@@ -12,6 +12,10 @@ export interface DebugSettings {
   backendErrorIngredients: boolean;
   clientFaultyPizzaJson: boolean;
   clientSkipAuthDependency: boolean;
+  /** Demo-only: randomly block the UI thread to induce slow/frozen frames. */
+  clientRandomFrozenFrames: boolean;
+  /** Demo-only: retain growing buffers to stress process memory. */
+  clientMemoryStress: boolean;
 }
 
 export const DEFAULT_DEBUG_SETTINGS: DebugSettings = {
@@ -23,6 +27,8 @@ export const DEFAULT_DEBUG_SETTINGS: DebugSettings = {
   backendErrorIngredients: false,
   clientFaultyPizzaJson: false,
   clientSkipAuthDependency: false,
+  clientRandomFrozenFrames: false,
+  clientMemoryStress: false,
 };
 
 interface DebugSettingsStore {
@@ -48,6 +54,8 @@ function sanitizeSettings(value: unknown): DebugSettings {
     backendErrorIngredients: raw.backendErrorIngredients === true,
     clientFaultyPizzaJson: raw.clientFaultyPizzaJson === true,
     clientSkipAuthDependency: raw.clientSkipAuthDependency === true,
+    clientRandomFrozenFrames: raw.clientRandomFrozenFrames === true,
+    clientMemoryStress: raw.clientMemoryStress === true,
   };
 }
 
