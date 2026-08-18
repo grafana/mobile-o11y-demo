@@ -184,3 +184,4 @@ The application is specifically designed for k6 load testing:
 - Support for k6 browser testing
 - k6 extensions and disruptor examples
 - Prometheus output for k6 metrics correlation
+- Security issues should be reported via [Grafana's security issue reporting page](https://grafana.com/legal/report-a-security-issue/) and not directly in this repository.
