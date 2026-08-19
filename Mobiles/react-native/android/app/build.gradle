@@ -84,7 +84,7 @@ android {
 
     namespace "com.grafana.quickpizza"
     defaultConfig {
-        applicationId "com.grafana.quickpizza"
+        applicationId "com.grafana.quickpizza.rn"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

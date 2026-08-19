@@ -1,8 +1,8 @@
 # Shared Arbigent project for QuickPizza Android (Flutter + React Native + Android Native).
 # run_e2e_tests.sh replaces __ANDROID_PACKAGE__ with the app under test:
 #   - Flutter default:        com.example.flutter_mobile_o11y_demo  (launcher label: QPizza Flutter)
-#   - React Native default:   com.grafana.quickpizza                (launcher label: QPizza RN)
-#   - Android Native default: com.grafana.quickpizza                (launcher label: QPizza Android)
+#   - React Native default:   com.grafana.quickpizza.rn             (launcher label: QPizza RN)
+#   - Android Native default: com.grafana.quickpizza.android        (launcher label: QPizza Android)
 # All three apps share a "QPizza" launcher label prefix and the same pizza-themed icon.
 # LaunchApp uses the package id (not the icon position), so CI passes even when the icon
 # is not on the first home page; the AI fallback in bring_app_to_foreground matches on the

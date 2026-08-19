@@ -37,7 +37,7 @@ docker run --rm -d --name quickpizza -p 3333:3333 \
 # 3. Build and install on a running emulator
 cd Mobiles/android
 ./gradlew installDebug
-adb shell am start -n com.grafana.quickpizza/.MainActivity
+adb shell am start -n com.grafana.quickpizza.android/com.grafana.quickpizza.MainActivity
 ```
 
 Or open the project in Android Studio (`File → Open → Mobiles/android/`)
@@ -76,7 +76,7 @@ cd Mobiles/android
 
 Each shipped Android release gets a **release id** — a short label that
 combines the app package name, build number, and version string. For this
-demo that id is **`com.grafana.quickpizza@1@1.0.0`**.
+demo that id is **`com.grafana.quickpizza.android@1@1.0.0`**.
 
 Think of it in three steps:
 

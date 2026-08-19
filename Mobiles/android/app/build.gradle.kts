@@ -33,7 +33,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.grafana.quickpizza"
+        applicationId = "com.grafana.quickpizza.android"
         minSdk = 23
         targetSdk = 36
         versionCode = 1

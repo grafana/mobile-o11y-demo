@@ -353,14 +353,14 @@ jobs:
             echo "==> React Native APK: install and E2E"
             adb install -r apk/react-native/app-debug.apk
             bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=android
-            adb shell am force-stop com.grafana.quickpizza || true
+            adb shell am force-stop com.grafana.quickpizza.rn || true
             adb reverse --remove tcp:3333 || true
             adb reverse tcp:3333 tcp:3333
 
             echo "==> Android Native APK: install and E2E"
             adb install -r apk/android-native/app-debug.apk
             bash Mobiles/e2e/run_e2e_tests.sh --app=android-native --platform=android
-            adb shell am force-stop com.grafana.quickpizza || true
+            adb shell am force-stop com.grafana.quickpizza.android || true
             adb reverse --remove tcp:3333 || true
             adb reverse tcp:3333 tcp:3333
 
