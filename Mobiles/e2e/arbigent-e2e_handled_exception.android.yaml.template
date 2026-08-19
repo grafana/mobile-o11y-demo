@@ -1,8 +1,8 @@
 # Shared Arbigent handled-exception project for QuickPizza Android.
 # run_e2e_tests.sh replaces __ANDROID_PACKAGE__ with the app under test:
 #   - Flutter default:        com.example.flutter_mobile_o11y_demo
-#   - React Native default:   com.quickpizza
-#   - Android Native default: com.grafana.quickpizza
+#   - React Native default:   com.grafana.quickpizza.rn
+#   - Android Native default: com.grafana.quickpizza.android
 #
 # This flow intentionally exercises only the Debug tab handled-exception
 # control. The scheduled telemetry workflow can run it more often than crash

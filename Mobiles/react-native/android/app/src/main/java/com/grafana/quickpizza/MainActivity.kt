@@ -1,4 +1,4 @@
-package com.quickpizza
+package com.grafana.quickpizza
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

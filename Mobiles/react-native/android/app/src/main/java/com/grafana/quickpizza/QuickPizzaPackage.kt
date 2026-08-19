@@ -1,4 +1,4 @@
-package com.quickpizza
+package com.grafana.quickpizza
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule

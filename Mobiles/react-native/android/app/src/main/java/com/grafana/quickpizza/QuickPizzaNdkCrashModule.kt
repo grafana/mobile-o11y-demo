@@ -1,4 +1,4 @@
-package com.quickpizza
+package com.grafana.quickpizza
 
 import android.os.Handler
 import android.os.Looper

@@ -1,4 +1,4 @@
-package com.quickpizza
+package com.grafana.quickpizza
 
 import android.app.Application
 import com.facebook.react.PackageList
