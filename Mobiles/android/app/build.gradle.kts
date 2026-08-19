@@ -14,7 +14,7 @@ plugins {
     // Auto-uploads R8 mapping.txt + native-debug-symbols.zip after assembleRelease/bundleRelease/installRelease.
     // NOTE: this module locks the buildscript classpath; after adding this plugin run
     // `./gradlew --write-locks` (or `dependencies --write-locks`) to refresh the lockfiles.
-    id("com.grafana.faro.android-symbols") version "0.1.0"
+    id("com.grafana.faro.android-symbols") version "0.1.1"
 }
 
 // Remove config.json.example from res/raw before the resource merger runs.

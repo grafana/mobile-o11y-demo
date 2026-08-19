@@ -353,7 +353,7 @@ jobs:
             echo "==> React Native APK: install and E2E"
             adb install -r apk/react-native/app-debug.apk
             bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=android
-            adb shell am force-stop com.quickpizza || true
+            adb shell am force-stop com.grafana.quickpizza || true
             adb reverse --remove tcp:3333 || true
             adb reverse tcp:3333 tcp:3333
 
@@ -637,7 +637,7 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-            PRODUCT_BUNDLE_IDENTIFIER=com.quickpizza \
+            PRODUCT_BUNDLE_IDENTIFIER=com.grafana.quickpizza \
             ARCHS=arm64 \
             ONLY_ACTIVE_ARCH=YES \
             build > ios/build/ci/xcodebuild.log 2>&1
@@ -872,9 +872,9 @@ jobs:
             echo "Expected QuickPizza.app at $REACT_NATIVE_IOS_APP_PATH but it does not exist"
             exit 1
           fi
-          xcrun simctl uninstall booted com.quickpizza || true
+          xcrun simctl uninstall booted com.grafana.quickpizza || true
           xcrun simctl install booted "$REACT_NATIVE_IOS_APP_PATH"
-          xcrun simctl get_app_container booted com.quickpizza
+          xcrun simctl get_app_container booted com.grafana.quickpizza
           bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=ios
           [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || echo "==> React Native iOS .app: handled-exception diagnostics E2E"
           [ "$RUN_HANDLED_EXCEPTION_DIAGNOSTICS" != "true" ] || bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=ios --flow=handled-exception

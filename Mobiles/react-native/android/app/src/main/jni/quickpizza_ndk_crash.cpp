@@ -68,7 +68,7 @@ static std::string captureCurrentBacktrace() {
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_quickpizza_QuickPizzaNdkCrashModule_captureBacktraceForCache(
+Java_com_grafana_quickpizza_QuickPizzaNdkCrashModule_captureBacktraceForCache(
     JNIEnv *env,
     jobject /* thiz */) {
   const std::string trace = captureCurrentBacktrace();
@@ -76,7 +76,7 @@ Java_com_quickpizza_QuickPizzaNdkCrashModule_captureBacktraceForCache(
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_quickpizza_QuickPizzaNdkCrashModule_nativeCrash(JNIEnv * /* env */,
+Java_com_grafana_quickpizza_QuickPizzaNdkCrashModule_nativeCrash(JNIEnv * /* env */,
                                                          jobject /* thiz */) {
   // Intentional null dereference → SIGSEGV with a native tombstone stack trace.
   volatile int *ptr = nullptr;

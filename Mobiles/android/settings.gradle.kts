@@ -1,8 +1,5 @@
 pluginManagement {
     repositories {
-        // Until com.grafana.faro.android-symbols is on the Gradle Plugin Portal:
-        // publish from repos/faro-android-gradle-plugin with ./gradlew publishToMavenLocal
-        mavenLocal()
         google {
             content {
                 includeGroupByRegex("com\\.android.*")

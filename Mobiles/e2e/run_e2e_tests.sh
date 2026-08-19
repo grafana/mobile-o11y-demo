@@ -185,8 +185,8 @@ case "$APP" in
         IOS_BUNDLE_ID="com.example.flutterMobileO11yDemo"
         ;;
     react-native)
-        ANDROID_PACKAGE="com.quickpizza"
-        IOS_BUNDLE_ID="com.quickpizza"
+        ANDROID_PACKAGE="com.grafana.quickpizza"
+        IOS_BUNDLE_ID="com.grafana.quickpizza"
         ;;
     android-native)
         ANDROID_PACKAGE="com.grafana.quickpizza"

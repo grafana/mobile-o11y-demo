@@ -1,6 +1,6 @@
 plugins {
     // Auto-uploads R8 mapping.txt + native .so symbols (AGP zip and/or CMake obj/) after release builds.
-    id "com.grafana.faro.android-symbols" version "0.1.0"
+    id "com.grafana.faro.android-symbols" version "0.1.1"
 }
 
 apply plugin: "com.android.application"
@@ -82,13 +82,13 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.quickpizza"
+    namespace "com.grafana.quickpizza"
     defaultConfig {
-        applicationId "com.quickpizza"
+        applicationId "com.grafana.quickpizza"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0"
+        versionName "1.0.0"
         externalNativeBuild {
             cmake {
                 cppFlags "-std=c++17"
