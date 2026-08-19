@@ -24,6 +24,16 @@ class AppConfig @Inject constructor(
     val otlpInstanceId: String get() = config.otlpInstanceId.trim()
     val otlpApiKey: String get() = config.otlpApiKey.trim()
 
+    /** Matches `defaultConfig.applicationId` in `app/build.gradle.kts`. */
+    val applicationId: String get() = context.packageName
+
+    val versionCode: Long
+        get() = AndroidPackageInfo.getVersionCode(context)
+
+    /** Encoded Android symbols bundle id: `{applicationId}@{versionCode}@{versionName}`. */
+    val symbolsBundleId: String get() =
+        SymbolsBundleId.format(applicationId, versionCode, appVersion)
+
     val appVersion: String get() = runCatching {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "unknown"
     }.getOrDefault("unknown")

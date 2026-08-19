@@ -152,8 +152,7 @@ which exercises Faro's `crash` exception path on the next launch.
 
 ### React Native (Faro)
 
-- **SDK:** `faro-react-native` 2.3.1, integration
-  `@grafana/faro-react-native:1.0.0` (alpha — see RN README)
+- **SDK:** `@grafana/faro-react-native` 1.3.1, `@grafana/faro-react-native-tracing` 1.3.1 (see RN README)
 - **Init:** `Mobiles/react-native/src/bootstrap.ts` →
   `core/o11y/faroSdk.ts`
 - **Faro app:** registry name `QuickPizza_ReactNative`, id `123`

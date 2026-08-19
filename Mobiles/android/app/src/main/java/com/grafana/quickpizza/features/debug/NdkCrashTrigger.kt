@@ -10,7 +10,7 @@ import android.util.Log
  *
  * Tombstone replay/export lives in `com.grafana.quickpizza.nativecrash` (separate PR) until
  * [opentelemetry-android#764](https://github.com/open-telemetry/opentelemetry-android/issues/764).
- * Mirrors [com.quickpizza.QuickPizzaNdkCrashModule] in the React Native demo.
+ * Mirrors [com.grafana.quickpizza.QuickPizzaNdkCrashModule] in the React Native demo.
  */
 object NdkCrashTrigger {
     private const val TAG = "NdkCrashTrigger"

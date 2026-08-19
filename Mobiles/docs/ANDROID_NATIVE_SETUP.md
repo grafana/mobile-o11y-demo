@@ -78,7 +78,7 @@ Android Studio will sync the Gradle project automatically.
 ```bash
 cd Mobiles/android
 ./gradlew installDebug
-adb shell am start -n com.grafana.quickpizza/.MainActivity
+adb shell am start -n com.grafana.quickpizza.android/com.grafana.quickpizza.MainActivity
 ```
 
 ---

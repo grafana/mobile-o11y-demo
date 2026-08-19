@@ -8,7 +8,7 @@
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
 # --- Demo native modules (JNI + React Native bridge) ---
--keep class com.quickpizza.QuickPizzaNdkCrashModule { *; }
+-keep class com.grafana.quickpizza.QuickPizzaNdkCrashModule { *; }
 
 # --- Android native crash symbolication (R8 retrace) ---
 # Preserve source file + line number metadata so obfuscated stack traces can be

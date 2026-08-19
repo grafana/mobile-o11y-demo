@@ -2,7 +2,7 @@
 # run_e2e_tests.sh replaces __IOS_BUNDLE_ID__ with the app under test:
 #   - iOS Native default:       com.grafana.QuickPizzaIos
 #   - Flutter iOS default:      com.example.flutterMobileO11yDemo
-#   - React Native iOS default: com.quickpizza
+#   - React Native iOS default: com.grafana.quickpizza
 #
 # This flow intentionally exercises only the Debug tab handled-exception
 # control. The scheduled telemetry workflow can run it more often than crash

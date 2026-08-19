@@ -1484,17 +1484,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@grafana/faro-bundlers-shared@npm:^0.10.1":
-  version: 0.10.1
-  resolution: "@grafana/faro-bundlers-shared@npm:0.10.1"
-  dependencies:
-    ansis: "npm:^4.0.0"
-    tar: "npm:^7.1.0"
-    undici: "npm:^8.1.0"
-  checksum: 10c0/865ff10c8e794e0a4128b5a4c01e64f815c7dbcb7a0dad44ff1242880360f02ae15d409181029c72647019271073b1d5a77faf6c9f78a6846ac5a04c74e49b9f
-  languageName: node
-  linkType: hard
-
 "@grafana/faro-bundlers-shared@npm:^0.11.0":
   version: 0.11.0
   resolution: "@grafana/faro-bundlers-shared@npm:0.11.0"
@@ -1506,18 +1495,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@grafana/faro-cli@npm:^0.10.0":
-  version: 0.10.0
-  resolution: "@grafana/faro-cli@npm:0.10.0"
+"@grafana/faro-cli@npm:0.11.0, @grafana/faro-cli@npm:^0.11.0":
+  version: 0.11.0
+  resolution: "@grafana/faro-cli@npm:0.11.0"
   dependencies:
-    "@grafana/faro-bundlers-shared": "npm:^0.10.1"
-    commander: "npm:^14.0.0"
+    "@grafana/faro-bundlers-shared": "npm:^0.11.0"
+    commander: "npm:^15.0.0"
     dotenv: "npm:^17.0.1"
     glob: "npm:^13.0.0"
     tar: "npm:^7.1.0"
   bin:
     faro-cli: dist/cjs/cli.js
-  checksum: 10c0/c6628803874226d8bb4ac3f3c46e7b4ed3fb431c41c21b40b7301a15841ad9619b3cb512ade351cf160e9d760130c50a891cd80fe84fab65f3c20ce82814fd05
+  checksum: 10c0/707513ef7f1e351f0a774e4b0b729d3a0fd2ebf3036aefa830996ad717e64f53ea9c4e7d9ed03fbfafadb8a0f02eb764a3ce4e98ac82947c6f88320466cf1d0b
   languageName: node
   linkType: hard
 
@@ -1531,19 +1520,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@grafana/faro-metro-plugin@npm:0.2.0":
-  version: 0.2.0
-  resolution: "@grafana/faro-metro-plugin@npm:0.2.0"
+"@grafana/faro-metro-plugin@npm:0.3.0":
+  version: 0.3.0
+  resolution: "@grafana/faro-metro-plugin@npm:0.3.0"
   dependencies:
     "@grafana/faro-bundlers-shared": "npm:^0.11.0"
-    "@grafana/faro-cli": "npm:^0.10.0"
+    "@grafana/faro-cli": "npm:^0.11.0"
     cross-fetch: "npm:^4.0.0"
     source-map: "npm:^0.7.4"
   peerDependencies:
     metro: ">=0.81.0"
   bin:
     faro-upload-source-map: bin/faro-upload-source-map.js
-  checksum: 10c0/668c66b908a14dc23115f9a265149b5f0faa83abc313c789043cf984f7e3f04b5f99ca423a74068cf5d2ae0f6569a92fa1babedcde064e9f5b7b39562b66f2f4
+  checksum: 10c0/e310d59c7383649b89c0cd393513f4eab9446e512baae6b64798e7cf71eeefb100fc55d6bd41ed85dfeaa9824f0dbda42213f1162274e85aa9ab62e6857e4520
   languageName: node
   linkType: hard
 
@@ -3191,7 +3180,8 @@ __metadata:
     "@babel/core": "npm:^7.25.2"
     "@babel/preset-env": "npm:^7.25.3"
     "@babel/runtime": "npm:^7.25.0"
-    "@grafana/faro-metro-plugin": "npm:0.2.0"
+    "@grafana/faro-cli": "npm:0.11.0"
+    "@grafana/faro-metro-plugin": "npm:0.3.0"
     "@grafana/faro-react-native": "npm:1.3.1"
     "@grafana/faro-react-native-tracing": "npm:1.3.1"
     "@react-native-async-storage/async-storage": "npm:^1.21.0"
@@ -4095,10 +4085,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"commander@npm:^14.0.0":
-  version: 14.0.3
-  resolution: "commander@npm:14.0.3"
-  checksum: 10c0/755652564bbf56ff2ff083313912b326450d3f8d8c85f4b71416539c9a05c3c67dbd206821ca72635bf6b160e2afdefcb458e86b317827d5cb333b69ce7f1a24
+"commander@npm:^15.0.0":
+  version: 15.0.0
+  resolution: "commander@npm:15.0.0"
+  checksum: 10c0/539229c171914ea1ccd45ee5f10d924289a12a684ea3a7a44147abe54003c35ed6de9ae4ad198d88c29fdf403dca0428451a388234e6dc01b6faa978fb207206
   languageName: node
   linkType: hard
 

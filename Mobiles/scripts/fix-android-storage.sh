@@ -24,7 +24,8 @@ echo ""
 
 # Solution 1: Uninstall the QuickPizza app (fixes installation location conflicts)
 echo "1️⃣  Uninstalling QuickPizza app..."
-timeout 10 adb -s $DEVICE uninstall com.quickpizza 2>/dev/null && echo "✓ App uninstalled" || echo "ℹ️  App not installed or uninstall timed out (skipping)"
+timeout 10 adb -s $DEVICE uninstall com.grafana.quickpizza.android 2>/dev/null && echo "✓ Native app uninstalled" || echo "ℹ️  Native app not installed or uninstall timed out (skipping)"
+timeout 10 adb -s $DEVICE uninstall com.grafana.quickpizza.rn 2>/dev/null && echo "✓ RN app uninstalled" || echo "ℹ️  RN app not installed or uninstall timed out (skipping)"
 echo ""
 
 # Solution 2: Clean local Gradle build (fixes corrupted APK issues)
