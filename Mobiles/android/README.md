@@ -91,11 +91,13 @@ build tooling and uploads stay in sync. Engineers: the app emits this id as
 version (`1.0.0`) for dashboards.
 
 > **Also in this repo — the React Native demo** ([../react-native/](../react-native/)):
-> same three-step flow and the same release id per build. The difference is
-> *what* gets uploaded at build time. The React Native app is written in
-> JavaScript *and* native Android code, so its release pipeline uploads debug
-> files for **both** layers under one id. **This app** is native Kotlin only,
-> so it uploads debug files for the **Android/native** layer alone. Details:
+> same three-step flow, but a **distinct** release id
+> (`com.grafana.quickpizza.rn@1@1.0.0`). This native app uses
+> `com.grafana.quickpizza.android@1@1.0.0`. The difference is *what* gets
+> uploaded at build time. React Native is JavaScript *and* native Android, so
+> that pipeline uploads debug files for **both** layers under the RN id.
+> **This app** is native Kotlin only, so it uploads debug files for the
+> **Android/native** layer alone. Details:
 > [../react-native/README.md](../react-native/README.md).
 
 ### Configure upload credentials
