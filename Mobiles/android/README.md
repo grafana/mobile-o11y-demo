@@ -26,7 +26,7 @@ platform emits, dashboards) see
 
 ```bash
 # 1. Configure
-cp app/src/main/res/raw/config.json.example \
+cp config.json.example \
    app/src/main/res/raw/config.json
 # edit OTLP_ENDPOINT, OTLP_INSTANCE_ID, OTLP_API_KEY, BASE_URL
 
@@ -84,7 +84,8 @@ Think of it in three steps:
 2. **At runtime**, the installed app only sends lightweight error reports. Each report includes the same release id so Grafana knows *which* build produced the crash.
 3. **In Grafana**, Frontend Observability uses that id to find the files uploaded in step 1 and show a **readable stack trace** instead of scrambled names like `a5.r0`.
 
-The release id is saved locally as `app/build/faro/bundle-id-release.txt` so
+The release id is saved locally as
+`Mobiles/android/app/build/faro/bundle-id-release.txt` so
 build tooling and uploads stay in sync. Engineers: the app emits this id as
 `faro.app.bundleId` at runtime; `service.version` remains the human-readable
 version (`1.0.0`) for dashboards.
@@ -237,7 +238,7 @@ Where to view the data on the demo stack:
 
 ## Configuration reference
 
-`app/src/main/res/raw/config.json` (gitignored — copy from the `.example`):
+`app/src/main/res/raw/config.json` (gitignored — copy from `config.json.example` at the project root):
 
 ```json
 {
