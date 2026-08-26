@@ -7,13 +7,15 @@ BUNDLE_ID="com.grafana.QuickPizzaIos"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 DEVICE=""
+NO_LOGS=0
 
 usage() {
-    echo "Usage: $0 [--device <simulator name>]"
+    echo "Usage: $0 [--device <simulator name>] [--no-logs]"
     echo ""
     echo "Options:"
     echo "  --device <name>   Simulator device name (e.g. 'iPhone 17 Pro')"
     echo "                    Defaults to first available iPhone simulator."
+    echo "  --no-logs         Exit after launch (do not stream simulator logs)"
     echo ""
     echo "Examples:"
     echo "  $0"
@@ -24,6 +26,7 @@ usage() {
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --device) DEVICE="$2"; shift 2 ;;
+        --no-logs) NO_LOGS=1; shift ;;
         --help|-h) usage ;;
         *) echo "Unknown option: $1"; usage ;;
     esac
@@ -90,6 +93,11 @@ xcrun simctl install booted "$APP_PATH"
 
 echo "==> Launching app..."
 xcrun simctl launch booted "$BUNDLE_ID"
+
+if [[ "$NO_LOGS" -eq 1 ]]; then
+    echo "==> App launched (log streaming skipped; re-run without --no-logs to follow logs)"
+    exit 0
+fi
 
 echo "==> Streaming logs (Ctrl+C to stop)..."
 echo "    (Showing logs from subsystem: $BUNDLE_ID)"
