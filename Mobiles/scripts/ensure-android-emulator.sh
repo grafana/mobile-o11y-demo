@@ -214,7 +214,7 @@ EOF
   fi
 
   echo "❌ Multiple AVDs; pass --avd <name> or set ANDROID_AVD:" >&2
-  "$emu" -list-avds 2>/dev/null || true
+  "$emu" -list-avds >&2 || true
   return 1
 }
 
