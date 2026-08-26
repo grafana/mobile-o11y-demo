@@ -3,17 +3,21 @@ set -euo pipefail
 
 # Run React Native on Android. Starts an emulator when none is connected.
 #
-# Usage:
+# Usage (from Mobiles/react-native):
 #   ./scripts/run-android.sh                 # debug install (yarn android)
 #   ./scripts/run-android.sh --emulator-only # boot emulator only (E2E / CI)
 #
+# Also works from the mobile-o11y-demo repo root:
+#   ./Mobiles/react-native/scripts/run-android.sh --emulator-only
+#
 # Emulator bootstrap is shared with other mobile demos:
-#   ../../scripts/ensure-android-emulator.sh
-
-cd "$(dirname "$0")/.."
+#   Mobiles/scripts/ensure-android-emulator.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SHARED_EMULATOR_SCRIPT="${SCRIPT_DIR}/../../scripts/ensure-android-emulator.sh"
+RN_APP_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+SHARED_EMULATOR_SCRIPT="$(cd "${SCRIPT_DIR}/../../scripts" && pwd)/ensure-android-emulator.sh"
+
+cd "$RN_APP_DIR"
 
 EMULATOR_ONLY=0
 FORWARD_ARGS=()
@@ -59,7 +63,11 @@ done
   exit 1
 }
 
-bash "$SHARED_EMULATOR_SCRIPT" "${FORWARD_ARGS[@]}"
+if ((${#FORWARD_ARGS[@]} > 0)); then
+  bash "$SHARED_EMULATOR_SCRIPT" "${FORWARD_ARGS[@]}"
+else
+  bash "$SHARED_EMULATOR_SCRIPT"
+fi
 
 if [ "$EMULATOR_ONLY" -eq 1 ]; then
   exit 0
