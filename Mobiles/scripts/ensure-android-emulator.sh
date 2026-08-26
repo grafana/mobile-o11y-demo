@@ -11,6 +11,8 @@
 set -euo pipefail
 
 AVD_CLI=""
+ANDROID_SDK=""
+ADB_SERIAL=""
 
 usage() {
   cat <<'USAGE'
@@ -50,19 +52,73 @@ resolve_android_sdk() {
     printf '%s' "$ANDROID_HOME"
   elif [ -d "$HOME/Library/Android/sdk/emulator" ]; then
     printf '%s' "$HOME/Library/Android/sdk"
+  elif [ -d "$HOME/Android/Sdk/emulator" ]; then
+    printf '%s' "$HOME/Android/Sdk"
   else
     printf ''
   fi
 }
 
+bootstrap_android_tools() {
+  local sdk
+  sdk="$(resolve_android_sdk)"
+  if [ -n "$sdk" ]; then
+    ANDROID_SDK="$sdk"
+    export PATH="$sdk/platform-tools:$sdk/emulator:$PATH"
+  fi
+  command -v adb >/dev/null 2>&1 || {
+    echo "❌ adb not found. Set ANDROID_SDK_ROOT/ANDROID_HOME or install Android platform-tools." >&2
+    exit 1
+  }
+}
+
+require_android_sdk() {
+  if [ -z "$ANDROID_SDK" ]; then
+    echo "❌ Android SDK not found. Set ANDROID_SDK_ROOT or ANDROID_HOME." >&2
+    exit 1
+  fi
+}
+
+run_adb() {
+  if [ -n "$ADB_SERIAL" ]; then
+    adb -s "$ADB_SERIAL" "$@"
+  else
+    adb "$@"
+  fi
+}
+
+# Prefer an emulator-* serial when several adb devices are connected.
+pick_adb_serial() {
+  local serial state emulator_serial fallback_serial=""
+
+  ADB_SERIAL=""
+  while read -r serial state; do
+    [ -z "$serial" ] && continue
+    [ "$state" = "device" ] || continue
+    if [[ "$serial" == emulator-* ]]; then
+      emulator_serial="$serial"
+      break
+    fi
+    [ -z "$fallback_serial" ] && fallback_serial="$serial"
+  done < <(adb devices 2>/dev/null | awk 'NR>1 && NF>=2 {print $1, $2}')
+
+  if [ -n "$emulator_serial" ]; then
+    ADB_SERIAL="$emulator_serial"
+    return 0
+  fi
+  if [ -n "$fallback_serial" ]; then
+    ADB_SERIAL="$fallback_serial"
+    return 0
+  fi
+  return 1
+}
+
 has_android_device() {
-  command -v adb >/dev/null 2>&1 || return 1
-  adb devices 2>/dev/null | awk 'NR>1 && $2=="device" { found=1 } END { exit !found }'
+  pick_adb_serial
 }
 
 adb_lists_emulator() {
-  command -v adb >/dev/null 2>&1 || return 1
-  adb devices 2>/dev/null | awk 'NR>1 && $1 ~ /^emulator-/ { found=1 } END { exit !found }'
+  adb devices 2>/dev/null | awk 'NR>1 && $1 ~ /^emulator-/ && $2=="device" { found=1 } END { exit !found }'
 }
 
 emulator_process_running() {
@@ -74,7 +130,7 @@ wait_for_adb_device() {
   local i=1
 
   while [ "$i" -le "$attempts" ]; do
-    if has_android_device; then
+    if pick_adb_serial; then
       return 0
     fi
     if [ $((i % 10)) -eq 0 ]; then
@@ -91,10 +147,15 @@ wait_for_android_boot() {
   local i=1
   local boot
 
-  adb wait-for-device
+  pick_adb_serial || {
+    echo "❌ No adb device available for boot check." >&2
+    exit 1
+  }
+
+  run_adb wait-for-device
 
   while [ "$i" -le "$attempts" ]; do
-    boot="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r\n')"
+    boot="$(run_adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r\n')"
     if [ "$boot" = "1" ]; then
       return 0
     fi
@@ -111,7 +172,7 @@ wait_for_existing_emulator() {
   echo "Emulator already running; waiting for adb (not launching a second instance)..."
 
   if wait_for_adb_device 120; then
-    echo "✅ Emulator ready in adb"
+    echo "✅ Emulator ready in adb (${ADB_SERIAL:-default})"
     wait_for_android_boot
     adb devices -l
     return 0
@@ -159,7 +220,7 @@ EOF
 
 ensure_android_emulator() {
   if has_android_device; then
-    echo "✅ Android device/emulator already connected"
+    echo "✅ Android device/emulator already connected (${ADB_SERIAL})"
     wait_for_android_boot
     adb devices -l
     return 0
@@ -170,20 +231,15 @@ ensure_android_emulator() {
     return 0
   fi
 
-  local sdk emu chosen
-  sdk="$(resolve_android_sdk)"
-  if [ -z "$sdk" ]; then
-    echo "❌ Android SDK not found. Set ANDROID_SDK_ROOT or ANDROID_HOME." >&2
-    exit 1
-  fi
+  require_android_sdk
 
-  emu="$sdk/emulator/emulator"
+  local emu chosen
+  emu="$ANDROID_SDK/emulator/emulator"
   if [ ! -x "$emu" ]; then
     echo "❌ Emulator binary not found at: $emu" >&2
     exit 1
   fi
 
-  export PATH="$sdk/platform-tools:$sdk/emulator:$PATH"
   chosen="$(choose_avd "$emu")" || exit 1
 
   if ! "$emu" -list-avds 2>/dev/null | grep -Fxq "$chosen"; then
@@ -199,8 +255,8 @@ ensure_android_emulator() {
   local i=1
   local max_wait=120
   while [ "$i" -le "$max_wait" ]; do
-    if has_android_device; then
-      echo "✅ Emulator ready"
+    if pick_adb_serial; then
+      echo "✅ Emulator ready (${ADB_SERIAL})"
       wait_for_android_boot
       adb devices -l
       return 0
@@ -216,4 +272,5 @@ ensure_android_emulator() {
   exit 1
 }
 
+bootstrap_android_tools
 ensure_android_emulator
