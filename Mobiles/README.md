@@ -114,9 +114,9 @@ These apply to every app, so they're stated once here.
   logs, handled exceptions, and native crashes — this is how you generate
   telemetry on demand during a demo. Details and per-platform extras are in
   [`docs/MOBILE_OBSERVABILITY_OVERVIEW.md § The shared Debug screen`](./docs/MOBILE_OBSERVABILITY_OVERVIEW.md#the-shared-debug-screen).
-- **Android emulator (all demos):** `scripts/ensure-android-emulator.sh` boots or
-  waits for an adb-ready AVD. React Native's `react-native/scripts/run-android.sh`
-  delegates to it; E2E and cross-demo tooling can call it directly with `--avd`.
+- **Android emulator:** `scripts/ensure-android-emulator.sh` boots or waits for an
+  adb-ready AVD. React Native's `react-native/scripts/run-android.sh` delegates to
+  it; native Android and E2E tooling can call it directly with `--avd`.
 
 ---
 

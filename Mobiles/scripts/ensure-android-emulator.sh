@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Shared Android emulator bootstrap for all QuickPizza mobile demos.
 #
-# Starts or waits for an adb-ready emulator. Used by React Native, native Android,
-# Flutter (via local RUM stack), and E2E scripts — not tied to a single SDK app.
+# Starts or waits for an adb-ready emulator. Used by React Native (wrapper),
+# native Android demo builds, E2E/workbench tooling — not tied to a single SDK app.
 #
 # Usage:
 #   ./Mobiles/scripts/ensure-android-emulator.sh
