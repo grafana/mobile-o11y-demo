@@ -206,7 +206,8 @@ For deeper iOS detail see
 
 - **SDK:** `opentelemetry-android` 1.4.0-alpha (`telemetry_sdk_language=java`)
 - **Init:** `Mobiles/android/app/src/main/java/com/grafana/quickpizza/core/o11y/OTelService.kt`
-  → `OpenTelemetryRumInitializer.initialize(...)`
+  → `GrafanaOtelReferenceKit.initialize(...)`, which delegates to
+  `OpenTelemetryRumInitializer.initialize(...)`
 - **OTel service.name:** `quickpizza-android`, service.namespace `quickpizza`
 
 | Signal | Examples | Source |

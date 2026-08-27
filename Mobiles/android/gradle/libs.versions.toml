@@ -52,6 +52,7 @@ gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 # OpenTelemetry Android
 opentelemetry-android-bom = { module = "io.opentelemetry.android:opentelemetry-android-bom", version.ref = "opentelemetryAndroid" }
 opentelemetry-android-agent = { module = "io.opentelemetry.android:android-agent" }
+opentelemetry-android-core = { module = "io.opentelemetry.android:core" }
 opentelemetry-android-okhttp3-library = { module = "io.opentelemetry.android.instrumentation:okhttp3-library", version.ref = "opentelemetryAndroidInstrumentation" }
 opentelemetry-android-okhttp3-agent = { module = "io.opentelemetry.android.instrumentation:okhttp3-agent", version.ref = "opentelemetryAndroidInstrumentation" }
 opentelemetry-okhttp3 = { module = "io.opentelemetry.instrumentation:opentelemetry-okhttp-3.0" }
@@ -76,6 +77,7 @@ proguard-retrace = { module = "com.guardsquare:proguard-retrace", version.ref = 
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
