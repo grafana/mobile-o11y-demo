@@ -204,7 +204,7 @@ For deeper iOS detail see
 
 ### Android native (OpenTelemetry Android)
 
-- **SDK:** `opentelemetry-android` 1.4.0-alpha (`telemetry_sdk_language=java`)
+- **SDK:** `opentelemetry-android` 1.5.1-alpha (`telemetry_sdk_language=java`)
 - **Init:** `Mobiles/android/app/src/main/java/com/grafana/quickpizza/core/o11y/OTelService.kt`
   → `GrafanaOtelReferenceKit.initialize(...)`, which delegates to
   `OpenTelemetryRumInitializer.initialize(...)`

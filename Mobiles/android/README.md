@@ -194,7 +194,7 @@ The **Debug** tab exposes:
 ## Observability
 
 The app uses [opentelemetry-android](https://github.com/open-telemetry/opentelemetry-android)
-1.4.0-alpha and exports via OTLP/HTTP. Init lives in
+1.5.1-alpha and exports via OTLP/HTTP. Init lives in
 `app/src/main/java/com/grafana/quickpizza/core/o11y/OTelService.kt`.
 
 
