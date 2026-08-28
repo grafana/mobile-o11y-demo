@@ -1,8 +1,7 @@
 # Grafana OTel Reference Kit for Android (spike)
 
-This local Android library tests the package boundary proposed in
-[frontend-o11y-knowledge-workbench#113](https://github.com/grafana/frontend-o11y-knowledge-workbench/issues/113).
-It is not published and is not yet a supported SDK.
+This local Android library tests a proposed Grafana OTel Reference Kit package boundary. It is not
+published and is not yet a supported SDK.
 
 The module owns Grafana-oriented startup defaults and delegates all SDK behavior to
 [`opentelemetry-android`](https://github.com/open-telemetry/opentelemetry-android). It returns the

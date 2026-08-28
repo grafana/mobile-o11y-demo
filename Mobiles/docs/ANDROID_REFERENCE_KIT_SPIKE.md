@@ -1,7 +1,5 @@
 # Android OTel Reference Kit Spike
 
-**Tracking:** [frontend-o11y-knowledge-workbench#113](https://github.com/grafana/frontend-o11y-knowledge-workbench/issues/113)
-
 **Status:** Experimental local module. It is not published or supported for production use.
 
 ## Placement decision
@@ -10,22 +8,13 @@ The runnable spike lives in `Mobiles/android/grafana-otel-reference-kit` and is 
 existing QuickPizza Android app. This gives the package a real application and build without
 creating an empty repository or treating the demo repository as its permanent home.
 
-If the validation gates pass, the production library should move to a dedicated, public,
-Grafana-owned Android runtime repository and publish a versioned AAR from a Grafana Maven
-coordinate. Mobile O11y should own releases and the supported `opentelemetry-android` version
-window.
-
-The existing repositories are not suitable permanent homes:
-
-| Repository | Decision |
-| --- | --- |
-| `open-telemetry/opentelemetry-android` | Keep generic SDK and instrumentation work upstream. Grafana endpoints, product defaults, and plugins do not belong there. |
-| `grafana/faro-android-gradle-plugin` | Keep build-time symbol upload there. It is a Gradle plugin, not an application runtime library. |
-| `grafana/mobile-o11y-demo` | Use it to prove the module against a real app. Do not publish the runtime library from the demo repository. |
-| `grafana/frontend-o11y-knowledge-workbench` | Keep strategy and validation records there. It is not a runtime source repository. |
-
-The final repository name, Maven coordinate, and release automation still require team agreement
-before the module is extracted or published.
+The demo proves the package boundary but is not the permanent source or release location. Generic
+Android SDK and instrumentation work remains in
+[`opentelemetry-android`](https://github.com/open-telemetry/opentelemetry-android), while build-time
+symbol upload remains in
+[`faro-android-gradle-plugin`](https://github.com/grafana/faro-android-gradle-plugin). The final
+Grafana-owned runtime location, Maven coordinate, release ownership, automation, and supported
+upstream version window require agreement before the module is extracted or published.
 
 ## Package boundary
 
@@ -102,89 +91,25 @@ proves the packaged startup path; it does not prove that Faro Collector accepted
 
 ### Faro Collector runtime result
 
-On August 28, 2026, commit `ba695485c9c9ac7b98df3903054af423c8c5024a` was tested on the
-`quickpizza_pixel_35` Android 15 API 35 ARM64 emulator. The local Faro stack used the
-`app-o11y-kwl-endpoint` Docker Compose setup, and the QuickPizza backend was built from the same
-commit. The app used `http://10.0.2.2:8001/otlp/${APP_KEY}` for Faro OTLP ingest and
-`http://10.0.2.2:3333` for the backend.
-
-The relevant setup and run commands were:
-
-```bash
-# From app-o11y-kwl-endpoint
-docker compose -f docker-compose.yml -f docker-compose.with-plugin.yml up -d
-
-# From the mobile-o11y-demo root
-make docker-build
-docker run -d --name fokwb-quickpizza-pr110 \
-  --network app-o11y-kwl-endpoint_default \
-  -p 3333:3333 -p 3334:3334 -p 3335:3335 \
-  -e QUICKPIZZA_OTLP_ENDPOINT=http://downstream-otel-collector:4318 \
-  -e QUICKPIZZA_TRUST_CLIENT_TRACEID=1 \
-  -e QUICKPIZZA_OTEL_SERVICE_NAME=quickpizza \
-  -e QUICKPIZZA_OTEL_SERVICE_INSTANCE_ID=pr110-backend \
-  -e OTEL_RESOURCE_ATTRIBUTES=deployment.environment=local-pr110,service.version=ba695485 \
-  grafana/quickpizza-local:latest
-
-# From Mobiles/android, after configuring config.json with the endpoints above
-./gradlew :grafana-otel-reference-kit:testDebugUnitTest \
-  :app:assembleDebug :app:installDebug
-adb logcat -c
-adb shell am force-stop com.grafana.quickpizza.android
-adb shell am start -W \
-  -n com.grafana.quickpizza.android/com.grafana.quickpizza.MainActivity
-```
-
-After the disk buffer flushed, Faro Collector returned `202` for both
-`/otlp/${APP_KEY}/v1/logs` and `/otlp/${APP_KEY}/v1/traces`. The translated Loki records contained:
+On August 28, 2026, commit `ba695485c9c9ac7b98df3903054af423c8c5024a` was tested on an Android
+15 API 35 ARM64 emulator against a local Faro Collector and QuickPizza backend. After the disk
+buffer flushed, Faro Collector returned `202` for both OTLP logs and traces. The translated Loki
+records contained:
 
 - `session_start`, `rum.sdk.init.*`, `view_changed`, and `app.screen.view` events;
 - an `app_startup` measurement with `coldStart=1`;
 - `faro.tracing.fetch` for `GET /api/quotes` with HTTP status `200`;
-- the same session ID, `0681ff7a3730ee8017c4dfc2de9d715a`, on the startup, screen, and HTTP
-  records.
+- the same session ID on the startup, screen, and HTTP records.
 
-The product-path query used for those checks was:
+The connected trace contained the Android `GET` client span, the QuickPizza `GET /api/quotes`
+server span as its child, and the backend `SELECT` span as the server span's child. Faro translation
+labels product records with the registered application identity, which may differ from the Android
+`service.name` resource value.
 
-```bash
-curl -fsS -G http://localhost:3100/loki/api/v1/query_range \
-  --data-urlencode 'query={service_name="<FARO_APP_NAME>"}' \
-  --data-urlencode 'since=1h' \
-  --data-urlencode 'limit=5000' \
-  --data-urlencode 'direction=forward' \
-  | jq -r '.data.result[].values[][1]' \
-  | rg 'event_name=(session_start|app\.screen\.view|view_changed|faro\.tracing\.fetch)|type=app_startup'
-```
-
-`<FARO_APP_NAME>` is the name of the locally registered Faro application. For this run it was
-`QuickPizza_Android_PR110_20260828`; the Android resource still set `service.name` to
-`quickpizza-android`. Faro translation uses the registered application identity for the product
-label, which is why the Loki and Tempo output below shows the local registration name.
-
-Tempo trace `96463f9ae47807b4456fd529ebd80c9b` proved the connected HTTP path. The
-Android `GET` client span was `b03d415ad8e262b9`; the QuickPizza `GET /api/quotes` server span was
-`50238a404dafdd88` and named the Android span as its parent. The backend `SELECT` span then named
-the server span as its parent.
-
-```bash
-curl -fsS \
-  http://localhost:3200/api/traces/96463f9ae47807b4456fd529ebd80c9b \
-  | jq -r '
-      .batches[]
-      | (.resource.attributes
-          | map(select(.key == "service.name"))[0].value.stringValue) as $service
-      | .scopeSpans[].spans[]
-      | [$service, .name, .kind, .spanId, (.parentSpanId // "")]
-      | @tsv'
-```
-
-Observed output (Tempo represents span IDs as base64 in this response):
-
-```text
-QuickPizza_Android_PR110_20260828  GET              SPAN_KIND_CLIENT  sD1BWtjiYrk=
-quickpizza                         GET /api/quotes  SPAN_KIND_SERVER  UCOKQE2v3Yg=  sD1BWtjiYrk=
-quickpizza                         SELECT           SPAN_KIND_CLIENT  BfrFBqbo/QQ=  UCOKQE2v3Yg=
-```
+The environment-specific stack commands and raw identifiers are intentionally kept outside this
+public repository. To repeat the validation against Grafana Cloud, follow
+[Connect the Demo Apps to Grafana Cloud](CONNECT_GRAFANA_CLOUD.md), run the app as described above,
+and inspect the configured application's logs and traces.
 
 During this run, the Faro OTLP endpoint returned `400` for periodic OTLP metrics because that route
 supports logs and traces only. The current spike now disables metric export. A production package
