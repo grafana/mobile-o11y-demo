@@ -2,11 +2,12 @@ package com.grafana.quickpizza.core.o11y
 
 import android.app.Application
 import android.util.Log
+import com.grafana.opentelemetry.android.GrafanaOtelConfiguration
+import com.grafana.opentelemetry.android.GrafanaOtelReferenceKit
 import com.grafana.quickpizza.core.config.AppConfig
 import com.grafana.quickpizza.core.config.RuntimeConfigHolder
 import com.grafana.quickpizza.nativecrash.NativeExitCrashReporter
 import io.opentelemetry.android.OpenTelemetryRum
-import io.opentelemetry.android.agent.OpenTelemetryRumInitializer
 import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.api.common.AttributeKey
 import io.opentelemetry.api.common.Attributes
@@ -28,7 +29,13 @@ class OTelService @Inject constructor(
     val openTelemetry: OpenTelemetry
         get() = rum?.openTelemetry ?: OpenTelemetry.noop()
 
+    @Synchronized
     fun initialize() {
+        if (rum != null) {
+            Log.i(TAG, "OTelService already initialized; keeping the existing process runtime")
+            return
+        }
+
         val snapshot = runtimeConfig.current
         val endpoint = snapshot.otlpEndpoint
         val authHeader = snapshot.otlpAuthHeader
@@ -44,33 +51,24 @@ class OTelService @Inject constructor(
         val osHandler = Thread.getDefaultUncaughtExceptionHandler()
 
         rum = runCatching {
-            OpenTelemetryRumInitializer.initialize(application) {
-                httpExport {
-                    baseUrl = endpoint
-                    if (authHeader != null) {
-                        baseHeaders = mapOf("Authorization" to authHeader)
-                    }
-                }
-                diskBuffering {
-                    enabled(diskBufferingEnabled)
-                }
-                semanticConventions {
-                    // Pin the pre-1.5.0 convention names (device.crash, screen.name, …) so the
-                    // existing consumer keeps matching after the SDK bump.
-                    useLatestExperimental = false
-                }
-                resource {
-                    // Logical service name for traces/dashboards (not the package name).
-                    // This groups all Android app telemetry together, similar to how
-                    // the app name appears in Frontend Observability.
-                    put(AttributeKey.stringKey("service.name"), SERVICE_NAME)
-                    put(AttributeKey.stringKey("service.namespace"), "quickpizza")
-                    // App version - matches the version displayed to users.
-                    put(AttributeKey.stringKey("service.version"), appConfig.appVersion)
-                    // Encoded build identity — maps to meta.app.bundleId for Android symbol retrace.
-                    put(AttributeKey.stringKey("faro.app.bundleId"), appConfig.symbolsBundleId)
-                }
-            }
+            GrafanaOtelReferenceKit.initialize(
+                application = application,
+                configuration = GrafanaOtelConfiguration(
+                    otlpEndpoint = endpoint,
+                    headers = authHeader?.let { mapOf("Authorization" to it) }.orEmpty(),
+                    serviceName = SERVICE_NAME,
+                    serviceNamespace = "quickpizza",
+                    serviceVersion = appConfig.appVersion,
+                    resourceAttributes = Attributes.builder()
+                        // Encoded build identity maps to meta.app.bundleId for Android retrace.
+                        .put(AttributeKey.stringKey("faro.app.bundleId"), appConfig.symbolsBundleId)
+                        .build(),
+                    diskBufferingEnabled = diskBufferingEnabled,
+                    // Pin the pre-1.5.0 convention names (device.crash, screen.name, ...) until
+                    // the existing consumer accepts the latest experimental conventions.
+                    useLatestExperimentalSemanticConventions = false,
+                ),
+            )
         }.onFailure { Log.e(TAG, "OTelService initialization failed", it) }.getOrNull()
 
         if (rum != null) {

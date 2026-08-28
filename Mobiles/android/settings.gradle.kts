@@ -27,3 +27,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "QuickPizza"
 include(":app")
+include(":grafana-otel-reference-kit")

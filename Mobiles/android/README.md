@@ -194,7 +194,7 @@ The **Debug** tab exposes:
 ## Observability
 
 The app uses [opentelemetry-android](https://github.com/open-telemetry/opentelemetry-android)
-1.4.0-alpha and exports via OTLP/HTTP. Init lives in
+1.5.1-alpha and exports via OTLP/HTTP. Init lives in
 `app/src/main/java/com/grafana/quickpizza/core/o11y/OTelService.kt`.
 
 
@@ -211,7 +211,8 @@ does). The full set (device, network, nav, and
 session attributes) is inventoried in
 [`MOBILE_OBSERVABILITY_OVERVIEW.md § Android native`](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md#android-native-opentelemetry-android).
 
-`OTelService` registers `OpenTelemetryRumInitializer` which wires up:
+`OTelService` delegates startup to the local Reference Kit spike, which uses
+`OpenTelemetryRumInitializer` to wire up:
 
 - Auto OkHttp tracing via the `Call.Factory` wrapper.
 - Lifecycle / `AppStart` / activity-state spans.
@@ -222,7 +223,12 @@ disk and emits `event_name=device.crash` on next launch.
 - Sessions — 15-minute inactivity timeout, `session.id` stamped on
 every signal.
 - Disk buffering of OTLP exports for offline resilience (toggle off via
-the Debug screen).
+  the Debug screen).
+
+The current [Android Reference Kit spike](grafana-otel-reference-kit/README.md) moves those shared
+startup defaults into a local library while returning the upstream OTel runtime. The package
+placement and remaining validation are recorded in
+[ANDROID_REFERENCE_KIT_SPIKE.md](../docs/ANDROID_REFERENCE_KIT_SPIKE.md).
 
 Where to view the data on the demo stack:
 
@@ -291,4 +297,3 @@ live demos.
 - Ensure `gradle.properties` has
 `android.useFullClasspathForDexingTransform=true` (required by
 `opentelemetry-android` with AGP 8.3+).
-

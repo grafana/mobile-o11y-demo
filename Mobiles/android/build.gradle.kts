@@ -7,13 +7,14 @@ buildscript {
 
 plugins {
     alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.android.library) apply false
     alias(libs.plugins.kotlin.compose) apply false
     alias(libs.plugins.hilt) apply false
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.bytebuddy) apply false
 }
 
-// Enable dependency locking for every project configuration (root + :app).
+// Enable dependency locking for every project configuration.
 allprojects {
     dependencyLocking {
         lockAllConfigurations()
