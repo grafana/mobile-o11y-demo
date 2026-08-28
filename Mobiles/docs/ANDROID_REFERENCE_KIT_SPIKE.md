@@ -39,12 +39,17 @@ The spike owns only startup configuration that is specific to the Grafana distri
 
 It delegates initialization and instrumentation discovery to the upstream Android SDK and returns
 `OpenTelemetryRum`. It does not define Grafana tracer, logger, span, or meter APIs. The optional
-configuration callback exposes the upstream DSL for settings not represented by the Reference Kit.
-Its upstream `resource {}` method replaces the full resource action in 1.5.1; additive custom
-resource attributes belong in `GrafanaOtelConfiguration.resourceAttributes` instead.
+configuration callback exposes selected upstream settings and instrumentations through a Grafana
+scope. Its `resource {}` actions are additive, and required Grafana service attributes are applied
+last.
 
 The app still owns application-specific behavior, including its temporary crash-flush workaround,
-native crash replay, runtime config UI, and business instrumentation.
+native crash replay, runtime config UI, business instrumentation, and automatic OkHttp
+instrumentation. The connected HTTP trace below proves those app-owned spans remain connected
+through the Reference Kit; the package does not install the Byte Buddy plugin or OkHttp agent.
+
+Faro OTLP ingest currently accepts logs and traces only. The spike therefore disables upstream
+periodic metric export rather than repeatedly sending unsupported requests.
 
 ## Add and remove
 
@@ -61,9 +66,12 @@ To remove the Reference Kit:
    module.
 4. Remove the now-unused Android library plugin alias and `opentelemetry-android-core` test-library
    alias from the root build and version catalog.
-5. From `Mobiles/android`, run `./gradlew :app:dependencies --write-locks` to regenerate the
-   remaining dependency and buildscript locks.
+5. From `Mobiles/android`, run `./gradlew --write-locks :app:dependencies` to refresh the remaining
+   app and buildscript locks.
 6. Leave application tracer, logger, context propagation, and instrumentation calls unchanged.
+
+While the local module exists, refresh both dependency lockfiles with
+`./gradlew --write-locks :app:dependencies :grafana-otel-reference-kit:dependencies`.
 
 This spike verifies the source boundary, but the removal path still needs an automated build or
 fixture before the portability gate can be marked complete.
@@ -140,13 +148,18 @@ The product-path query used for those checks was:
 
 ```bash
 curl -fsS -G http://localhost:3100/loki/api/v1/query_range \
-  --data-urlencode 'query={service_name="QuickPizza_Android_PR110_20260828"}' \
+  --data-urlencode 'query={service_name="<FARO_APP_NAME>"}' \
   --data-urlencode 'since=1h' \
   --data-urlencode 'limit=5000' \
   --data-urlencode 'direction=forward' \
   | jq -r '.data.result[].values[][1]' \
   | rg 'event_name=(session_start|app\.screen\.view|view_changed|faro\.tracing\.fetch)|type=app_startup'
 ```
+
+`<FARO_APP_NAME>` is the name of the locally registered Faro application. For this run it was
+`QuickPizza_Android_PR110_20260828`; the Android resource still set `service.name` to
+`quickpizza-android`. Faro translation uses the registered application identity for the product
+label, which is why the Loki and Tempo output below shows the local registration name.
 
 Tempo trace `96463f9ae47807b4456fd529ebd80c9b` proved the connected HTTP path. The
 Android `GET` client span was `b03d415ad8e262b9`; the QuickPizza `GET /api/quotes` server span was
@@ -173,24 +186,142 @@ quickpizza                         GET /api/quotes  SPAN_KIND_SERVER  UCOKQE2v3Y
 quickpizza                         SELECT           SPAN_KIND_CLIENT  BfrFBqbo/QQ=  UCOKQE2v3Yg=
 ```
 
-The Faro OTLP endpoint returned `400` for periodic OTLP metrics because that route currently
-supports logs and traces only. The required Android Mobile O11y paths above are produced from logs
-and traces, so this did not block these runtime gates. A production package still needs an explicit
-metrics policy: disable metric export when using Faro OTLP ingest, or route metrics to an endpoint
-that supports them.
+During this run, the Faro OTLP endpoint returned `400` for periodic OTLP metrics because that route
+supports logs and traces only. The current spike now disables metric export. A production package
+must add explicit per-signal routing before it can send metrics to another endpoint.
+
+### Minified release runtime result
+
+On August 28, 2026, the current PR working tree based on commit
+`f55efa561b863e006a08964d882a60947f57bab7` was installed with `:app:installRelease` on the
+`quickpizza_pixel_35` Android 15 API 35 ARM64 emulator. The app used
+`http://10.0.2.2:8001/otlp/release-smoke`, cold-started successfully, remained alive, and exercised
+the **Pizza, Please!** action before being backgrounded and foregrounded.
+
+This run used a separate host-side HTTP recorder, not Faro Collector, to isolate the minified OTLP
+export path. The recorder verifies request paths and non-empty bodies; it does not decode or validate
+the protobuf payloads.
+
+```bash
+python3 -u - <<'PY'
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+
+class Recorder(BaseHTTPRequestHandler):
+    def do_POST(self):
+        body = b""
+        if self.headers.get("Transfer-Encoding", "").lower() == "chunked":
+            while True:
+                size = int(self.rfile.readline().split(b";", 1)[0].strip(), 16)
+                if size == 0:
+                    self.rfile.readline()
+                    break
+                body += self.rfile.read(size)
+                self.rfile.read(2)
+        else:
+            body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
+
+        print(
+            f"POST {self.path} bytes={len(body)} "
+            f"encoding={self.headers.get('Content-Encoding')} "
+            f"transfer={self.headers.get('Transfer-Encoding')}",
+            flush=True,
+        )
+        self.send_response(200)
+        self.send_header("Content-Type", "application/x-protobuf")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def log_message(self, *_):
+        pass
+
+
+HTTPServer(("0.0.0.0", 8001), Recorder).serve_forever()
+PY
+```
+
+```bash
+cd Mobiles/android
+./gradlew :app:installRelease
+adb logcat -c
+adb shell am force-stop com.grafana.quickpizza.android
+adb shell am start -W \
+  -n com.grafana.quickpizza.android/com.grafana.quickpizza.MainActivity
+```
+
+The host recorder received non-empty, gzip-compressed OTLP payloads from the minified build:
+
+```text
+POST /otlp/release-smoke/v1/traces bytes=1722 encoding=gzip transfer=chunked
+POST /otlp/release-smoke/v1/traces bytes=1729 encoding=gzip transfer=chunked
+POST /otlp/release-smoke/v1/logs bytes=845 encoding=gzip transfer=chunked
+POST /otlp/release-smoke/v1/logs bytes=1147 encoding=gzip transfer=chunked
+```
+
+The release APK inspection resolved the R8 names from the generated mapping instead of hard-coding
+one build's obfuscated names:
+
+```bash
+APK=app/build/outputs/apk/release/app-release.apk
+MAP=app/build/outputs/mapping/release/mapping.txt
+INSTRUMENTATION_SERVICE=$(
+  sed -n 's/^io\.opentelemetry\.android\.instrumentation\.AndroidInstrumentation -> \(.*\):$/\1/p' "$MAP"
+)
+OKHTTP_PROVIDER=$(
+  sed -n 's/^io\.opentelemetry\.exporter\.sender\.okhttp\.internal\.OkHttpHttpSenderProvider -> \(.*\):$/\1/p' "$MAP"
+)
+
+if [ -z "$INSTRUMENTATION_SERVICE" ]; then
+  echo "AndroidInstrumentation is missing from the R8 mapping" >&2
+  exit 1
+fi
+if [ -z "$OKHTTP_PROVIDER" ]; then
+  echo "OkHttpHttpSenderProvider is missing from the R8 mapping" >&2
+  exit 1
+fi
+
+unzip -p "$APK" "META-INF/services/$INSTRUMENTATION_SERVICE" | wc -l
+HTTP_SENDER_FOUND=false
+while IFS= read -r service; do
+  if unzip -p "$APK" "$service" | grep -Fxq "$OKHTTP_PROVIDER"; then
+    printf '%s -> %s\n' "$service" "$OKHTTP_PROVIDER"
+    HTTP_SENDER_FOUND=true
+  fi
+done < <(zipinfo -1 "$APK" | grep '^META-INF/services/')
+if [ "$HTTP_SENDER_FOUND" != true ]; then
+  echo "OkHttpHttpSenderProvider is missing from release service descriptors" >&2
+  exit 1
+fi
+```
+
+The first command returned `10`, covering every Android instrumentation provider, including OkHttp.
+The second found the R8-rewritten OkHttp OTLP HTTP sender in a service descriptor. The release APK
+contains six service descriptors rather than debug's eleven. Four omitted descriptors belong to the
+SDK autoconfigure SPI, which the Android agent does not use because it builds exporters
+programmatically; the fifth is the unused gRPC sender. Together with the live log and trace requests
+above, this shows that the required runtime providers remained reachable after R8 minification.
 
 ## Validation status
 
 - [x] The module compiles as an Android AAR and is consumed by the runnable demo app.
 - [x] Configuration validation has focused unit coverage.
-- [x] Reference Kit defaults and upstream override precedence have focused mapping coverage.
+- [x] Reference Kit defaults, additive resources, metrics policy, and upstream override precedence
+  have focused mapping coverage that runs in CI.
 - [x] Kotlin and Java callers have a source-level startup path.
 - [x] The package returns upstream OTel runtime and API types.
 - [x] Existing application instrumentation compiles without changes.
 - [x] The demo cold-starts through the module on API 23 and Android 15 ARM64 emulators.
 - [x] Run the app against Faro Collector and verify required Mobile O11y signals.
-- [x] Verify a mobile HTTP span remains connected to the QuickPizza backend trace.
+- [x] Verify an app-instrumented mobile HTTP span remains connected to the QuickPizza backend trace.
+- [x] Build and run a minified release without a blanket OpenTelemetry keep rule, preserve the
+  R8-rewritten instrumentation ServiceLoader entries, and observe OTLP log and trace exports.
 - [ ] Automate the add/remove build using a supported non-Grafana provider.
 - [ ] Agree on the production repository, Maven coordinate, release owner, and support window.
+- [ ] Choose and enforce the supported upstream dependency range before publication.
+- [ ] Validate a published AAR from a separate Java-only consumer with release minification; a
+  same-build project dependency does not exercise Maven metadata or the final public ABI.
+- [ ] Decide whether production initialization should rebase on the upstream builder to expose
+  provider/exporter hooks without reflection.
+- [ ] Add an observable export-health path before production use.
 - [ ] Add binary API compatibility validation before publishing a versioned AAR.
 - [ ] Document the final public setup, migration, removal, and limitations after runtime validation.

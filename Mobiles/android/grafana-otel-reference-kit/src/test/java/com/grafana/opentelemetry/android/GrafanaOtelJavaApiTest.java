@@ -2,15 +2,14 @@ package com.grafana.opentelemetry.android;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
-import android.app.Application;
-import io.opentelemetry.android.OpenTelemetryRum;
 import io.opentelemetry.api.common.Attributes;
+import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.function.BiFunction;
 import org.junit.Test;
 
 public class GrafanaOtelJavaApiTest {
@@ -21,9 +20,19 @@ public class GrafanaOtelJavaApiTest {
 
         assertEquals("app", configuration.getServiceName());
 
-        BiFunction<Application, GrafanaOtelConfiguration, OpenTelemetryRum> initialize =
-                GrafanaOtelReferenceKit::initialize;
-        assertNotNull(initialize);
+        Method[] initializeMethods =
+                Arrays.stream(GrafanaOtelReferenceKit.class.getDeclaredMethods())
+                        .filter(method -> method.getName().equals("initialize"))
+                        .toArray(Method[]::new);
+        assertEquals(2, initializeMethods.length);
+        assertEquals(
+                1,
+                Arrays.stream(initializeMethods)
+                        .filter(method -> !method.isSynthetic())
+                        .count());
+        assertTrue(
+                Arrays.stream(initializeMethods)
+                        .anyMatch(method -> method.isSynthetic() && method.getParameterCount() == 3));
 
         Map<String, String> headers = new LinkedHashMap<>();
         headers.put("Authorization", "Bearer token");

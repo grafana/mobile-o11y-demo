@@ -17,6 +17,8 @@ OpenTelemetry APIs.
   `com.android.tools:desugar_jdk_libs` (the demo uses `2.1.4`).
 - With Android Gradle Plugin 8.3 or newer, set
   `android.useFullClasspathForDexingTransform=true` in `gradle.properties`.
+- Automatic OkHttp spans remain application-owned. The QuickPizza app applies the Byte Buddy plugin
+  and the upstream `okhttp3-agent`; the Reference Kit does not add them.
 
 ```kotlin
 val rum = GrafanaOtelReferenceKit.initialize(
@@ -31,24 +33,43 @@ val rum = GrafanaOtelReferenceKit.initialize(
 val tracer = rum.openTelemetry.getTracer("com.example.app")
 ```
 
-Initialization is process-wide. The first call creates the runtime; later calls return that same
-instance rather than installing a second set of exporters and instrumentations. If startup fails,
-the Reference Kit does not retry in that process because upstream setup may already have registered
-lifecycle listeners. Restart the process after correcting the configuration.
+Call `initialize` from `Application.onCreate` on the main thread. Initialization is process-wide.
+The first call creates the runtime; later calls return that same instance rather than installing a
+second set of exporters and instrumentations. If startup fails, the Reference Kit does not retry in
+that process because upstream setup may already have registered lifecycle listeners. Restart the
+process after correcting the configuration.
 
 Treat the returned `OpenTelemetryRum` as process-lifetime. If the application calls its
 `shutdown()` method, restart the process before initializing telemetry again.
 
-The optional Kotlin-only `configureUpstream` block is applied last. It provides direct access to
-the upstream Android configuration DSL when an application needs an instrumentation or SDK option
-that the Reference Kit does not model. The Kotlin compiler requires opt-in to
+The optional Kotlin-only `configureUpstream` block is applied after the Reference Kit defaults. It
+exposes selected upstream instrumentation and SDK settings through
+`GrafanaOtelUpstreamConfiguration`. Resource actions in that block are additive, and the configured
+Grafana service attributes are applied last. The Kotlin compiler requires opt-in to
 `ExperimentalGrafanaOtelApi` because the block follows an unstable upstream surface. Java callers
 use the stable two-argument `initialize` method.
 
-Use `GrafanaOtelConfiguration.resourceAttributes` to add resource attributes. In upstream 1.5.1,
-calling `resource {}` from `configureUpstream` replaces the complete resource action rather than
-merging with it, so callers that use that escape hatch must also restate `service.name` and any
-other required resource attributes.
+Faro OTLP ingest currently accepts logs and traces, so this spike disables the upstream periodic
+metric exporter after applying `configureUpstream`. Configuring a metrics endpoint in that block has
+no effect. A production package needs explicit per-signal routing before it can support metrics
+through another endpoint.
+
+## Configuration defaults
+
+| Setting | Default |
+| --- | --- |
+| `headers` | Empty |
+| `serviceNamespace` / `serviceVersion` | Not set |
+| `resourceAttributes` | Empty |
+| `diskBufferingEnabled` | `true` |
+| `useLatestExperimentalSemanticConventions` | `false` |
+| `sessionBackgroundInactivityTimeout` | 15 minutes |
+| `sessionMaxLifetime` | 4 hours |
+
+`otlpEndpoint` and `serviceName` are required. The endpoint must begin with lowercase `http://` or
+`https://` and must not contain a query string or fragment. HTTP remains useful for emulator loopback
+tests, while production endpoints should use HTTPS. Header names must use visible ASCII characters,
+and header values may use tabs or visible ASCII characters.
 
 The spike exposes Java-callable configuration and a stable startup method. A binary API
 compatibility check is still required before the module is extracted and published as a versioned

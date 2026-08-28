@@ -1,7 +1,6 @@
 # Add project specific ProGuard rules here.
-# Keep OpenTelemetry classes
--keep class io.opentelemetry.** { *; }
--dontwarn io.opentelemetry.**
+# OpenTelemetry's shared Java instrumentation references a compile-time muzzle marker.
+-dontwarn io.opentelemetry.javaagent.tooling.muzzle.NoMuzzle
 
 # NDK SIGSEGV demo trigger (Debug tab)
 -keep class com.grafana.quickpizza.features.debug.NdkCrashTrigger { *; }

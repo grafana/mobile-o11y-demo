@@ -1,6 +1,5 @@
 package com.grafana.opentelemetry.android
 
-import io.opentelemetry.android.Incubating
 import io.opentelemetry.android.agent.dsl.DiskBufferingConfigurationSpec
 import io.opentelemetry.android.agent.dsl.HttpExportConfiguration
 import io.opentelemetry.android.agent.dsl.OpenTelemetryConfiguration
@@ -17,13 +16,12 @@ import java.lang.reflect.Proxy
 import java.time.Duration
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
 
-@OptIn(Incubating::class)
+@OptIn(ExperimentalGrafanaOtelApi::class)
 class GrafanaOtelReferenceKitConfigurationTest {
     @Test
     fun `maps every Reference Kit setting to the upstream configuration`() {
@@ -53,7 +51,8 @@ class GrafanaOtelReferenceKitConfigurationTest {
         val export = harness.configuration.field<HttpExportConfiguration>("exportConfig")
         assertEquals(settings.otlpEndpoint, export.baseUrl)
         assertEquals(settings.headers, export.baseHeaders)
-        assertFalse(harness.diskBuffering.field<Boolean>("enabled"))
+        assertFalse(harness.rumConfig.getDiskBufferingConfig().enabled)
+        assertFalse(harness.rumConfig.metricsEnabled)
 
         val semanticConventions =
             harness.configuration.field<SemanticConventionsConfiguration>("semanticConventions")
@@ -96,7 +95,7 @@ class GrafanaOtelReferenceKitConfigurationTest {
     }
 
     @Test
-    fun `documents that an upstream resource block replaces the Reference Kit resource block`() {
+    fun `keeps upstream resource attributes without losing required service attributes`() {
         val customKey = AttributeKey.stringKey("custom.resource")
         val settings =
             GrafanaOtelConfiguration(
@@ -106,7 +105,10 @@ class GrafanaOtelReferenceKitConfigurationTest {
         val harness = newUpstreamConfiguration()
 
         harness.configuration.applyReferenceKitConfiguration(settings) {
-            resource { put(customKey, "replacement") }
+            resource {
+                put(customKey, "additional")
+                put(AttributeKey.stringKey("service.name"), "attempted-override")
+            }
         }
 
         val resourceBuilder = Resource.builder()
@@ -114,8 +116,43 @@ class GrafanaOtelReferenceKitConfigurationTest {
             .field<(ResourceBuilder) -> Unit>("resourceAction")
             .invoke(resourceBuilder)
         val resource = resourceBuilder.build()
-        assertNull(resource.getAttribute(AttributeKey.stringKey("service.name")))
-        assertEquals("replacement", resource.getAttribute(customKey))
+        assertEquals(
+            "quickpizza-android",
+            resource.getAttribute(AttributeKey.stringKey("service.name")),
+        )
+        assertEquals("additional", resource.getAttribute(customKey))
+    }
+
+    @Test
+    fun `keeps metrics disabled when the escape hatch configures a metrics endpoint`() {
+        val harness = newUpstreamConfiguration()
+
+        harness.configuration.applyReferenceKitConfiguration(
+            GrafanaOtelConfiguration(
+                otlpEndpoint = "https://collector.example.test/otlp/app-key",
+                serviceName = "quickpizza-android",
+            ),
+        ) {
+            httpExport {
+                metrics { url = "https://metrics.example.test/otlp" }
+            }
+        }
+
+        assertFalse(harness.rumConfig.metricsEnabled)
+    }
+
+    @Test
+    fun `enables disk buffering by default`() {
+        val harness = newUpstreamConfiguration()
+
+        harness.configuration.applyReferenceKitConfiguration(
+            GrafanaOtelConfiguration(
+                otlpEndpoint = "https://collector.example.test/otlp/app-key",
+                serviceName = "quickpizza-android",
+            ),
+        )
+
+        assertTrue(harness.rumConfig.getDiskBufferingConfig().enabled)
     }
 
     private fun newUpstreamConfiguration(): UpstreamConfigurationHarness {
@@ -146,7 +183,7 @@ class GrafanaOtelReferenceKitConfigurationTest {
                 ).apply { isAccessible = true }
                 .newInstance(rumConfig, diskBuffering, Clock.getDefault(), instrumentationLoader)
 
-        return UpstreamConfigurationHarness(configuration, diskBuffering)
+        return UpstreamConfigurationHarness(configuration, rumConfig)
     }
 
     private inline fun <reified T> Any.field(name: String): T =
@@ -158,6 +195,6 @@ class GrafanaOtelReferenceKitConfigurationTest {
 
     private data class UpstreamConfigurationHarness(
         val configuration: OpenTelemetryConfiguration,
-        val diskBuffering: DiskBufferingConfigurationSpec,
+        val rumConfig: OtelRumConfig,
     )
 }

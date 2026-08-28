@@ -21,6 +21,26 @@ class GrafanaOtelConfigurationTest {
         assertThrows(IllegalArgumentException::class.java) {
             validConfiguration(otlpEndpoint = " ")
         }
+        assertThrows(IllegalArgumentException::class.java) {
+            validConfiguration(otlpEndpoint = "collector.example.test/otlp/app-key")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            validConfiguration(otlpEndpoint = "ftp://collector.example.test/otlp/app-key")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            validConfiguration(otlpEndpoint = "HTTPS://collector.example.test/otlp/app-key")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            validConfiguration(otlpEndpoint = "https://collector.example.test/otlp?tenant=1")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            validConfiguration(otlpEndpoint = "https://collector.example.test/otlp#fragment")
+        }
+
+        assertEquals(
+            "http://10.0.2.2:8001/otlp/app-key",
+            validConfiguration(otlpEndpoint = "http://10.0.2.2:8001/otlp/app-key").otlpEndpoint,
+        )
     }
 
     @Test
@@ -55,6 +75,28 @@ class GrafanaOtelConfigurationTest {
         assertThrows(IllegalArgumentException::class.java) {
             validConfiguration(headers = mapOf(" " to "value"))
         }
+    }
+
+    @Test
+    fun `rejects headers that the HTTP exporter cannot send`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            validConfiguration(headers = mapOf("Authorization\nInjected" to "value"))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            validConfiguration(headers = mapOf("Authorization" to "Bearer token\r\nInjected: true"))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            validConfiguration(headers = mapOf("X Scope OrgID" to "tenant"))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            validConfiguration(headers = mapOf("X-Scope-OrgID" to "tenant\u2014one"))
+        }
+
+        assertEquals(
+            "tenant\tone",
+            validConfiguration(headers = mapOf("X-Scope-OrgID" to "tenant\tone"))
+                .headers["X-Scope-OrgID"],
+        )
     }
 
     private fun validConfiguration(
