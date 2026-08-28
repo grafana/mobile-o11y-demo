@@ -40,6 +40,21 @@ through the Reference Kit; the package does not install the Byte Buddy plugin or
 Faro OTLP ingest currently accepts logs and traces only. The spike therefore disables upstream
 periodic metric export rather than repeatedly sending unsupported requests.
 
+### Instrumentation modules
+
+A new instrumentation remains a separate Android AAR that implements the upstream
+`AndroidInstrumentation` interface and registers itself for `ServiceLoader` discovery. Generic
+instrumentation should be contributed upstream. A Grafana-specific module can be published
+separately and either included as a Reference Kit dependency when it is part of the default product
+experience or added directly by an application when it is optional. In both cases, the upstream
+agent discovers and installs it while application telemetry continues to use standard OTel APIs.
+
+With the upstream version pinned by this spike, arbitrary instrumentation can be suppressed by its
+canonical name, but the configuration DSL has no generic type-safe hook for configuring a
+third-party module. A configurable Grafana instrumentation therefore needs explicit Reference Kit
+configuration forwarding or a suitable upstream extension point before publication. This spike
+does not add an empty instrumentation module solely to reserve that boundary.
+
 ## Add and remove
 
 The demo adds the local AAR module as a dependency and replaces its direct
