@@ -27,6 +27,8 @@ object NativeExitCrashReporter {
     private const val PREFS_NAME = "com.grafana.quickpizza.native_exit_crash_reporter"
     private const val KEY_LAST_PROCESSED_TIMESTAMP = "last_processed_timestamp"
     private const val CRASH_INSTRUMENTATION_SCOPE = "io.opentelemetry.crash"
+    // Coupled to `semanticConventions { useLatestExperimental = false }` in OTelService — lifting
+    // that pin renames the SDK's own crash event to `app.crash`, and this must follow.
     private const val DEVICE_CRASH_EVENT_NAME = "device.crash"
     private const val FLUSH_TIMEOUT_MS = 10_000L
     /** Grace before [PackageManager.getPackageInfo] lastUpdateTime when filtering stale exits. */
