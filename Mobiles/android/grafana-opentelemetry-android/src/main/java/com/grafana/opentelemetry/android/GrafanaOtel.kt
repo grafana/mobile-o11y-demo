@@ -16,7 +16,7 @@ import io.opentelemetry.sdk.resources.ResourceBuilder
 import kotlin.time.toKotlinDuration
 
 /**
- * Marks Reference Kit APIs that expose an unstable upstream OpenTelemetry Android surface.
+ * Marks Grafana OpenTelemetry Android APIs that expose an unstable upstream configuration surface.
  */
 @RequiresOptIn(
     message = "This API exposes an incubating upstream OpenTelemetry Android configuration surface.",
@@ -34,7 +34,7 @@ annotation class ExperimentalGrafanaOtelApi
  * Applies Grafana's Android defaults while preserving the upstream OpenTelemetry API and SDK.
  */
 @OptIn(ExperimentalGrafanaOtelApi::class)
-object GrafanaOtelReferenceKit {
+object GrafanaOtel {
     private val initialization = SingleInitialization<OpenTelemetryRum>()
 
     /**
@@ -57,7 +57,7 @@ object GrafanaOtelReferenceKit {
     /**
      * Initializes the upstream Android RUM SDK with access to its incubating configuration DSL.
      *
-     * [configureUpstream] runs after the Reference Kit defaults. It exposes selected upstream SDK
+     * [configureUpstream] runs after the Grafana defaults. It exposes selected upstream SDK
      * settings and makes resource customization additive so required Grafana attributes remain.
      * Metrics remain disabled after this callback because Faro OTLP ingest accepts logs and traces
      * only; configuring a metrics endpoint in [configureUpstream] has no effect in this spike.
@@ -82,14 +82,14 @@ object GrafanaOtelReferenceKit {
     ): OpenTelemetryRum =
         initialization.getOrInitialize {
             OpenTelemetryRumInitializer.initialize(application) {
-                applyReferenceKitConfiguration(configuration, configureUpstream)
+                applyGrafanaOtelConfiguration(configuration, configureUpstream)
             }
         }
 }
 
 @OptIn(ExperimentalGrafanaOtelApi::class)
 @JvmSynthetic
-internal fun OpenTelemetryConfiguration.applyReferenceKitConfiguration(
+internal fun OpenTelemetryConfiguration.applyGrafanaOtelConfiguration(
     configuration: GrafanaOtelConfiguration,
     configureUpstream: GrafanaOtelUpstreamConfiguration.() -> Unit = {},
 ) {

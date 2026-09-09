@@ -10,7 +10,7 @@ import java.util.LinkedHashMap
  * Grafana-owned setup values layered on top of the upstream OpenTelemetry Android SDK.
  *
  * This configures SDK startup only. Applications continue to create telemetry through the
- * standard OpenTelemetry API returned by [GrafanaOtelReferenceKit.initialize].
+ * standard OpenTelemetry API returned by [GrafanaOtel.initialize].
  */
 class GrafanaOtelConfiguration @JvmOverloads constructor(
     val otlpEndpoint: String,

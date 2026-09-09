@@ -2,8 +2,8 @@ package com.grafana.quickpizza.core.o11y
 
 import android.app.Application
 import android.util.Log
+import com.grafana.opentelemetry.android.GrafanaOtel
 import com.grafana.opentelemetry.android.GrafanaOtelConfiguration
-import com.grafana.opentelemetry.android.GrafanaOtelReferenceKit
 import com.grafana.quickpizza.core.config.AppConfig
 import com.grafana.quickpizza.core.config.RuntimeConfigHolder
 import com.grafana.quickpizza.nativecrash.NativeExitCrashReporter
@@ -51,7 +51,7 @@ class OTelService @Inject constructor(
         val osHandler = Thread.getDefaultUncaughtExceptionHandler()
 
         rum = runCatching {
-            GrafanaOtelReferenceKit.initialize(
+            GrafanaOtel.initialize(
                 application = application,
                 configuration = GrafanaOtelConfiguration(
                     otlpEndpoint = endpoint,

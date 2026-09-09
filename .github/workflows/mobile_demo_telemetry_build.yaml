@@ -204,9 +204,9 @@ jobs:
           EOF
           echo "Created placeholder config.json for build check"
 
-      - name: Test Android Reference Kit
+      - name: Test Grafana OpenTelemetry Android
         working-directory: Mobiles/android
-        run: ./gradlew :grafana-otel-reference-kit:testDebugUnitTest
+        run: ./gradlew :grafana-opentelemetry-android:testDebugUnitTest
 
       - name: Build Android APK (debug)
         working-directory: Mobiles/android

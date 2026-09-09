@@ -211,7 +211,7 @@ does). The full set (device, network, nav, and
 session attributes) is inventoried in
 [`MOBILE_OBSERVABILITY_OVERVIEW.md § Android native`](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md#android-native-opentelemetry-android).
 
-`OTelService` delegates startup to the local Reference Kit spike, which uses
+`OTelService` delegates startup to the local Grafana OpenTelemetry Android library, which uses
 `OpenTelemetryRumInitializer` to wire up:
 
 - Auto OkHttp tracing via the `Call.Factory` wrapper.
@@ -225,10 +225,10 @@ every signal.
 - Disk buffering of OTLP exports for offline resilience (toggle off via
   the Debug screen).
 
-The current [Android Reference Kit spike](grafana-otel-reference-kit/README.md) moves those shared
-startup defaults into a local library while returning the upstream OTel runtime. The package
+The current [Grafana OpenTelemetry Android spike](grafana-opentelemetry-android/README.md) moves
+those shared startup defaults into a local library while returning the upstream OTel runtime. The package
 placement and remaining validation are recorded in
-[ANDROID_REFERENCE_KIT_SPIKE.md](../docs/ANDROID_REFERENCE_KIT_SPIKE.md).
+[GRAFANA_OPENTELEMETRY_ANDROID.md](../docs/GRAFANA_OPENTELEMETRY_ANDROID.md).
 
 Where to view the data on the demo stack:
 

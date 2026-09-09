@@ -21,7 +21,7 @@ public class GrafanaOtelJavaApiTest {
         assertEquals("app", configuration.getServiceName());
 
         Method[] initializeMethods =
-                Arrays.stream(GrafanaOtelReferenceKit.class.getDeclaredMethods())
+                Arrays.stream(GrafanaOtel.class.getDeclaredMethods())
                         .filter(method -> method.getName().equals("initialize"))
                         .toArray(Method[]::new);
         assertEquals(2, initializeMethods.length);

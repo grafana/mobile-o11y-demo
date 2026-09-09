@@ -1,7 +1,8 @@
-# Grafana OTel Reference Kit for Android (spike)
+# Grafana OpenTelemetry Android
 
-This local Android library tests a proposed Grafana OTel Reference Kit package boundary. It is not
-published and is not yet a supported SDK.
+This local Android library is the Grafana OpenTelemetry Android composition spike. It is not
+published and is not yet a supported SDK. QuickPizza consumes it as a project dependency while the
+separate repository and publishing setup are agreed.
 
 The module owns Grafana-oriented startup defaults and delegates all SDK behavior to
 [`opentelemetry-android`](https://github.com/open-telemetry/opentelemetry-android). It returns the
@@ -17,10 +18,10 @@ OpenTelemetry APIs.
 - With Android Gradle Plugin 8.3 or newer, set
   `android.useFullClasspathForDexingTransform=true` in `gradle.properties`.
 - Automatic OkHttp spans remain application-owned. The QuickPizza app applies the Byte Buddy plugin
-  and the upstream `okhttp3-agent`; the Reference Kit does not add them.
+  and the upstream `okhttp3-agent`; this library does not add them.
 
 ```kotlin
-val rum = GrafanaOtelReferenceKit.initialize(
+val rum = GrafanaOtel.initialize(
     application = this,
     configuration = GrafanaOtelConfiguration(
         otlpEndpoint = "https://collector.example/otlp/app-key",
@@ -34,14 +35,14 @@ val tracer = rum.openTelemetry.getTracer("com.example.app")
 
 Call `initialize` from `Application.onCreate` on the main thread. Initialization is process-wide.
 The first call creates the runtime; later calls return that same instance rather than installing a
-second set of exporters and instrumentations. If startup fails, the Reference Kit does not retry in
+second set of exporters and instrumentations. If startup fails, the library does not retry in
 that process because upstream setup may already have registered lifecycle listeners. Restart the
 process after correcting the configuration.
 
 Treat the returned `OpenTelemetryRum` as process-lifetime. If the application calls its
 `shutdown()` method, restart the process before initializing telemetry again.
 
-The optional Kotlin-only `configureUpstream` block is applied after the Reference Kit defaults. It
+The optional Kotlin-only `configureUpstream` block is applied after the Grafana defaults. It
 exposes selected upstream instrumentation and SDK settings through
 `GrafanaOtelUpstreamConfiguration`. Resource actions in that block are additive, and the configured
 Grafana service attributes are applied last. The Kotlin compiler requires opt-in to
@@ -74,5 +75,5 @@ The spike exposes Java-callable configuration and a stable startup method. A bin
 compatibility check is still required before the module is extracted and published as a versioned
 AAR.
 
-See [the spike decision and validation note](../../docs/ANDROID_REFERENCE_KIT_SPIKE.md) for the
+See [the spike decision and validation note](../../docs/GRAFANA_OPENTELEMETRY_ANDROID.md) for the
 proposed production location, package boundary, migration, removal, and remaining gates.

@@ -120,7 +120,7 @@ dependencies {
 
     // OpenTelemetry Android
     implementation(platform(libs.opentelemetry.android.bom))
-    implementation(project(":grafana-otel-reference-kit"))
+    implementation(project(":grafana-opentelemetry-android"))
     implementation(libs.opentelemetry.sdk)
     implementation(libs.opentelemetry.extension.kotlin)
     implementation(libs.opentelemetry.android.okhttp3.library)

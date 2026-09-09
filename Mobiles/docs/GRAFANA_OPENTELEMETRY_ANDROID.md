@@ -1,10 +1,10 @@
-# Android OTel Reference Kit Spike
+# Grafana OpenTelemetry Android
 
 **Status:** Experimental local module. It is not published or supported for production use.
 
 ## Placement decision
 
-The runnable spike lives in `Mobiles/android/grafana-otel-reference-kit` and is consumed by the
+The runnable spike lives in `Mobiles/android/grafana-opentelemetry-android` and is consumed by the
 existing QuickPizza Android app. This gives the package a real application and build without
 creating an empty repository or treating the demo repository as its permanent home.
 
@@ -15,6 +15,15 @@ symbol upload remains in
 [`faro-android-gradle-plugin`](https://github.com/grafana/faro-android-gradle-plugin). The final
 Grafana-owned runtime location, Maven coordinate, release ownership, automation, and supported
 upstream version window require agreement before the module is extracted or published.
+
+The agreed name is **Grafana OpenTelemetry Android**, with `GrafanaOtel.initialize(...)` as the
+startup entrypoint. The local module name is not a published Maven coordinate. Once repository and
+publishing access are approved, the library can move to its own repository and QuickPizza can
+consume the published AAR instead of a project dependency.
+
+The spike still uses OTel Android `1.5.1` with its matching `1.5.1-alpha` BOM. The
+[1.7.0 upgrade](https://github.com/grafana/mobile-o11y-demo/pull/112) is a separate change. Once it
+lands, bring it into this spike and rerun the runtime and minified-release checks before merging.
 
 ## Package boundary
 
@@ -35,7 +44,7 @@ last.
 The app still owns application-specific behavior, including its temporary crash-flush workaround,
 native crash replay, runtime config UI, business instrumentation, and automatic OkHttp
 instrumentation. The connected HTTP trace below proves those app-owned spans remain connected
-through the Reference Kit; the package does not install the Byte Buddy plugin or OkHttp agent.
+through this library; the package does not install the Byte Buddy plugin or OkHttp agent.
 
 Faro OTLP ingest currently accepts logs and traces only. The spike therefore disables upstream
 periodic metric export rather than repeatedly sending unsupported requests.
@@ -45,28 +54,28 @@ periodic metric export rather than repeatedly sending unsupported requests.
 A new instrumentation remains a separate Android AAR that implements the upstream
 `AndroidInstrumentation` interface and registers itself for `ServiceLoader` discovery. Generic
 instrumentation should be contributed upstream. A Grafana-specific module can be published
-separately and either included as a Reference Kit dependency when it is part of the default product
+separately and either included as a library dependency when it is part of the default product
 experience or added directly by an application when it is optional. In both cases, the upstream
 agent discovers and installs it while application telemetry continues to use standard OTel APIs.
 
 With the upstream version pinned by this spike, arbitrary instrumentation can be suppressed by its
 canonical name, but the configuration DSL has no generic type-safe hook for configuring a
-third-party module. A configurable Grafana instrumentation therefore needs explicit Reference Kit
+third-party module. A configurable Grafana instrumentation therefore needs explicit Grafana
 configuration forwarding or a suitable upstream extension point before publication. This spike
 does not add an empty instrumentation module solely to reserve that boundary.
 
 ## Add and remove
 
 The demo adds the local AAR module as a dependency and replaces its direct
-`OpenTelemetryRumInitializer` block with `GrafanaOtelReferenceKit.initialize`. Existing application
+`OpenTelemetryRumInitializer` block with `GrafanaOtel.initialize`. Existing application
 instrumentation is unchanged and continues to receive `io.opentelemetry.api.OpenTelemetry`.
 
-To remove the Reference Kit:
+To remove Grafana OpenTelemetry Android:
 
 1. Replace the module dependency with the upstream `android-agent` dependency.
-2. Replace the Reference Kit startup call with `OpenTelemetryRumInitializer.initialize` and the
+2. Replace the `GrafanaOtel.initialize` call with `OpenTelemetryRumInitializer.initialize` and the
    desired non-Grafana exporter configuration.
-3. Remove `include(":grafana-otel-reference-kit")` from `settings.gradle.kts`, then delete the local
+3. Remove `include(":grafana-opentelemetry-android")` from `settings.gradle.kts`, then delete the local
    module.
 4. Remove the now-unused Android library plugin alias and `opentelemetry-android-core` test-library
    alias from the root build and version catalog.
@@ -75,7 +84,7 @@ To remove the Reference Kit:
 6. Leave application tracer, logger, context propagation, and instrumentation calls unchanged.
 
 While the local module exists, refresh both dependency lockfiles with
-`./gradlew --write-locks :app:dependencies :grafana-otel-reference-kit:dependencies`.
+`./gradlew --write-locks :app:dependencies :grafana-opentelemetry-android:dependencies`.
 
 This spike verifies the source boundary, but the removal path still needs an automated build or
 fixture before the portability gate can be marked complete.
@@ -84,7 +93,7 @@ fixture before the portability gate can be marked complete.
 
 ```bash
 cd Mobiles/android
-./gradlew :grafana-otel-reference-kit:testDebugUnitTest :app:assembleDebug
+./gradlew :grafana-opentelemetry-android:testDebugUnitTest :app:assembleDebug
 ./gradlew :app:installDebug
 adb logcat -c
 adb shell am force-stop com.grafana.quickpizza.android
@@ -101,7 +110,7 @@ The app reads its normal `app/src/main/res/raw/config.json`. See
 On August 27, 2026, the demo was installed and cold-started on the
 `otel_ci_api23_arm64` API 23 ARM64 and `quickpizza_pixel_35` Android 15 ARM64 emulators with a
 local OTLP endpoint. In both cases, the activity started, the app process remained alive, and
-`OTelService` reported initialization through the Reference Kit with disk buffering enabled. This
+`OTelService` reported initialization through the library with disk buffering enabled. This
 proves the packaged startup path; it does not prove that Faro Collector accepted telemetry.
 
 ### Faro Collector runtime result
@@ -243,9 +252,20 @@ above, this shows that the required runtime providers remained reachable after R
 
 ## Validation status
 
+The September 9 naming change passed 17 library tests, six app tests, library lint for debug and
+release, and both app builds. Debug and minified release cold-started on an Android 15 / API 35
+ARM64 emulator and sent non-empty log and trace requests to a local OTLP/HTTP recorder. This was a
+startup/export check, not a new Faro Collector or connected-backend validation. The release APK
+retained all 10 instrumentation providers and the OkHttp sender.
+
+The untouched `ae80c659` head reproduced the same seven app-lint errors, Kotlin metadata warnings,
+and minified crash-flush warning (`logs bridge is not an SDK instance`). These are not introduced by
+the rename. Crash-flush behavior and toolchain compatibility need another check after the
+[1.7.0 upgrade](https://github.com/grafana/mobile-o11y-demo/pull/112).
+
 - [x] The module compiles as an Android AAR and is consumed by the runnable demo app.
 - [x] Configuration validation has focused unit coverage.
-- [x] Reference Kit defaults, additive resources, metrics policy, and upstream override precedence
+- [x] Grafana defaults, additive resources, metrics policy, and upstream override precedence
   have focused mapping coverage that runs in CI.
 - [x] Kotlin and Java callers have a source-level startup path.
 - [x] The package returns upstream OTel runtime and API types.

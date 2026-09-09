@@ -22,9 +22,9 @@ import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalGrafanaOtelApi::class)
-class GrafanaOtelReferenceKitConfigurationTest {
+class GrafanaOtelDefaultsTest {
     @Test
-    fun `maps every Reference Kit setting to the upstream configuration`() {
+    fun `maps every Grafana setting to the upstream configuration`() {
         val customKey = AttributeKey.stringKey("deployment.environment.name")
         val serviceNameKey = AttributeKey.stringKey("service.name")
         val settings =
@@ -46,7 +46,7 @@ class GrafanaOtelReferenceKitConfigurationTest {
             )
         val harness = newUpstreamConfiguration()
 
-        harness.configuration.applyReferenceKitConfiguration(settings)
+        harness.configuration.applyGrafanaOtelConfiguration(settings)
 
         val export = harness.configuration.field<HttpExportConfiguration>("exportConfig")
         assertEquals(settings.otlpEndpoint, export.baseUrl)
@@ -83,7 +83,7 @@ class GrafanaOtelReferenceKitConfigurationTest {
             )
         val harness = newUpstreamConfiguration()
 
-        harness.configuration.applyReferenceKitConfiguration(settings) {
+        harness.configuration.applyGrafanaOtelConfiguration(settings) {
             httpExport { baseUrl = "https://override.example.test" }
             session { maxLifetime = 3.hours }
         }
@@ -104,7 +104,7 @@ class GrafanaOtelReferenceKitConfigurationTest {
             )
         val harness = newUpstreamConfiguration()
 
-        harness.configuration.applyReferenceKitConfiguration(settings) {
+        harness.configuration.applyGrafanaOtelConfiguration(settings) {
             resource {
                 put(customKey, "additional")
                 put(AttributeKey.stringKey("service.name"), "attempted-override")
@@ -127,7 +127,7 @@ class GrafanaOtelReferenceKitConfigurationTest {
     fun `keeps metrics disabled when the escape hatch configures a metrics endpoint`() {
         val harness = newUpstreamConfiguration()
 
-        harness.configuration.applyReferenceKitConfiguration(
+        harness.configuration.applyGrafanaOtelConfiguration(
             GrafanaOtelConfiguration(
                 otlpEndpoint = "https://collector.example.test/otlp/app-key",
                 serviceName = "quickpizza-android",
@@ -145,7 +145,7 @@ class GrafanaOtelReferenceKitConfigurationTest {
     fun `enables disk buffering by default`() {
         val harness = newUpstreamConfiguration()
 
-        harness.configuration.applyReferenceKitConfiguration(
+        harness.configuration.applyGrafanaOtelConfiguration(
             GrafanaOtelConfiguration(
                 otlpEndpoint = "https://collector.example.test/otlp/app-key",
                 serviceName = "quickpizza-android",
