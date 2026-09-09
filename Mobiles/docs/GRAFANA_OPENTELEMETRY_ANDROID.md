@@ -21,9 +21,9 @@ startup entrypoint. The local module name is not a published Maven coordinate. O
 publishing access are approved, the library can move to its own repository and QuickPizza can
 consume the published AAR instead of a project dependency.
 
-The spike still uses OTel Android `1.5.1` with its matching `1.5.1-alpha` BOM. The
-[1.7.0 upgrade](https://github.com/grafana/mobile-o11y-demo/pull/112) is a separate change. Once it
-lands, bring it into this spike and rerun the runtime and minified-release checks before merging.
+The spike uses OTel Android `1.7.0` with its matching `1.7.0-alpha` BOM, following the
+[1.7.0 upgrade](https://github.com/grafana/mobile-o11y-demo/pull/112). Both the app and library
+compile against Android API 37 with AGP 9.1.1 and Gradle 9.3.1; the app's target SDK stays at 36.
 
 ## Package boundary
 
@@ -41,10 +41,13 @@ configuration callback exposes selected upstream settings and instrumentations t
 scope. Its `resource {}` actions are additive, and required Grafana service attributes are applied
 last.
 
-The app still owns application-specific behavior, including its temporary crash-flush workaround,
-native crash replay, runtime config UI, business instrumentation, and automatic OkHttp
+The app still owns application-specific behavior, including native crash replay, runtime config
+UI, business instrumentation, and automatic OkHttp
 instrumentation. The connected HTTP trace below proves those app-owned spans remain connected
 through this library; the package does not install the Byte Buddy plugin or OkHttp agent.
+
+Crash flushing uses the upstream 1.7.0 handler. The app no longer installs a separate crash-flush
+handler or emits a second crash event.
 
 Faro OTLP ingest currently accepts logs and traces only. The spike therefore disables upstream
 periodic metric export rather than repeatedly sending unsupported requests.
@@ -252,16 +255,31 @@ above, this shows that the required runtime providers remained reachable after R
 
 ## Validation status
 
-The September 9 naming change passed 17 library tests, six app tests, library lint for debug and
-release, and both app builds. Debug and minified release cold-started on an Android 15 / API 35
-ARM64 emulator and sent non-empty log and trace requests to a local OTLP/HTTP recorder. This was a
-startup/export check, not a new Faro Collector or connected-backend validation. The release APK
-retained all 10 instrumentation providers and the OkHttp sender.
+On September 9, the spike was retested with the merged
+[1.7.0 upgrade](https://github.com/grafana/mobile-o11y-demo/pull/112). The 17 library tests, six app
+tests, library lint for debug and release, and both app builds passed. Both builds included native
+libraries for all four Android ABIs. R8 completed without the earlier Kotlin metadata warnings, and
+the release APK retained all 10 instrumentation providers and the OkHttp HTTP sender.
 
-The untouched `ae80c659` head reproduced the same seven app-lint errors, Kotlin metadata warnings,
-and minified crash-flush warning (`logs bridge is not an SDK instance`). These are not introduced by
-the rename. Crash-flush behavior and toolchain compatibility need another check after the
-[1.7.0 upgrade](https://github.com/grafana/mobile-o11y-demo/pull/112).
+On an Android 15 / API 35 ARM64 emulator, debug and minified release both cold-started and exported
+decoded OTLP logs and traces to a local HTTP receiver. In each build, **Pizza, Please!** produced a
+connected chain from `pizza.get_recommendation` through the Android HTTP client span to QuickPizza's
+`POST /api/pizza` server span and its backend children.
+
+Deliberate `RuntimeException` crashes were tested with disk buffering enabled in both builds. Each
+crash was delivered after restart with its original session ID, with no duplicate after another
+restart. With buffering disabled, the minified build delivered its crash before the next launch.
+These runs use the upstream crash-flush handler, without the old app-owned handler or duplicate
+crash event. This is local OTLP validation, not a fresh Faro Collector acceptance test; the earlier
+Faro results above remain historical evidence.
+
+The minified app also cold-started on an API 23 ARM64 emulator. Local HTTP export was blocked by the
+app's existing `usesCleartextTraffic=false` policy: API 23 does not apply the per-host network
+security configuration. No API 23 export pass is claimed for this run.
+
+App lint still reports the same seven errors as #112: six API-level findings in
+`NativeExitCrashReporter` and one restricted-API finding in `MainActivity`. Neither file's relevant
+code changed in this integration. The library's debug and release lint checks pass.
 
 - [x] The module compiles as an Android AAR and is consumed by the runnable demo app.
 - [x] Configuration validation has focused unit coverage.

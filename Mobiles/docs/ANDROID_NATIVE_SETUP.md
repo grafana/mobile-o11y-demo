@@ -12,8 +12,11 @@ Setup guide for the native Android QuickPizza app (`Mobiles/android/`).
 
 ## Prerequisites
 
-- [Android Studio](https://developer.android.com/studio) (Hedgehog 2023.1.1+ recommended)
-- Android SDK with at least API 23 (Android 6.0 Marshmallow) — the app's `minSdk`
+- [Android Studio](https://developer.android.com/studio) — recent enough to open an
+  AGP 9.1 project (see the [AGP / Studio compatibility table](https://developer.android.com/build/releases/gradle-plugin#android_gradle_plugin_and_android_studio_compatibility));
+  older releases such as Hedgehog cannot
+- Android SDK platform 37 — the app's `compileSdk`. Devices only need API 23
+  (Android 6.0 Marshmallow), the app's `minSdk`
 - A running QuickPizza backend (see root README)
 
 ---

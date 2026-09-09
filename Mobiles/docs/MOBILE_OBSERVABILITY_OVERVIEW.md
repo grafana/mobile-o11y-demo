@@ -204,7 +204,7 @@ For deeper iOS detail see
 
 ### Android native (OpenTelemetry Android)
 
-- **SDK:** `opentelemetry-android` 1.5.1-alpha (`telemetry_sdk_language=java`)
+- **SDK:** `opentelemetry-android` (`telemetry_sdk_language=java`) — version pinned in [`Mobiles/android/gradle/libs.versions.toml`](../android/gradle/libs.versions.toml)
 - **Init:** `Mobiles/android/app/src/main/java/com/grafana/quickpizza/core/o11y/OTelService.kt`
   → `GrafanaOtel.initialize(...)`, which delegates to
   `OpenTelemetryRumInitializer.initialize(...)`
@@ -213,11 +213,11 @@ For deeper iOS detail see
 | Signal | Examples | Source |
 | --- | --- | --- |
 | Spans (Tempo) | `GET` (auto, OkHttp telemetry), `AppStart` / `Paused` / `Stopped` (auto, lifecycle instrumentation), `pizza.get_recommendation` / `auth.login` / `pizza.rate` (manual) | manual via `core/o11y/AppTracer.kt`; rest auto from RUM agent |
-| Logs (Loki) | `event_name=screen.view` (auto), `event_name=app.jank` (auto, slow-rendering instrumentation), `session.start` (auto), `rum.sdk.init.{started, span.exporter, net.provider}` (auto SDK self-telemetry), `event_name=exception` (manual `logger.exception`), `event_name=device.crash` (auto, persisted by `CrashReporter` and delivered next launch), `event_name=device.anr` (auto ANR detection), `event_name=debug.test_event` (manual from Debug screen) | mostly auto; `exception` and `debug.*` are manual |
+| Logs (Loki) | `event_name=screen.view` (auto), `event_name=app.jank` (auto, slow-rendering instrumentation), `session.start` (auto), `rum.sdk.init.{started, span.exporter, net.provider}` (auto SDK self-telemetry), `event_name=exception` (manual `logger.exception`), `event_name=device.crash` (auto, `CrashReporter`; force-flushed at crash time, delivered next launch when disk buffering is on), `event_name=device.anr` (auto ANR detection), `event_name=debug.test_event` (manual from Debug screen) | mostly auto; `exception` and `debug.*` are manual |
 | Metrics | _none custom_ — but the RUM agent computes things like jank counts and exposes them as events rather than metrics. | — |
 
 Resource attributes are **the richest of any platform**: `service.*`,
-`os.name`, `os.version`, `os.description`,
+`os.name`, `os.version`, `os.description`, `os.build_id`,
 `android.os.api_level`, `device.manufacturer`, `device.model.identifier`,
 `device.model.name`, `network.connection.type` (e.g. `wifi`),
 `app.installation.id`, `screen.name` (current Activity), `nav.destination`
@@ -242,7 +242,7 @@ materially different amounts of work for you out of the box.
 | Auto HTTP spans | Yes — `URLSessionInstrumentation` | Yes — OkHttp `Call.Factory` wrapper |
 | Auto lifecycle spans | **No** | Yes — `AppStart`, `Paused`, `Stopped` |
 | Auto screen view events | **No** (we emit `app.screen.view` manually via a SwiftUI view modifier) | Yes — `event_name=screen.view` |
-| Auto crash capture | Via Apple **MetricKit** — delayed (hours / next 24h window) and batched | Via OTel-Android `CrashReporter` — real‑time on next app launch |
+| Auto crash capture | Via Apple **MetricKit** — delayed (hours / next 24h window) and batched | Via OTel-Android `CrashReporter` — captured and force-flushed at crash time; delivered on next app launch while disk buffering is on |
 | Auto ANR / hang | Via MetricKit (delayed) | Yes — `event_name=device.anr` runtime |
 | Auto slow-frame / jank | **No** (MetricKit hitch metrics arrive as `MXMetricPayload` spans) | Yes — `event_name=app.jank` |
 | Auto session lifecycle | Yes — `Sessions` library (`session.start` / `session.end` log records, `session.id` + `session.previous_id` on every signal) | Yes — emits `session.start`; `session.id` on every signal |

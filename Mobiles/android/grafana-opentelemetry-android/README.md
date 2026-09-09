@@ -12,7 +12,9 @@ OpenTelemetry APIs.
 ## Requirements
 
 - Android `minSdk` 23 or newer.
-- The `opentelemetry-android` `1.5.1-alpha` BOM, which selects `android-agent` `1.5.1`.
+- The `opentelemetry-android` `1.7.0-alpha` BOM, which selects `android-agent` `1.7.0`.
+- `compileSdk` 37 and Android Gradle Plugin 9.1.0 or newer for the upstream AndroidX dependencies.
+  This demo uses AGP 9.1.1 and Gradle 9.3.1.
 - For applications with `minSdk` below 26, enable core-library desugaring and add
   `com.android.tools:desugar_jdk_libs` (the demo uses `2.1.4`).
 - With Android Gradle Plugin 8.3 or newer, set
