@@ -30,7 +30,7 @@ val quickPizzaDemoVersionName = providers.gradleProperty("quickpizzaDemoVersionN
 
 android {
     namespace = "com.grafana.quickpizza"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.grafana.quickpizza.android"

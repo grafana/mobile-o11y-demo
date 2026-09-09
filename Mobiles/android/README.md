@@ -186,15 +186,18 @@ The **Debug** tab exposes:
 - **Handled exception** — emits an OTel exception log via `logger.exception(...)`.
 - **ANR card** — blocks the main thread for 6 s. Android's 5 s ANR threshold trips and `event_name=device.anr` is captured by the OTel agent; the system may show a Wait/Close dialog afterward.
 - **Crash card** — `RuntimeException` and simulated `NullPointerException`
-  variants. The OTel-Android `CrashReporter` persists the crash to disk
-  and the exporter delivers it on the next app launch.
+  variants. The OTel-Android `CrashReporter` emits `device.crash` and the
+  SDK force-flushes logs, traces and metrics before the process dies; with
+  disk buffering on (the default) the record is written to disk and
+  shipped on the next app launch.
 
 ---
 
 ## Observability
 
 The app uses [opentelemetry-android](https://github.com/open-telemetry/opentelemetry-android)
-1.4.0-alpha and exports via OTLP/HTTP. Init lives in
+and exports via OTLP/HTTP. The version is pinned in
+[`gradle/libs.versions.toml`](gradle/libs.versions.toml). Init lives in
 `app/src/main/java/com/grafana/quickpizza/core/o11y/OTelService.kt`.
 
 
@@ -216,8 +219,10 @@ session attributes) is inventoried in
 - Auto OkHttp tracing via the `Call.Factory` wrapper.
 - Lifecycle / `AppStart` / activity-state spans.
 - Slow-rendering / jank detection (`event_name=app.jank`).
-- Crash reporting (`CrashReporter`) — persists unhandled exceptions to
-disk and emits `event_name=device.crash` on next launch.
+- Crash reporting (`CrashReporter`) — emits `event_name=device.crash` for
+unhandled exceptions. Since 1.7.0 the SDK force-flushes before delegating
+to the platform handler, so the record survives the crash; with disk
+buffering on it is delivered on the next launch.
 - ANR detection — emits `event_name=device.anr`.
 - Sessions — 15-minute inactivity timeout, `session.id` stamped on
 every signal.
