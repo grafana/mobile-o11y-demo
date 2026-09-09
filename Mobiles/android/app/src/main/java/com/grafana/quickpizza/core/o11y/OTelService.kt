@@ -22,6 +22,7 @@ class OTelService @Inject constructor(
     private val appConfig: AppConfig,
     private val runtimeConfig: RuntimeConfigHolder,
 ) {
+    @Volatile
     private var rum: OpenTelemetryRum? = null
 
     val openTelemetry: OpenTelemetry

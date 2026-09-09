@@ -256,7 +256,7 @@ above, this shows that the required runtime providers remained reachable after R
 ## Validation status
 
 On September 9, the spike was retested with the merged
-[1.7.0 upgrade](https://github.com/grafana/mobile-o11y-demo/pull/112). The 17 library tests, six app
+[1.7.0 upgrade](https://github.com/grafana/mobile-o11y-demo/pull/112). The 17 library tests, seven app
 tests, library lint for debug and release, and both app builds passed. Both builds included native
 libraries for all four Android ABIs. R8 completed without the earlier Kotlin metadata warnings, and
 the release APK retained all 10 instrumentation providers and the OkHttp HTTP sender. With 1.7.0,
