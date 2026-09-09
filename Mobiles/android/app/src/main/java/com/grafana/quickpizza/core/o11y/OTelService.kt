@@ -80,7 +80,7 @@ class OTelService @Inject constructor(
                         Log.w(TAG, "Native exit crash replay failed", t)
                     }
                 }, "native-exit-crash-replay").start()
-            }
+            } ?: Log.w(TAG, "SDK logger provider unavailable; native crash replay skipped")
             Log.i(
                 TAG,
                 "OTelService initialized, exporting to $endpoint " +

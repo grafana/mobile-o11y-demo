@@ -259,7 +259,9 @@ On September 9, the spike was retested with the merged
 [1.7.0 upgrade](https://github.com/grafana/mobile-o11y-demo/pull/112). The 17 library tests, six app
 tests, library lint for debug and release, and both app builds passed. Both builds included native
 libraries for all four Android ABIs. R8 completed without the earlier Kotlin metadata warnings, and
-the release APK retained all 10 instrumentation providers and the OkHttp HTTP sender.
+the release APK retained all 10 instrumentation providers and the OkHttp HTTP sender. With 1.7.0,
+the release has five service descriptors and debug has ten; the counts in the August runtime
+result above describe that older build.
 
 On an Android 15 / API 35 ARM64 emulator, debug and minified release both cold-started and exported
 decoded OTLP logs and traces to a local HTTP receiver. In each build, **Pizza, Please!** produced a
@@ -272,6 +274,18 @@ restart. With buffering disabled, the minified build delivered its crash before 
 These runs use the upstream crash-flush handler, without the old app-owned handler or duplicate
 crash event. This is local OTLP validation, not a fresh Faro Collector acceptance test; the earlier
 Faro results above remain historical evidence.
+
+The minified release was also tested with **Debug > SIGSEGV (null dereference)**. R8 initially
+removed the SDK provider methods used by the app's reflective native-crash replay path. Narrow
+app-owned keep rules now preserve those two `unobfuscate()` methods without retaining the whole
+OpenTelemetry SDK. After the fix, the local receiver decoded one `device.crash` record with
+`reason=CRASH_NATIVE` after restart, and another restart produced no duplicate. The connected
+mobile-to-backend pizza trace still worked with the same APK.
+
+To repeat this check, install the minified release, trigger the SIGSEGV from the Debug tab, and
+relaunch without reinstalling. Wait for the disk buffer to export, check for the native-crash
+record, then restart once more and verify that the count stays at one. A managed
+`RuntimeException` test does not exercise this app-owned replay path.
 
 The minified app also cold-started on an API 23 ARM64 emulator. Local HTTP export was blocked by the
 app's existing `usesCleartextTraffic=false` policy: API 23 does not apply the per-host network
