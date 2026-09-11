@@ -24,6 +24,11 @@ struct DebugView: View {
                     LastActionCard(message: message)
                 }
 
+                Text("OpenTelemetry sends logs and traces in batches every 5 seconds.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
                 Spacer(minLength: 40)
             }
             .padding(.horizontal, 16)
