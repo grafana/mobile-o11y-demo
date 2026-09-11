@@ -19,6 +19,7 @@ struct OTelConfig {
     let serviceName: String
     let deploymentEnvironment: String
     let appVersion: String
+    let exportScheduleDelay: TimeInterval
 
     static let defaultScopeName = "quickpizza-ios"
     static let defaultScopeVersion = "1.0.0"
@@ -32,6 +33,7 @@ struct OTelConfig {
         self.serviceName = configService.serviceName
         self.deploymentEnvironment = configService.deploymentEnvironment
         self.appVersion = configService.appVersion
+        self.exportScheduleDelay = runtimeConfig.telemetryExportInterval
     }
 
     /// Whether OTLP export is enabled (endpoint is configured).

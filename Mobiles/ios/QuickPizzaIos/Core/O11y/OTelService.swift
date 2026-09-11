@@ -70,7 +70,7 @@ final class OTelService {
                 endpoint: URL(string: "\(endpointUrl)/v1/traces")!,
                 envVarHeaders: envVarHeaders
             )
-            spanProcessors.append(BatchSpanProcessor(spanExporter: otlpTraceExporter))
+            spanProcessors.append(BatchSpanProcessor(spanExporter: otlpTraceExporter, scheduleDelay: config.exportScheduleDelay))
         }
 
         #if DEBUG
@@ -103,7 +103,7 @@ final class OTelService {
                 endpoint: URL(string: "\(endpointUrl)/v1/logs")!,
                 envVarHeaders: envVarHeaders
             )
-            let batchLogProcessor = BatchLogRecordProcessor(logRecordExporter: otlpLogExporter)
+            let batchLogProcessor = BatchLogRecordProcessor(logRecordExporter: otlpLogExporter, scheduleDelay: config.exportScheduleDelay)
             logProcessors.append(SessionLogRecordProcessor(nextProcessor: batchLogProcessor))
         }
 

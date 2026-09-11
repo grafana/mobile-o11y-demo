@@ -20,6 +20,7 @@ struct DebugUiState: Equatable {
     var settings: DebugSettings = DebugSettings()
     var restartBanner: RestartBannerState = .hidden
     var lastActionMessage: String? = nil
+    var activeTelemetryExportInterval: TimeInterval = 5
 }
 
 enum RestartBannerState: Equatable {
@@ -27,7 +28,7 @@ enum RestartBannerState: Equatable {
     case visible(changedLabel: String)
 }
 
-/// Computes whether the persisted overrides differ from the URLs/credentials
+/// Computes whether the persisted overrides differ from the telemetry settings and URLs/credentials
 /// actually in use this session. Shared by `DebugViewModel` and
 /// `ConfigViewModel` so the banner is consistent on both screens.
 func computeRestartBanner(
@@ -44,6 +45,7 @@ func computeRestartBanner(
         savedOtlp != runtime.otlpEndpoint ? "OTLP endpoint" : nil,
         savedInstanceId != runtime.otlpInstanceId ? "OTLP instance ID" : nil,
         savedApiKey != runtime.otlpApiKey ? "OTLP API key" : nil,
+        settings.fastTelemetryExport != runtime.fastTelemetryExport ? "Telemetry export interval" : nil,
     ].compactMap { $0 }
 
     if changedFields.isEmpty {
@@ -79,7 +81,8 @@ class DebugViewModel {
             restartBanner: computeRestartBanner(
                 settings: debugSettings.current,
                 runtime: runtimeConfig.current
-            )
+            ),
+            activeTelemetryExportInterval: runtimeConfig.current.telemetryExportInterval
         )
     }
 
@@ -102,6 +105,8 @@ class DebugViewModel {
     func setErrorOnIngredients(_ value: Bool) { debugSettings.setErrorOnIngredients(value) }
     func setUseV2PizzaSchema(_ value: Bool) { debugSettings.setUseV2PizzaSchema(value) }
     func setSkipAuthDepInTools(_ value: Bool) { debugSettings.setSkipAuthDepInTools(value) }
+
+    func setFastTelemetryExport(_ value: Bool) { debugSettings.setFastTelemetryExport(value) }
 
     func resetAll() {
         debugSettings.resetAll()
