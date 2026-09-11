@@ -17,8 +17,9 @@ BASE_URL = http:/$()/localhost:3333
 // Port for the QuickPizza API (usually 3333)
 PORT = 3333
 
-// OpenTelemetry OTLP endpoint (optional)
-// Leave empty to disable OTLP export (stdout only)
+// OpenTelemetry OTLP endpoint (required for any telemetry)
+// Leave empty and OpenTelemetry is not initialized at all — no spans, no logs, no session
+// events, and no debug span output. The app itself runs normally.
 //
 // Faro OTLP ingest (preferred) — the app key in the path identifies the app, so
 // leave OTLP_INSTANCE_ID and OTLP_API_KEY empty. The app then appears in

@@ -264,13 +264,22 @@ BASE_URL = https:/$()/abc123.ngrok.io
 
 ## How Observability Works
 
-The app uses the [OpenTelemetry Swift SDK](https://github.com/open-telemetry/opentelemetry-swift) (`opentelemetry-swift` 2.3.0) with the `URLSessionInstrumentation`, `Sessions`, and `MetricKitInstrumentation` libraries.
+The app uses the [OpenTelemetry Swift SDK](https://github.com/open-telemetry/opentelemetry-swift)
+with the `URLSessionInstrumentation`, `Sessions`, and `MetricKitInstrumentation` libraries. The
+tested SDK version is pinned in the Xcode project's `Package.resolved`.
+
+SDK startup lives in the local
+[`grafana-opentelemetry-ios`](./grafana-opentelemetry-ios/README.md) package — an experimental
+Grafana reference kit that applies Grafana's iOS defaults and returns the upstream providers. App
+instrumentation keeps using standard OpenTelemetry APIs. See
+[`../docs/GRAFANA_OPENTELEMETRY_IOS.md`](../docs/GRAFANA_OPENTELEMETRY_IOS.md) for the package
+boundary, validation evidence, and open gates.
 
 | Signal           | What is instrumented                                                                |
 | ---------------- | ----------------------------------------------------------------------------------- |
 | **Spans**        | Auto: every `URLSession` call. Manual: `pizza.get_recommendation`, `auth.login`, `pizza.rate`. MetricKit: `MXMetricPayload` spans (Apple's daily aggregated CPU/memory/hangs/hitch data). |
 | **Logs**         | Auto: `session.start` / `session.end`, MetricKit `metrickit.diagnostic.{crash,hang,cpu_exception,disk_write_exception}`. Manual: app logs at `DEBUG`/`INFO`/`WARN`/`ERROR`, exception logs (`event_name=exception`), screen views (`event_name=app.screen.view`). |
-| **Resource**     | `service.name=quickpizza-ios`, `service.namespace=quickpizza`, `service.version`, `service.build`, `deployment.environment`, `device.id`, `device.model.identifier`, `os.*`, `session.id`, `session.previous_id`, `telemetry.sdk.{language=swift, version=2.3.0}`. |
+| **Resource**     | `service.name=quickpizza-ios`, `service.namespace=quickpizza`, `service.version`, `service.build`, `deployment.environment`, `device.id`, `device.model.identifier`, `os.*`, `session.id`, `session.previous_id`, `telemetry.sdk.{language=swift, version}`. |
 
 Configuration is read from `Config.xcconfig` at build time and injected into
 `BuildConfig.generated.swift` (auto-generated, gitignored). The `OTelService`
@@ -310,6 +319,8 @@ xcrun simctl list devices available
 
 **Traces not appearing in Grafana**
 
-- Double-check `OTLP_ENDPOINT` has no trailing slash
+- Double-check `OTLP_ENDPOINT` is the OTLP **base** URL, not a signal URL. A trailing slash is
+  fine — the reference kit normalises it — but an endpoint that already ends in `/v1/traces`,
+  `/v1/logs` or `/v1/metrics` is rejected at startup
 - Verify `OTLP_INSTANCE_ID` and `OTLP_API_KEY` are correct in `Config.xcconfig`
 - Check the Xcode console for `[OTel]` error messages

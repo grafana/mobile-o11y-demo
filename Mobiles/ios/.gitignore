@@ -21,6 +21,7 @@ DerivedData/
 
 # Swift Package Manager (keep Package.resolved, ignore build artifacts)
 .build/
+.swiftpm/
 
 # Configuration files with secrets (keep .example template)
 Config.xcconfig
