@@ -29,20 +29,16 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Google Chrome
+      - name: Verify runner Chrome
         run: |
-          set -eux
-          sudo apt-get update
-          sudo apt-get install -y wget
-          wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor --yes -o /usr/share/keyrings/google-chrome.gpg
-          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
-          sudo apt-get update
-          sudo apt-get install -y google-chrome-stable
+          # Hosted Ubuntu runners include Chrome; avoid reinstalling it from apt.
+          test -x "$K6_BROWSER_EXECUTABLE_PATH"
+          "$K6_BROWSER_EXECUTABLE_PATH" --version
 
       - name: Setup k6
         uses: grafana/setup-k6-action@ffe7d7290dfa715e48c2ccc924d068444c94bde2 # v1
         with:
-          browser: true
+          browser: false # Use runner Chrome and preserve K6_BROWSER_ARGS.
       - name: Run k6 test
         uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
         with:

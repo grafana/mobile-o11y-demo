@@ -214,7 +214,8 @@ does). The full set (device, network, nav, and
 session attributes) is inventoried in
 [`MOBILE_OBSERVABILITY_OVERVIEW.md § Android native`](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md#android-native-opentelemetry-android).
 
-`OTelService` registers `OpenTelemetryRumInitializer` which wires up:
+`OTelService` delegates startup to the local Grafana OpenTelemetry Android library, which uses
+`OpenTelemetryRumInitializer` to wire up:
 
 - Auto OkHttp tracing via the `Call.Factory` wrapper.
 - Lifecycle / `AppStart` / activity-state spans.
@@ -227,7 +228,12 @@ buffering on it is delivered on the next launch.
 - Sessions — 15-minute inactivity timeout, `session.id` stamped on
 every signal.
 - Disk buffering of OTLP exports for offline resilience (toggle off via
-the Debug screen).
+  the Debug screen).
+
+The current [Grafana OpenTelemetry Android spike](grafana-opentelemetry-android/README.md) moves
+those shared startup defaults into a local library while returning the upstream OTel runtime. The package
+placement and remaining validation are recorded in
+[GRAFANA_OPENTELEMETRY_ANDROID.md](../docs/GRAFANA_OPENTELEMETRY_ANDROID.md).
 
 Where to view the data on the demo stack:
 
@@ -296,4 +302,3 @@ live demos.
 - Ensure `gradle.properties` has
 `android.useFullClasspathForDexingTransform=true` (required by
 `opentelemetry-android` with AGP 8.3+).
-
