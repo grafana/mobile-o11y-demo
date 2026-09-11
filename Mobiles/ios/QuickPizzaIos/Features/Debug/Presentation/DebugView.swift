@@ -20,11 +20,14 @@ struct DebugView: View {
 
                 ClientDiagnosticsSection(viewModel: viewModel)
 
-                TelemetryExportSection(viewModel: viewModel)
-
                 if let message = viewModel.state.lastActionMessage {
                     LastActionCard(message: message)
                 }
+
+                Text("Logs and completed spans are sent in batches every 5 seconds.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                 Spacer(minLength: 40)
             }
@@ -84,33 +87,6 @@ private struct ConfigEntryCard: View {
             .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
         }
         .buttonStyle(.plain)
-    }
-}
-
-// MARK: - Telemetry Export Section
-
-private struct TelemetryExportSection: View {
-    let viewModel: DebugViewModel
-
-    var body: some View {
-        SectionHeader("Telemetry Export")
-        VStack(alignment: .leading, spacing: 8) {
-            ToggleRow(
-                title: "Fast telemetry export",
-                subtitle: "Send logs and traces every second instead of every 5 seconds. Requires app restart.",
-                isOn: viewModel.state.settings.fastTelemetryExport,
-                onChanged: viewModel.setFastTelemetryExport
-            )
-            .accessibilityIdentifier("fastTelemetryExport")
-
-            Text("Current export interval: \(Int(viewModel.state.activeTelemetryExportInterval))s")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 8)
-        }
-        .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 

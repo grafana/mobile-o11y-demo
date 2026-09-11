@@ -280,14 +280,6 @@ Runtime overrides for backend URL, OTLP endpoint, and credentials can be set
 from the **Debug → Config** screen without rebuilding. These are persisted in
 `UserDefaults` and applied on the next app launch via `RuntimeConfigHolder`.
 
-For live demos, enable **Debug → Telemetry Export → Fast telemetry export** and
-fully quit and relaunch the app. This persists a one-second batch interval for
-both logs and completed spans, instead of the default five seconds. The screen
-shows the interval currently in use and a restart notice while a change is
-pending. Disabling the toggle or selecting **Reset All**, followed by a restart,
-restores the default. Grafana ingestion and page refresh can add further delay;
-this setting does not accelerate Apple's MetricKit delivery.
-
 When `OTLP_ENDPOINT` is empty, telemetry is written to the Xcode console only
 (via `OSLog`). When set, it is exported over OTLP/HTTP to your collector.
 

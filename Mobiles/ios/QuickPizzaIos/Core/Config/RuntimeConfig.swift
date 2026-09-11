@@ -22,10 +22,6 @@ struct RuntimeConfig {
     let otlpEndpoint: String
     let otlpInstanceId: String
     let otlpApiKey: String
-    let fastTelemetryExport: Bool
-
-    /// Batch interval for both OTLP logs and completed spans, fixed at app launch.
-    var telemetryExportInterval: TimeInterval { fastTelemetryExport ? 1 : 5 }
 
     /// OTLP Authorization header derived from the resolved instance ID and API key.
     /// `nil` when either credential is missing.
@@ -61,8 +57,7 @@ final class RuntimeConfigHolder {
             backendBaseUrl: saved.backendUrlOverride ?? configService.baseURL,
             otlpEndpoint: saved.otlpEndpointOverride ?? (configService.otlpEndpoint ?? ""),
             otlpInstanceId: instanceId,
-            otlpApiKey: apiKey,
-            fastTelemetryExport: saved.fastTelemetryExport
+            otlpApiKey: apiKey
         )
     }
 }

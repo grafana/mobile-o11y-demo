@@ -34,7 +34,6 @@ struct DebugSettings: Equatable {
     var slowIngredients: Bool = false
     var useV2PizzaSchema: Bool = false
     var skipAuthDepInTools: Bool = false
-    var fastTelemetryExport: Bool = false
 
     var hasActiveOverrides: Bool {
         backendUrlOverride != nil ||
@@ -46,8 +45,7 @@ struct DebugSettings: Equatable {
             slowRecommendations ||
             slowIngredients ||
             useV2PizzaSchema ||
-            skipAuthDepInTools ||
-            fastTelemetryExport
+            skipAuthDepInTools
     }
 
     /// Backend expects:
@@ -89,7 +87,6 @@ private enum DebugSettingsKey {
     static let slowIngredients = "debug_slow_ingredients"
     static let useV2PizzaSchema = "debug_use_v2_pizza_schema"
     static let skipAuthDepInTools = "debug_skip_auth_dep_in_tools"
-    static let fastTelemetryExport = "debug_fast_telemetry_export"
 }
 
 /// Persists `DebugSettings` in a `KeyValueStore` and exposes a hot
@@ -175,11 +172,6 @@ final class DebugSettingsRepository {
         publish()
     }
 
-    func setFastTelemetryExport(_ value: Bool) {
-        store.set(value, forKey: DebugSettingsKey.fastTelemetryExport)
-        publish()
-    }
-
     func resetAll() {
         for key in [
             DebugSettingsKey.backendUrl,
@@ -192,7 +184,6 @@ final class DebugSettingsRepository {
             DebugSettingsKey.slowIngredients,
             DebugSettingsKey.useV2PizzaSchema,
             DebugSettingsKey.skipAuthDepInTools,
-            DebugSettingsKey.fastTelemetryExport,
         ] {
             store.removeObject(forKey: key)
         }
@@ -231,8 +222,7 @@ final class DebugSettingsRepository {
             slowRecommendations: store.bool(forKey: DebugSettingsKey.slowRecommendations),
             slowIngredients: store.bool(forKey: DebugSettingsKey.slowIngredients),
             useV2PizzaSchema: store.bool(forKey: DebugSettingsKey.useV2PizzaSchema),
-            skipAuthDepInTools: store.bool(forKey: DebugSettingsKey.skipAuthDepInTools),
-            fastTelemetryExport: store.bool(forKey: DebugSettingsKey.fastTelemetryExport)
+            skipAuthDepInTools: store.bool(forKey: DebugSettingsKey.skipAuthDepInTools)
         )
     }
 }
