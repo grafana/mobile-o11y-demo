@@ -13,12 +13,15 @@ Audience:
 Telemetry is initialized once at app startup:
 
 - `Bootstrap.initialize()` resolves and initializes `OTelService`
-- `OTelService` registers global OTel providers and instrumentations
+- `OTelService` calls `GrafanaOtel.initialize(...)` from the local
+  [Grafana OpenTelemetry iOS](./GRAFANA_OPENTELEMETRY_IOS.md) package, which registers the
+  global OTel providers and installs the instrumentations
 - Feature repositories use injected `Tracing` and `Logging` abstractions
 
 Key files:
 - `Mobiles/ios/QuickPizzaIos/Bootstrap.swift`
 - `Mobiles/ios/QuickPizzaIos/Core/O11y/OTelService.swift`
+- `Mobiles/ios/grafana-opentelemetry-ios/Sources/GrafanaOpenTelemetryIOS/GrafanaOtel.swift`
 - `Mobiles/ios/QuickPizzaIos/Core/O11y/Tracer.swift`
 - `Mobiles/ios/QuickPizzaIos/Core/O11y/Logger.swift`
 
@@ -45,7 +48,7 @@ QuickPizza iOS emits:
 
 ### 3.1 Resource attributes (all telemetry)
 
-Configured in `OTelService.buildResource(...)`:
+Passed to the reference kit by `OTelService`, which builds them from `ConfigService`:
 - `service.name` (default `quickpizza-ios`)
 - `service.namespace` (`quickpizza`)
 - `service.version` (app version)
@@ -54,7 +57,7 @@ Configured in `OTelService.buildResource(...)`:
 
 ### 3.2 Sessions
 
-Configured in `setupSessions()`:
+Configured through `GrafanaOtelConfiguration` and applied by the reference kit:
 - Session timeout: 15 minutes of inactivity
 - Span enrichment: `SessionSpanProcessor()`
 - Log enrichment: `SessionLogRecordProcessor(...)`
@@ -100,7 +103,7 @@ App logger is a composite:
 
 ### 3.6 Crash and hang diagnostics (MetricKit)
 
-`MetricKitInstrumentation` is registered in `setupMetricKitInstrumentation()` and retained on the service (required because `MXMetricManager` keeps weak references).
+`MetricKitInstrumentation` is registered and retained by the reference kit's runtime handle (required because `MXMetricManager` keeps weak references).
 
 It sends:
 - Metric payloads as spans (windowed/aggregated)
@@ -126,13 +129,19 @@ Configured via `Config.xcconfig` values that are generated into `BuildConfig` at
 
 Inputs:
 - `OTLP_ENDPOINT`
-- `OTLP_AUTH_HEADER`
+- `OTLP_INSTANCE_ID` and `OTLP_API_KEY` (combined into an `Authorization: Basic ...` header)
 
 Behavior:
-- If `OTLP_ENDPOINT` is set: traces -> `/v1/traces`, logs -> `/v1/logs` (OTLP HTTP)
-- If `OTLP_ENDPOINT` is empty: no OTLP exporters are attached
-  - traces still print in debug via `OSLogSpanExporter`
-  - logs are still available in OSLog via `ConsoleLogger`
+- If `OTLP_ENDPOINT` is set: the reference kit appends the signal paths, so traces go to
+  `/v1/traces` and logs to `/v1/logs` (OTLP HTTP)
+- If `OTLP_ENDPOINT` is empty or not a valid URL: **OpenTelemetry is not initialized at all.** The
+  reference kit requires a valid endpoint, so there is no "installed but not exporting" state
+  - `OTelService` logs the specific reason, and app startup logs it again as a warning
+  - app logs still reach the Xcode console through `ConsoleLogger`, because the app's logger fans
+    out to OSLog as well as OTel
+  - everything on the OTel side produces nothing: no spans, no log records, no session events, no
+    MetricKit diagnostics, and no debug `OSLogSpanExporter` output — that exporter reaches the SDK
+    through the kit, so it goes with it
 
 Related files:
 - `Mobiles/ios/Config.xcconfig.example`
