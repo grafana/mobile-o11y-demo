@@ -103,10 +103,12 @@ distribution:
 - disk buffering, its directory, and its backup policy;
 - excluding its own collector origin (host **and** port) from automatic HTTP tracing;
 - sanitising the request URL recorded on HTTP spans;
+- draining and stopping the disk queue, neither of which a provider reaches;
 - the order the upstream pieces are installed in.
 
 It does **not** define Grafana tracer, span, logger, event or meter APIs. `GrafanaOtelRuntime`
-exposes upstream types only.
+exposes upstream types only, plus one delegate the app has to install because the package does not
+own its `URLSession`s: `redirectGuard`.
 
 No `MeterProvider` is registered. Faro OTLP ingest currently accepts logs and traces only, so
 metrics are left off rather than exported to a route that rejects them. This is an ingest
@@ -257,6 +259,63 @@ backend.
 A `customizeURLSession` callback may narrow this further but cannot widen it: the list is
 re-asserted after the callback runs.
 
+#### Redirects are outside the host list
+
+`firstPartyHosts` is applied when the request is created, and that is the only point upstream
+offers. `URLSession` copies a request's custom headers onto the request it builds for a `3xx`, so a
+first-party request that redirects to a third party takes `traceparent` with it. Upstream swizzles
+no redirect method and `URLSessionInstrumentationConfiguration` has no redirect callback, so there
+is nothing here for the package to configure.
+
+There are two ways to close it, and **neither is on by default** — one needs a line of setup, the
+other needs a delegate installed.
+
+**Most apps want the flag.** It filters redirects on every task that has neither a task delegate
+nor a session delegate, which is what `URLSession.shared` with `async`/`await` produces:
+
+```swift
+GrafanaOtelExperimentalOptions(automaticRedirectProtection: true)
+```
+
+It works by adding the redirect callback to two *internal* classes of `opentelemetry-swift` — the
+placeholder delegates upstream installs on delegate-less tasks. That is a reach into someone else's
+implementation, which is why it is a decision to take rather than something to inherit. Adding is
+skipped wherever an implementation already exists, so an upstream release that starts handling
+redirects keeps ownership, and a rename is reported through `diagnosticsHandler`. The QuickPizza
+demo uses this.
+
+**`GrafanaOtelRuntime.redirectGuard` is the delegate to install when the flag cannot reach you** —
+a session of your own with a delegate, or iOS 13 and 14. As a session delegate:
+
+```swift
+URLSession(configuration: .default, delegate: runtime.redirectGuard, delegateQueue: nil)
+```
+
+or per task, on iOS 15 and later, where `URLSessionTask.delegate` exists:
+
+```swift
+let (data, response) = try await URLSession.shared.data(
+  for: request,
+  delegate: GrafanaOtel.runtime?.redirectGuard
+)
+```
+
+If you already have a delegate, call `redirectGuard.sanitizedRedirect(_:)` from your own
+`urlSession(_:task:willPerformHTTPRedirection:newRequest:completionHandler:)` rather than
+installing this one.
+
+Both apply the same host policy as injection, so a redirect that stays on the list keeps its
+context and the trace stays connected.
+
+| | `automaticRedirectProtection` | `redirectGuard` |
+| --- | --- | --- |
+| Delegate-less sessions | covered | covered |
+| Sessions with a delegate of your own | not covered | covered |
+| iOS 15 and later | covered | covered, per task or per session |
+| iOS 13 and 14 | not covered — upstream installs no delegate there | covered as a *session* delegate only; `URLSessionTask.delegate` is iOS 15+ |
+| Survives an upstream rename of internal classes | no; reported through `diagnosticsHandler` | yes |
+| Needs app code | one line at startup | a delegate on each session |
+
 ## Known limitations
 
 These are properties of the pinned upstream release, not of this package's configuration:
@@ -276,6 +335,17 @@ These are properties of the pinned upstream release, not of this package's confi
   a stalled collector can hold the caller for the exporter's 10-second transport timeout per pending
   batch. For logs it only guarantees the records left the batch queue: `OtlpHttpLogExporter.export`
   reports success without waiting.
+- **A provider flush does not reach the disk queue**, which is why the runtime holds the
+  persistence exporters and drains them itself as a second step. `BatchSpanProcessor.forceFlush`
+  and `BatchLogRecordProcessor.forceFlush` reach the exporter's `export`, which under persistence
+  writes to disk and returns; only the exporter's own `flush`/`forceFlush` reads the queue back.
+  Flushing the providers alone would leave the batch on disk for up to 20 seconds.
+- **`shutdown()` cannot stop the persistence workers**, only gate them. `DataExportWorker` has a
+  `cancelSynchronously()`, but `DataExportWorkerProtocol` exposes just `flush()`, so its repeating
+  `DispatchWorkItem` outlives shutdown. The package therefore passes an `exportCondition` it owns
+  and closes it on `shutdown()`: whatever is already queued is still delivered, nothing is exported
+  after that, and the workers stay parked and idle for the rest of the process rather than being
+  cancelled.
 - **`LoggerProviderSdk` has no flush or shutdown**, which is why the runtime retains the log
   processors. It retains the ones *behind* the session decorator on purpose:
   `SessionLogRecordProcessor.forceFlush` and `.shutdown` return `.success` without forwarding to
@@ -287,8 +357,19 @@ These are properties of the pinned upstream release, not of this package's confi
 - **`URLSession` instrumentation cannot be uninstalled** and only one configuration can win per
   process. That is why the package installs it and exposes `customizeURLSession` instead of letting
   the app construct a second instance, which would chain swizzles and double-instrument.
-- **Disk buffering has asymmetric delivery guarantees.** Trace retry from disk has been
-  runtime-validated, but no automated test exercises the persisted path end to end. Log persistence
+- **Redirects are outside the injection policy** until you opt into
+  `automaticRedirectProtection` or install `GrafanaOtelRuntime.redirectGuard`. There is no redirect
+  callback upstream, so nothing the package *configures* can see the destination — the flag has to
+  add one to upstream's internal delegate classes instead. One consequence of the guard is worth
+  knowing before you install it:
+  giving a task or session a delegate makes upstream skip its own `AsyncTaskDelegate`, which is what
+  ends the span for `async`/`await` requests. The guard therefore also implements
+  `urlSession(_:task:didCompleteWithError:)` — one of the selectors `URLSessionInstrumentation`
+  scans delegate classes for — so it is swizzled and the spans still end. A delegate of your own
+  that implements none of those selectors would silently drop them.
+- **Disk buffering has asymmetric delivery guarantees.** The queue's flush and shutdown behaviour is
+  covered by tests against the real persistence exporters; retry from disk across an app relaunch is
+  runtime-validated only, with no automated test. Log persistence
   cannot provide durable offline retry at the pinned upstream version:
   `OtlpHttpLogExporter.export` reports success before the response arrives, so the persistence
   decorator deletes the batch and a later failure is requeued in memory only. The package creates

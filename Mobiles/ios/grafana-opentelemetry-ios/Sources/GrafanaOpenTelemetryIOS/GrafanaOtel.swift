@@ -28,6 +28,25 @@ public struct GrafanaOtelExperimentalOptions {
   public var additionalLogRecordProcessors: [LogRecordProcessor]
   /// Adjust the upstream `URLSession` instrumentation before it is installed.
   public var customizeURLSession: ((inout URLSessionInstrumentationConfiguration) -> Void)?
+  /// Apply the first-party host policy to redirects without installing
+  /// ``GrafanaOtelRuntime/redirectGuard`` anywhere.
+  ///
+  /// Off by default because it works by adding a method to two of the upstream instrumentation's
+  /// internal delegate classes. That is a deliberate reach into someone else's implementation, so
+  /// it is a decision to take rather than inherit — but a request that redirects off your
+  /// first-party hosts carries `traceparent` to the destination until something filters it, and
+  /// upstream offers no redirect hook to configure.
+  ///
+  /// Turn this on when the sessions making requests are out of reach — a dependency's session, or
+  /// `URLSession.shared` behind code you do not own. Prefer ``GrafanaOtelRuntime/redirectGuard``
+  /// where you can install it: it is ordinary delegate code, it covers sessions that have a
+  /// delegate of their own, and it works below iOS 15.
+  ///
+  /// Only reaches tasks upstream assigned its own delegate to, meaning tasks with neither a task
+  /// delegate nor a session delegate, on iOS 15 and later. See
+  /// ``GrafanaOtelAutomaticRedirectProtection`` for the rest of the boundary. A failure to find
+  /// upstream's classes is reported through ``diagnosticsHandler``.
+  public var automaticRedirectProtection: Bool
   /// Receives upstream SDK warnings and export errors.
   ///
   /// This *replaces* upstream's default handler, which writes the same messages to `os_log`. Log
@@ -38,11 +57,13 @@ public struct GrafanaOtelExperimentalOptions {
     additionalSpanProcessors: [SpanProcessor] = [],
     additionalLogRecordProcessors: [LogRecordProcessor] = [],
     customizeURLSession: ((inout URLSessionInstrumentationConfiguration) -> Void)? = nil,
+    automaticRedirectProtection: Bool = false,
     diagnosticsHandler: (@Sendable (String) -> Void)? = nil
   ) {
     self.additionalSpanProcessors = additionalSpanProcessors
     self.additionalLogRecordProcessors = additionalLogRecordProcessors
     self.customizeURLSession = customizeURLSession
+    self.automaticRedirectProtection = automaticRedirectProtection
     self.diagnosticsHandler = diagnosticsHandler
   }
 }
@@ -164,17 +185,20 @@ public enum GrafanaOtel {
     // Prepare both storage directories up front so a disk-buffering failure cannot happen between
     // the two pipelines and leave one of them registered.
     let storage = try prepareStorage(for: configuration.diskBuffering)
+    let diskBuffer = GrafanaOtelDiskBuffer()
 
     let tracerProvider = try makeTracerProvider(
       plan: plan,
       headers: headers,
       tracesStorageURL: storage?.traces,
+      diskBuffer: diskBuffer,
       experimental: experimental
     )
     let logPipeline = try makeLogPipeline(
       plan: plan,
       headers: headers,
       logsStorageURL: storage?.logs,
+      diskBuffer: diskBuffer,
       experimental: experimental
     )
     let loggerProvider = LoggerProviderBuilder()
@@ -208,11 +232,36 @@ public enum GrafanaOtel {
       }
     #endif
 
+    // Read here rather than per redirect, and after the providers are registered, so the redirect
+    // policy covers whatever propagators the caller installed before initializing.
+    let propagationFields = GrafanaOtelSetup.tracePropagationFields()
+
+    // After the `URLSession` instrumentation, whose construction is what brings upstream's delegate
+    // classes into play. Opt-in: it adds a method to two internal upstream classes.
+    //
+    // Both redirect paths read `redirectHosts`, so the two cannot be given different host lists by
+    // an edit to one of them.
+    let redirectHosts = plan.firstPartyHosts
+    if experimental.automaticRedirectProtection, configuration.instrumentation.urlSession {
+      let outcome = GrafanaOtelAutomaticRedirectProtection.install(
+        firstPartyHosts: redirectHosts,
+        propagationFields: propagationFields
+      )
+      if let message = GrafanaOtelAutomaticRedirectProtection.diagnosticMessage(for: outcome) {
+        OpenTelemetryApi.OpenTelemetry.instance.feedbackHandler?(message)
+      }
+    }
+
     return GrafanaOtelRuntime(
       tracerProvider: tracerProvider,
       loggerProvider: loggerProvider,
       flushableLogRecordProcessors: logPipeline.flushable,
-      retainedInstrumentations: retained
+      retainedInstrumentations: retained,
+      diskBuffer: diskBuffer,
+      redirectGuard: GrafanaOtelRedirectGuard(
+        firstPartyHosts: redirectHosts,
+        propagationFields: propagationFields
+      )
     )
   }
 
@@ -257,10 +306,13 @@ public enum GrafanaOtel {
     }
   }
 
-  private static func makeTracerProvider(
+  /// Internal, not private, so a test can assert the disk queue is handed the
+  /// package's export condition — dropping it silently restores post-shutdown retries.
+  static func makeTracerProvider(
     plan: GrafanaOtelPlan,
     headers: [(String, String)],
     tracesStorageURL: URL?,
+    diskBuffer: GrafanaOtelDiskBuffer,
     experimental: GrafanaOtelExperimentalOptions
   ) throws -> TracerProviderSdk {
     var processors: [SpanProcessor] = [SessionSpanProcessor()]
@@ -273,12 +325,15 @@ public enum GrafanaOtel {
       requeueOnFailure: tracesStorageURL == nil
     )
     if let tracesStorageURL {
-      exporter = try wrapDiskBufferingError {
+      let queue = try wrapDiskBufferingError {
         try PersistenceSpanExporterDecorator(
           spanExporter: exporter,
-          storageURL: tracesStorageURL
+          storageURL: tracesStorageURL,
+          exportCondition: diskBuffer.exportCondition
         )
       }
+      diskBuffer.adopt(spanQueue: queue)
+      exporter = queue
     }
     processors.append(
       BatchSpanProcessor(
@@ -305,10 +360,12 @@ public enum GrafanaOtel {
     let flushable: [LogRecordProcessor]
   }
 
-  private static func makeLogPipeline(
+  /// Internal for the same reason as ``makeTracerProvider(plan:headers:tracesStorageURL:diskBuffer:experimental:)``.
+  static func makeLogPipeline(
     plan: GrafanaOtelPlan,
     headers: [(String, String)],
     logsStorageURL: URL?,
+    diskBuffer: GrafanaOtelDiskBuffer,
     experimental: GrafanaOtelExperimentalOptions
   ) throws -> LogPipeline {
     var downstream: [LogRecordProcessor] = []
@@ -323,12 +380,15 @@ public enum GrafanaOtel {
       envVarHeaders: headers
     )
     if let logsStorageURL {
-      exporter = try wrapDiskBufferingError {
+      let queue = try wrapDiskBufferingError {
         try PersistenceLogExporterDecorator(
           logRecordExporter: exporter,
-          storageURL: logsStorageURL
+          storageURL: logsStorageURL,
+          exportCondition: diskBuffer.exportCondition
         )
       }
+      diskBuffer.adopt(logQueue: queue)
+      exporter = queue
     }
     downstream.append(
       BatchLogRecordProcessor(

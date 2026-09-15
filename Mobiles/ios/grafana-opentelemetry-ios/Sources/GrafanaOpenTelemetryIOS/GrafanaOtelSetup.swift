@@ -202,6 +202,46 @@ enum GrafanaOtelSetup {
     return firstPartyHosts.contains(host)
   }
 
+  /// The header names a redirect off the first-party list has to be stripped of.
+  ///
+  /// Read from the installed propagators, so replacing them keeps the guard correct, unioned with
+  /// the W3C names because those are what this package's defaults inject and the union costs
+  /// nothing. `fields` is advisory rather than exhaustive: `ZipkinBaggagePropagator` declares an
+  /// empty set while writing one header per baggage entry under a `baggage-` prefix, so a
+  /// propagator that writes names it does not declare stays outside what this can remove.
+  static func tracePropagationFields(
+    propagators: ContextPropagators = OpenTelemetryApi.OpenTelemetry.instance.propagators
+  ) -> Set<String> {
+    var fields: Set<String> = ["traceparent", "tracestate", "baggage"]
+    fields.formUnion(propagators.textMapPropagator.fields)
+    fields.formUnion(propagators.textMapBaggagePropagator.fields)
+    return fields
+  }
+
+  /// Removes trace-context headers from a redirect that leaves the first-party hosts.
+  ///
+  /// `URLSession` carries the original request's custom headers onto the request it builds for a
+  /// 3xx, and upstream injected those headers before the destination was known. Same host policy
+  /// as ``shouldPropagateTraceContext(to:firstPartyHosts:)``, so a redirect that stays on the list
+  /// keeps its context and the trace stays connected.
+  static func sanitizedRedirect(
+    _ request: URLRequest,
+    firstPartyHosts: Set<String>,
+    propagationFields: Set<String>
+  ) -> URLRequest {
+    guard !shouldPropagateTraceContext(
+      to: request.url?.host,
+      firstPartyHosts: firstPartyHosts
+    ) else {
+      return request
+    }
+    var sanitized = request
+    for field in propagationFields {
+      sanitized.setValue(nil, forHTTPHeaderField: field)
+    }
+    return sanitized
+  }
+
   /// The origin the package must never trace, because tracing telemetry export creates more export.
   ///
   /// Host alone is not enough. During local development the collector and the application backend

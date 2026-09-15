@@ -58,6 +58,9 @@ let package = Package(
       dependencies: [
         "GrafanaOpenTelemetryIOS",
         .product(name: "OpenTelemetrySdk", package: "opentelemetry-swift-core"),
+        // The disk-buffering behaviour this package works around is only observable against the
+        // real persistence exporters, so they are exercised over a temporary directory.
+        .product(name: "PersistenceExporter", package: "opentelemetry-swift"),
         // Asserted against directly: the session manager the processors captured is the only way to
         // prove the install order registered the configured manager and not a lazy default.
         .product(name: "Sessions", package: "opentelemetry-swift"),

@@ -275,6 +275,11 @@ instrumentation keeps using standard OpenTelemetry APIs. See
 [`../docs/GRAFANA_OPENTELEMETRY_IOS.md`](../docs/GRAFANA_OPENTELEMETRY_IOS.md) for the package
 boundary, validation evidence, and open gates.
 
+The app sets one non-default option, `automaticRedirectProtection`. Trace context is injected
+before a redirect destination is known and `URLSession` carries custom headers across a `3xx`, so
+without it an API call redirected off the backend host would take `traceparent` there. The app's
+HTTP client is unchanged: the package filters those redirects itself.
+
 | Signal           | What is instrumented                                                                |
 | ---------------- | ----------------------------------------------------------------------------------- |
 | **Spans**        | Auto: every `URLSession` call. Manual: `pizza.get_recommendation`, `auth.login`, `pizza.rate`. MetricKit: `MXMetricPayload` spans (Apple's daily aggregated CPU/memory/hangs/hitch data). |

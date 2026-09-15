@@ -66,8 +66,33 @@ final class GrafanaOtelInstallationTests: XCTestCase {
       experimental: GrafanaOtelExperimentalOptions(
         additionalSpanProcessors: [SimpleSpanProcessor(spanExporter: spans)],
         additionalLogRecordProcessors: [logs],
+        // On, so that the flag is asserted to *do* something. Turning the branch that reads it into
+        // a no-op otherwise leaves the suite green while the demo app's only redirect protection
+        // disappears.
+        automaticRedirectProtection: true,
         diagnosticsHandler: { diagnostics.append($0) }
       )
+    )
+
+    // The flag has to reach upstream's delegate classes during `initialize`.
+    //
+    // Asserted through the recorded outcome rather than by inspecting the classes: another test
+    // class sorts ahead of this one and patches them, so their state proves nothing about whether
+    // *this* startup installed anything. The outcome is only set by a call to `install`.
+    let outcome = try XCTUnwrap(
+      GrafanaOtelAutomaticRedirectProtection.lastOutcome,
+      "initialize did not install automatic redirect protection despite the flag being on"
+    )
+    XCTAssertTrue(outcome.notFound.isEmpty, "upstream renamed \(outcome.notFound)")
+    XCTAssertEqual(
+      Set(outcome.patched).union(outcome.alreadyImplemented),
+      Set(GrafanaOtelAutomaticRedirectProtection.upstreamDelegateClassNames)
+    )
+    XCTAssertEqual(
+      outcome.firstPartyHosts,
+      ["backend.test"],
+      "the automatic path must get the configured hosts, or it strips context from all redirects "
+        + "or from none"
     )
 
     // The providers this package built are the ones registered globally.
@@ -158,6 +183,23 @@ final class GrafanaOtelInstallationTests: XCTestCase {
 
     // The span and the log record belong to the same session.
     XCTAssertEqual(exported.attributes["session.id"], record.attributes["session.id"])
+
+    // The redirect guard is bound to the configured first-party hosts, so an app that installs it
+    // gets the same policy as injection without restating the host list.
+    var redirect = URLRequest(url: URL(string: "https://ads.thirdparty.test/pixel")!)
+    redirect.setValue("00-\(String(repeating: "a", count: 32))-\(String(repeating: "b", count: 16))-01",
+                      forHTTPHeaderField: "traceparent")
+    XCTAssertNil(
+      runtime.redirectGuard.sanitizedRedirect(redirect).value(forHTTPHeaderField: "traceparent")
+    )
+    var firstPartyRedirect = URLRequest(url: URL(string: "https://backend.test/moved")!)
+    firstPartyRedirect.setValue("00-\(String(repeating: "a", count: 32))-\(String(repeating: "b", count: 16))-01",
+                                forHTTPHeaderField: "traceparent")
+    XCTAssertNotNil(
+      runtime.redirectGuard.sanitizedRedirect(firstPartyRedirect)
+        .value(forHTTPHeaderField: "traceparent"),
+      "backend.test is the configured first-party host, so its redirects stay connected"
+    )
 
     // A second call must not register a second set of providers, exporters and swizzles.
     let repeated = try GrafanaOtel.initialize(

@@ -59,11 +59,12 @@ available on macOS 12, and upstream annotates its own instrumentation
 unreachable. It is an upstream scoping decision. This package mirrors the guard rather than
 diverging from it, so the macOS gap in `swift test` is inherited, not chosen here.
 
-Both are declared with `exact:` in the package manifest: the package supports one tested upstream
-release at a time rather than advertising a range it has not exercised. The cost is real and worth
-stating:
-`exact:` is viral for consumers, and if the app's requirements are ever moved past `2.5.x` the
-package manifest has to move in the same commit or workspace resolution fails.
+Both are declared with `.upToNextMinor(from:)` in the package manifest — `2.5.2` for
+`opentelemetry-swift` and `2.5.1` for `opentelemetry-swift-core`. Patches are accepted without a
+manifest change, the minor line is not: upstream has shipped breaking work in minor releases, so
+each new minor is something to test into rather than resolve into. The floor is not a preference
+either — `requeueOnFailure` does not exist before `2.5.2`, and without it the disk-buffering path
+cannot be configured correctly.
 
 ## Why this package exists
 
@@ -96,10 +97,12 @@ distribution:
 
 It delegates all SDK behaviour to upstream and returns `GrafanaOtelRuntime`, which exposes the
 registered `TracerProviderSdk` and `LoggerProviderSdk`, the standard OpenTelemetry API entry point,
-and a flush/shutdown path. It does **not** define Grafana tracer, span, logger, event or meter APIs.
+a flush/shutdown path, and the redirect guard the app installs on its own `URLSession`. It does
+**not** define Grafana tracer, span, logger, event or meter APIs.
 
 The app still owns application-specific behaviour: the runtime config UI, the debug-only console
-span exporter, business instrumentation, screen-view events, and the app's instrumentation scope.
+span exporter, business instrumentation, screen-view events, the app's instrumentation scope, and
+installing the redirect guard on the sessions it creates.
 
 No `MeterProvider` is registered. Faro OTLP ingest currently accepts logs and traces only, so
 metrics are left off rather than exported to a route that rejects them. This is an ingest
@@ -217,6 +220,17 @@ process-wide providers:
   deduplication, environment-variable header parsing, session mapping, semantic-convention mapping
   and collector-origin exclusion;
 - the trace-propagation allowlist, including subdomain matching and suffix look-alikes;
+- the redirect guard: that a redirect off the first-party hosts loses its trace context, that one
+  staying on them keeps it, that nothing else about the request is altered, and that the guard
+  still implements the delegate selector upstream swizzles to end spans;
+- the opt-in automatic protection: that upstream's delegate classes still exist under the names it
+  looks them up by — a rename is the one thing that would silently reduce it to nothing — that
+  installing twice adds nothing, that an unknown class name is reported rather than ignored, and
+  that the selector's type encoding comes from the protocol rather than the written-out fallback;
+- the disk queue, against the real persistence exporters over a temporary directory: that flushing
+  a provider reaches disk and no further, that the runtime's own flush then delivers, that
+  stopping export closes the workers' `exportCondition`, and that a shutdown flush still delivers
+  after it is closed;
 - the single-initialization guard, including concurrent callers, remembered failure and re-entry;
 - the `URLSession` configuration the package assembles: collector-origin exclusion, the propagation
   policy, the semantic convention, and the fact that a caller's customization can narrow those but
@@ -383,6 +397,55 @@ test file replaced by a tighter one.
 The cost is that subdomains must be listed individually, and there is no supported way to propagate
 to every host. Both are intended.
 
+The host list alone does not cover redirects, and cannot. Upstream injects when the request is
+created, `URLSession` copies custom headers onto the request it builds for a `3xx`, and upstream
+swizzles no redirect method — so a first-party request that redirects to a third party carries
+`traceparent` there. `GrafanaOtelRuntime.redirectGuard` is a `URLSessionTaskDelegate` that applies
+the same host policy at the one place the system exposes a redirect destination before the request
+is sent — for apps whose sessions carry a delegate of their own, or which still support iOS 13
+and 14. QuickPizza needs neither, so it sets `automaticRedirectProtection` and installs nothing:
+its requests go through `URLSession.shared` with no delegate, which is the case the flag covers.
+
+Three routes to an automatic version were investigated; two were rejected.
+
+- **Rewriting the request on the redirect's `resume`** does not exist to be done.
+  `urlSessionTaskWillResume` carries an upstream comment claiming redirect handling can make
+  `resume` fire more than once per logical request, which would have exposed the destination with
+  no delegate at all. A probe that swizzled `URLSessionTask.resume` and logged every call recorded
+  three, all for separate tasks — the original request and the two OTLP exports — and none for the
+  redirect. Foundation follows a `3xx` inside the existing task, below the public API.
+- **A second `URLSessionTask.resume` swizzle** that assigns the guard as the task delegate does
+  work, and reaches app-created tasks too. Rejected: it stacks onto the most intricate method
+  upstream swizzles, and it writes `task.delegate` on tasks the application created.
+- **Adding the redirect callback to upstream's own delegate classes** is what shipped, as the
+  opt-in `automaticRedirectProtection`. Upstream already assigns `AsyncTaskDelegate` — or
+  `FakeDelegate` on its non-async path — to every task with neither a task delegate nor a session
+  delegate, and those classes implement completion callbacks but no redirect callback. Adding one
+  covers exactly the tasks the app expressed no delegate opinion about, with no second swizzle and
+  nothing app-owned mutated.
+
+It is off by default because it reaches into two *internal* classes of `opentelemetry-swift`, which
+is a decision to take rather than inherit, and because it covers less than the guard: nothing on
+iOS 13 or 14, where upstream assigns no delegate, and nothing on sessions that have a delegate of
+their own. A rename upstream is reported through the diagnostics handler rather than leaving the
+gap silent, and installation is skipped wherever an implementation already exists, so an upstream
+release that starts handling redirects keeps ownership.
+
+The demo app turns it on, which is why no application file in this change installs a delegate.
+The alternative was considered and rejected for the reference implementation: wiring
+`redirectGuard` through `APIClient` does not depend on upstream's internal class names, but it put
+a `URLSessionTaskDelegate` into the app's HTTP client for a concern the package is supposed to own,
+and left two mechanisms visible for one problem. The class names are covered by a test that fails
+on a rename, which is the risk that trade was about.
+
+Installing it has a consequence worth stating, because it is invisible until spans go missing:
+giving a task or session a delegate makes upstream skip its own `AsyncTaskDelegate`, which is what
+ends the span for `async`/`await` requests. The guard therefore also implements
+`urlSession(_:task:didCompleteWithError:)`, one of the six selectors `URLSessionInstrumentation`
+scans delegate classes for, which is what makes upstream swizzle it and end the span there. That is
+the same role upstream's own `FakeDelegate` plays for delegate-less tasks, and a test asserts the
+selector is still implemented.
+
 ### There is no service-name setting
 
 `serviceName` and `serviceNamespace` were removed from the configuration. Both were optional, both
@@ -454,6 +517,24 @@ Three decisions had to ship with buffering:
 The cost is latency: records become readable after roughly 4.75 seconds and export on an adaptive
 1–20 second cycle. `.disabled` remains available for prompt delivery.
 
+Two more had to ship after review, because buffering silently changed what the runtime's lifecycle
+methods mean:
+
+- **Flushing has to drain the queue explicitly.** `BatchSpanProcessor.forceFlush` and
+  `BatchLogRecordProcessor.forceFlush` reach the exporter's `export`, which under persistence
+  writes to disk and returns. Neither calls the exporter's own `flush`/`forceFlush`, the only
+  method that reads the queue back, so flushing the providers left the batch on disk for up to
+  20 seconds. The runtime now holds the persistence exporters and drains them as a second step,
+  after the providers. The flush path reads through `onRemainingBatches`, which — unlike the
+  periodic `readNextBatch` — applies no `minFileAgeForRead`, so a just-written batch is eligible.
+- **Shutdown has to stop the workers.** `PersistenceExporterDecorator` never cancels its
+  `DataExportWorker`, whose repeating `DispatchWorkItem` therefore outlived `shutdown()` and kept
+  retrying a failed batch. `cancelSynchronously()` exists but is not on `DataExportWorkerProtocol`,
+  so it cannot be called from here. The package instead supplies an `exportCondition` it owns and
+  closes it on `shutdown()`: the final batch is still delivered, because the flush path never
+  consults that condition, and nothing is exported afterwards. The workers stay parked and idle for
+  the rest of the process rather than being cancelled, which is as far as upstream's surface goes.
+
 ### Checked against the product's own setup instructions
 
 The Frontend Observability app page now carries native iOS setup instructions. The package was
@@ -489,6 +570,9 @@ what a RUM product needs and `opentelemetry-swift` does not yet provide:
 | Offline buffering | A contrib decorator enabled by default; trace retry from disk is runtime-validated, while logs are durable only until their first export attempt |
 | Export retry | Traces retry from disk on the persistence schedule; log failures are requeued in memory only |
 | Background and termination flush | None; the caller must call `forceFlush` |
+| Flushing the disk queue | Not reachable from a provider; the runtime holds the persistence exporters and drains them itself |
+| Stopping the disk queue | `DataExportWorker.cancelSynchronously()` is not on its protocol, so shutdown gates the workers through `exportCondition` instead of cancelling them |
+| Redirect-aware trace propagation | No redirect hook at all; the app installs `GrafanaOtelRuntime.redirectGuard`, or opts into `automaticRedirectProtection`, which adds one to upstream's internal delegate classes |
 
 Additionally: `OtlpHttpLogExporter.export` always reports success, so a wrong ingest URL looks
 identical to a working one from inside the app — only the diagnostics handler reveals a 404 or 401.

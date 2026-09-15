@@ -118,6 +118,12 @@ final class OTelService {
 
         return GrafanaOtelExperimentalOptions(
             additionalSpanProcessors: spanProcessors,
+            // The first-party host list is applied when a request is created, which is the only
+            // point upstream exposes. `URLSession` then carries a request's headers across a 3xx,
+            // so without this an API call redirected off the backend host would take `traceparent`
+            // wherever it was sent. This app uses `URLSession.shared` with no delegate, which is
+            // exactly the case the flag covers.
+            automaticRedirectProtection: true,
             // Replaces the SDK's own os_log handler, so export failures (404, 401, timeouts) land in
             // the app's log category instead of being scattered across the system log.
             diagnosticsHandler: { message in
