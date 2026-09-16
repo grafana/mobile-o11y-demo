@@ -281,7 +281,7 @@ Stable mode alone does not resolve these gaps.
 | ---------------- | ----------------------------------------------------------------------------------- |
 | **Spans**        | Auto: every `URLSession` call. Manual: `pizza.get_recommendation`, `auth.login`, `pizza.rate`. MetricKit: `MXMetricPayload` spans (Apple's daily aggregated CPU/memory/hangs/hitch data). |
 | **Logs**         | Auto: `session.start` / `session.end`, MetricKit `metrickit.diagnostic.{crash,hang,cpu_exception,disk_write_exception}`. Manual: app logs at `DEBUG`/`INFO`/`WARN`/`ERROR`, exception logs (`event_name=exception`), screen views (`event_name=app.screen.view`). |
-| **Resource**     | `service.name=quickpizza-ios`, `service.namespace=quickpizza`, `service.version`, `service.build`, `deployment.environment`, `device.id`, `device.model.identifier`, `os.*`, `session.id`, `session.previous_id`, `telemetry.sdk.{language=swift, version=2.3.0}`. |
+| **Resource**     | `service.name=quickpizza-ios`, `service.namespace=quickpizza`, `service.version`, `service.build`, `deployment.environment`, `device.id`, `device.model.identifier`, `os.*`, `session.id`, `session.previous_id`, `telemetry.sdk.language=swift`, `telemetry.sdk.version`. |
 
 Configuration is read from `Config.xcconfig` at build time and injected into
 `BuildConfig.generated.swift` (auto-generated, gitignored). The `OTelService`
