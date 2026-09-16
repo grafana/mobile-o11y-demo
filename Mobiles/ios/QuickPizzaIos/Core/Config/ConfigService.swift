@@ -28,7 +28,7 @@ struct ConfigService {
     }
 
     /// OTLP endpoint URL for OpenTelemetry traces and logs.
-    /// When empty, telemetry goes to stdout only.
+    /// Required for any telemetry: when empty, OpenTelemetry is not initialized at all.
     /// Set `OTLP_ENDPOINT` in Config.xcconfig (auto-generated into BuildConfig at build time).
     var otlpEndpoint: String? {
         guard let endpoint = BuildConfig.otlpEndpoint, !endpoint.isEmpty else {

@@ -175,10 +175,13 @@ the RN app — Flutter doesn't currently emit business measurements.
 
 ### iOS native (OpenTelemetry Swift)
 
-- **SDK:** `opentelemetry-swift` 2.3.0 (`telemetry_sdk_language=swift`,
-  `telemetry_sdk_name=opentelemetry`)
+- **SDK:** `opentelemetry-swift` (`telemetry_sdk_language=swift`,
+  `telemetry_sdk_name=opentelemetry`); the tested version is pinned in the Xcode
+  project's `Package.resolved`
 - **Init:** `Mobiles/ios/QuickPizzaIos/Bootstrap.swift` →
-  `Core/O11y/OTelService.swift`
+  `Core/O11y/OTelService.swift` → `GrafanaOtel.initialize(...)` from the local
+  [Grafana OpenTelemetry iOS](./GRAFANA_OPENTELEMETRY_IOS.md) package, which owns
+  SDK startup while app instrumentation stays on standard OTel APIs
 - **OTel service.name:** `quickpizza-ios`,
   service.namespace `quickpizza`
 

@@ -1,5 +1,5 @@
 {
-  "originHash" : "b8ebaf0a77615e32f0cd9f2f6939e627b57b26d0e82e79c3eea3b34b7e58c5e6",
+  "originHash" : "17b68a106b6567d164d877d579f87ea1e6d27f367ad13ee5718caecb0ddd64ae",
   "pins" : [
     {
       "identity" : "grpc-swift",
@@ -233,15 +233,6 @@
       "state" : {
         "revision" : "7c6ad0fc39d0763e0b699210e4124afd5041c5df",
         "version" : "1.6.4"
-      }
-    },
-    {
-      "identity" : "swiftiepod",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/robert-northmind/SwiftiePod.git",
-      "state" : {
-        "revision" : "7f0f071fda2b6efec88f16c7ea2fd80ea7a40abb",
-        "version" : "1.1.2"
       }
     },
     {
