@@ -123,6 +123,7 @@ dependencies {
     implementation(project(":grafana-opentelemetry-android"))
     implementation(libs.opentelemetry.sdk)
     implementation(libs.opentelemetry.extension.kotlin)
+    implementation(libs.opentelemetry.android.compose.navigation)
     implementation(libs.opentelemetry.android.okhttp3.library)
     implementation(libs.opentelemetry.okhttp3)
     byteBuddy(libs.opentelemetry.android.okhttp3.agent)

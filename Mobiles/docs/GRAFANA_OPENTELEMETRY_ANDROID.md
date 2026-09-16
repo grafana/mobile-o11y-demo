@@ -291,8 +291,7 @@ The minified app also cold-started on an API 23 ARM64 emulator. Local HTTP expor
 app's existing `usesCleartextTraffic=false` policy: API 23 does not apply the per-host network
 security configuration. No API 23 export pass is claimed for this run.
 
-App lint still reports the same seven errors as #112: six API-level findings in
-`NativeExitCrashReporter` and one restricted-API finding in `MainActivity`. Neither file's relevant
+App lint reports six errors - API-level findings in `NativeExitCrashReporter`. No relevant 
 code changed in this integration. The library's debug and release lint checks pass.
 
 - [x] The module compiles as an Android AAR and is consumed by the runnable demo app.
