@@ -59,12 +59,11 @@ final class PizzaRepository: PizzaRepositoryProtocol {
     }
 
     func getRecommendation(_ restrictions: Restrictions) async throws -> PizzaRecommendation? {
-        try await tracer.withActiveSpan("pizza.get_recommendation", kind: .client) { span in
+        try await tracer.withActiveSpan("pizza.get_recommendation", kind: .internal) { span in
             span.setAttribute(key: "pizza.vegetarian", value: restrictions.mustBeVegetarian)
             span.setAttribute(key: "pizza.max_calories", value: restrictions.maxCaloriesPerSlice)
 
             let (data, response) = try await apiClient.post("/api/pizza", body: restrictions)
-            span.setAttribute(key: "http.status_code", value: response.statusCode)
 
             if response.statusCode == 200 {
                 let recommendation: PizzaRecommendation
@@ -150,13 +149,12 @@ final class PizzaRepository: PizzaRepositoryProtocol {
     }
 
     func ratePizza(pizzaId: Int, stars: Int) async throws {
-        try await tracer.withActiveSpan("pizza.rate", kind: .client) { span in
+        try await tracer.withActiveSpan("pizza.rate", kind: .internal) { span in
             span.setAttribute(key: "pizza.id", value: pizzaId)
             span.setAttribute(key: "pizza.stars", value: stars)
 
             let body = RatingRequest(pizzaId: pizzaId, stars: stars)
             let (_, response) = try await apiClient.post("/api/ratings", body: body)
-            span.setAttribute(key: "http.status_code", value: response.statusCode)
 
             if response.statusCode == 200 || response.statusCode == 201 {
                 logger.info("Pizza rated", attributes: [

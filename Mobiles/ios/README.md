@@ -266,10 +266,14 @@ BASE_URL = https:/$()/abc123.ngrok.io
 
 The app uses the [OpenTelemetry Swift SDK](https://github.com/open-telemetry/opentelemetry-swift) (versions pinned in [`Package.resolved`](QuickPizzaIos.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved)) with the `URLSessionInstrumentation`, `Sessions`, and `MetricKitInstrumentation` libraries.
 
-HTTP instrumentation uses `semanticConvention: .stable`, emitting
+Automatic URLSession instrumentation uses `semanticConvention: .stable`, emitting
 `http.request.method`, `http.response.status_code`, `url.full` and `server.*`
 attributes. Consumers of older traces may still encounter legacy keys such as
 `http.method`, `http.status_code` and `http.url`.
+
+Manual spans (`auth.login`, `pizza.get_recommendation`, and `pizza.rate`) use
+the internal span kind and record app-specific attributes. HTTP attributes
+are recorded on their automatically instrumented HTTP child spans.
 
 The pinned instrumentation still has upstream gaps for
 [default span names](https://github.com/open-telemetry/opentelemetry-swift/issues/1202),
