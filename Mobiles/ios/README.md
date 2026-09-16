@@ -264,7 +264,18 @@ BASE_URL = https:/$()/abc123.ngrok.io
 
 ## How Observability Works
 
-The app uses the [OpenTelemetry Swift SDK](https://github.com/open-telemetry/opentelemetry-swift) (`opentelemetry-swift` 2.3.0) with the `URLSessionInstrumentation`, `Sessions`, and `MetricKitInstrumentation` libraries.
+The app uses the [OpenTelemetry Swift SDK](https://github.com/open-telemetry/opentelemetry-swift) (versions pinned in [`Package.resolved`](QuickPizzaIos.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved)) with the `URLSessionInstrumentation`, `Sessions`, and `MetricKitInstrumentation` libraries.
+
+HTTP instrumentation uses `semanticConvention: .stable`, emitting
+`http.request.method`, `http.response.status_code`, `url.full` and `server.*`
+attributes. Consumers of older traces may still encounter legacy keys such as
+`http.method`, `http.status_code` and `http.url`.
+
+The pinned instrumentation still has upstream gaps for
+[default span names](https://github.com/open-telemetry/opentelemetry-swift/issues/1202),
+[HTTP error metadata](https://github.com/open-telemetry/opentelemetry-swift/issues/1203)
+and [implicit server ports](https://github.com/open-telemetry/opentelemetry-swift/issues/1204).
+Stable mode alone does not resolve these gaps.
 
 | Signal           | What is instrumented                                                                |
 | ---------------- | ----------------------------------------------------------------------------------- |
