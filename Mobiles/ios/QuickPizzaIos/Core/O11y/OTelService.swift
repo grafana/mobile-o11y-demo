@@ -1,14 +1,9 @@
 import Foundation
+import GrafanaOpenTelemetryIOS
 import OpenTelemetryApi
 import OpenTelemetrySdk
-
-import OpenTelemetryProtocolExporterHttp
-import URLSessionInstrumentation
-import ResourceExtension
-import Sessions
+import OSLog
 import SwiftiePod
-import MetricKit
-import MetricKitInstrumentation
 
 let otelServiceProvider = Provider { pod in
     let config = pod.resolve(otelConfigProvider)
@@ -16,16 +11,37 @@ let otelServiceProvider = Provider { pod in
     return OTelService.instance
 }
 
-/// Initializes and manages OpenTelemetry traces, logs, and URLSession instrumentation.
-/// When no OTLP endpoint is configured, telemetry goes to stdout only.
-/// Provide the endpoint later via environment variable and telemetry will flow automatically.
+/// Starts OpenTelemetry through Grafana OpenTelemetry iOS and hands the upstream
+/// API to the rest of the app.
+///
+/// All SDK assembly — providers, OTLP exporters, sessions, `URLSession` tracing and
+/// MetricKit diagnostics — lives in the `GrafanaOpenTelemetryIOS` package. What stays
+/// here is app-specific: reading QuickPizza's runtime config, the debug-only console
+/// span exporter, and the app's instrumentation scope.
+///
+/// Application instrumentation (`Tracer.swift`, `Logger.swift`, `AppEvents.swift`) keeps
+/// using standard OpenTelemetry APIs and does not know this package exists.
 final class OTelService {
     fileprivate static let instance = OTelService()
 
+    private static let log = os.Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "com.grafana.QuickPizzaIos",
+        category: "otel"
+    )
+
     private var isInitialized = false
     private var otelConfig: OTelConfig?
-    /// MXMetricManager keeps a weak reference to subscribers, so we retain it here.
-    private var metricKitInstrumentation: MetricKitInstrumentation?
+    private var runtime: GrafanaOtelRuntime?
+
+    /// Whether OpenTelemetry is installed and exporting.
+    ///
+    /// A valid OTLP endpoint is required, so there is no "installed but not exporting" state:
+    /// this is simply whether the package handed back a runtime.
+    var isExportingOtlp: Bool { runtime != nil }
+
+    /// Why startup did not produce a runtime, if it did not. Reported in the app's startup log so a
+    /// silent absence of telemetry has a stated cause rather than needing to be guessed at.
+    private(set) var otlpRejectionReason: String?
 
     private init() {}
 
@@ -34,134 +50,100 @@ final class OTelService {
         isInitialized = true
         self.otelConfig = config
 
-        setupSessions()
-        setupTraces(config: config)
-        setupLogs(config: config)
-        setupMetricKitInstrumentation()
-        setupURLSessionInstrumentation(config: config)
-    }
-
-    // MARK: - Sessions
-
-    private func setupSessions() {
-        let sessionConfig = SessionConfig(
-            sessionTimeout: 15 * 60, // 15 min, matching Faro inactivity rule
-            maxLifetime: 4 * 60 * 60, // 4 hours, matching Faro max lifetime rule
-            restorePersistedSession: false // new session on each cold start, matching Faro session rule
-        )
-        SessionManagerProvider.register(sessionManager: SessionManager(configuration: sessionConfig))
-        SessionEventInstrumentation.install()
-    }
-
-    // MARK: - Traces
-
-    private func setupTraces(config: OTelConfig) {
-        var spanProcessors: [SpanProcessor] = [SessionSpanProcessor()]
-
-        if let endpointUrl = config.endpointUrl {
-            // Set auth header as environment variable for OTLP exporter
-            var envVarHeaders: [(String, String)]? = nil
-            if let authHeader = config.authHeader {
-                envVarHeaders = [("Authorization", authHeader)]
-            }
-            
-            // OTLP HTTP exporter for traces
-            let otlpTraceExporter = OtlpHttpTraceExporter(
-                endpoint: URL(string: "\(endpointUrl)/v1/traces")!,
-                envVarHeaders: envVarHeaders
-            )
-            spanProcessors.append(BatchSpanProcessor(spanExporter: otlpTraceExporter))
+        // The package requires a valid OTLP endpoint: it exists to export, so there is no
+        // install-without-exporting mode. Without one, the app runs on upstream's no-op providers —
+        // instrumentation still compiles and executes, it just produces nothing.
+        guard let endpointString = config.endpointUrl else {
+            otlpRejectionReason = "no OTLP endpoint configured"
+            Self.log.info("OTel not initialized: no OTLP endpoint configured")
+            return
+        }
+        guard let endpoint = URL(string: endpointString) else {
+            otlpRejectionReason = "OTLP endpoint is not a valid URL"
+            Self.log.error("OTel not initialized: OTLP endpoint is not a valid URL")
+            return
         }
 
+        do {
+            runtime = try GrafanaOtel.initialize(
+                configuration: try makeConfiguration(config: config, endpoint: endpoint),
+                experimental: makeExperimentalOptions()
+            )
+            Self.log.info("OTel initialized, exporting to the configured OTLP endpoint")
+        } catch {
+            let reason = String(describing: error)
+            otlpRejectionReason = reason
+            Self.log.error("OTel not initialized: \(reason, privacy: .public)")
+        }
+    }
+
+    private func makeConfiguration(
+        config: OTelConfig,
+        endpoint: URL
+    ) throws -> GrafanaOtelConfiguration {
+        var headers: [String: String] = [:]
+        if let authHeader = config.authHeader {
+            headers["Authorization"] = authHeader
+        }
+
+        // The package removes the bundle-derived `service.name` so ingest can apply the registered
+        // app identity, and it offers no setting to put one back — `resourceAttributes` is the
+        // route. This demo supplies one deliberately, because it also runs against the legacy OTLP
+        // gateway, where `service.name` and `service.namespace` are the only identity labels.
+        var resourceAttributes: [String: String] = [
+            "service.name": config.serviceName,
+            "service.namespace": "quickpizza",
+        ]
+        if let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String {
+            resourceAttributes["service.build"] = build
+        }
+
+        return try GrafanaOtelConfiguration(
+            otlpEndpoint: endpoint,
+            // QuickPizza's backend is the only host this app owns, so it is the only one that
+            // receives trace context. Everything else gets no traceparent.
+            firstPartyHosts: firstPartyHosts(backendBaseUrl: config.backendBaseUrl),
+            serviceVersion: config.appVersion,
+            deploymentEnvironment: config.deploymentEnvironment,
+            resourceAttributes: resourceAttributes,
+            headers: headers
+        )
+    }
+
+    private func makeExperimentalOptions() -> GrafanaOtelExperimentalOptions {
+        var spanProcessors: [SpanProcessor] = []
         #if DEBUG
         spanProcessors.append(SimpleSpanProcessor(spanExporter: OSLogSpanExporter()))
         #endif
 
-        let tracerProviderBuilder = TracerProviderBuilder()
-            .with(resource: buildResource(config: config))
-        for processor in spanProcessors {
-            _ = tracerProviderBuilder.add(spanProcessor: processor)
-        }
-        let tracerProvider = tracerProviderBuilder.build()
-        OpenTelemetry.registerTracerProvider(tracerProvider: tracerProvider)
-    }
-
-    // MARK: - Logs
-
-    private func setupLogs(config: OTelConfig) {
-        var logProcessors: [LogRecordProcessor] = []
-
-        if let endpointUrl = config.endpointUrl {
-            // Set auth header as environment variable for OTLP exporter
-            var envVarHeaders: [(String, String)]? = nil
-            if let authHeader = config.authHeader {
-                envVarHeaders = [("Authorization", authHeader)]
+        return GrafanaOtelExperimentalOptions(
+            additionalSpanProcessors: spanProcessors,
+            // The first-party host list is applied when a request is created, which is the only
+            // point upstream exposes. `URLSession` then carries a request's headers across a 3xx,
+            // so without this an API call redirected off the backend host would take `traceparent`
+            // wherever it was sent. This app uses `URLSession.shared` with no delegate, which is
+            // exactly the case the flag covers.
+            automaticRedirectProtection: true,
+            // Replaces the SDK's own os_log handler, so export failures (404, 401, timeouts) land in
+            // the app's log category instead of being scattered across the system log.
+            diagnosticsHandler: { message in
+                Self.log.warning("OTel SDK: \(message, privacy: .public)")
             }
-            
-            // OTLP HTTP exporter for logs, wrapped with session processor to stamp session.id on every record
-            let otlpLogExporter = OtlpHttpLogExporter(
-                endpoint: URL(string: "\(endpointUrl)/v1/logs")!,
-                envVarHeaders: envVarHeaders
-            )
-            let batchLogProcessor = BatchLogRecordProcessor(logRecordExporter: otlpLogExporter)
-            logProcessors.append(SessionLogRecordProcessor(nextProcessor: batchLogProcessor))
-        }
-
-        let loggerProvider = LoggerProviderBuilder()
-            .with(processors: logProcessors)
-            .with(resource: buildResource(config: config))
-            .build()
-        OpenTelemetry.registerLoggerProvider(loggerProvider: loggerProvider)
-    }
-
-    // MARK: - URLSession Instrumentation
-
-    private func setupMetricKitInstrumentation() {
-        guard metricKitInstrumentation == nil else { return }
-
-        let instrumentation = MetricKitInstrumentation()
-        MXMetricManager.shared.add(instrumentation)
-        metricKitInstrumentation = instrumentation
-    }
-
-    private func setupURLSessionInstrumentation(config: OTelConfig) {
-        let excludedHosts: Set<String> = {
-            var hosts = Set<String>()
-            if let endpointUrl = config.endpointUrl,
-               let host = URL(string: endpointUrl)?.host {
-                hosts.insert(host)
-            }
-            return hosts
-        }()
-
-        _ = URLSessionInstrumentation(
-            configuration: URLSessionInstrumentationConfiguration(
-                shouldInstrument: { request in
-                    guard let host = request.url?.host else { return true }
-                    return !excludedHosts.contains(host)
-                },
-                spanCustomization: { _, spanBuilder in
-                    spanBuilder.setSpanKind(spanKind: .client)
-                },
-                semanticConvention: .stable
-            )
         )
     }
 
-    // MARK: - Resource
-
-    private func buildResource(config: OTelConfig) -> Resource {
-        let defaultResources = DefaultResources().get()
-        let customResource = Resource(
-            attributes: [
-                "service.name": .string(config.serviceName),
-                "service.namespace": .string("quickpizza"),
-                "service.version": .string(config.appVersion),
-                "service.build": .string(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "unknown"),
-                "deployment.environment": .string(config.deploymentEnvironment),
-            ]
-        )
-        return defaultResources.merging(other: customResource)
+    /// Derives the first-party host from the backend the app is already calling, so the two cannot
+    /// drift apart as the backend changes between local, tunnelled and hosted setups.
+    private func firstPartyHosts(backendBaseUrl: String) -> [String] {
+        guard let host = URL(string: backendBaseUrl)?.host, !host.isEmpty else {
+            // Propagating to nothing is safer than propagating to everything, but it does mean
+            // mobile-to-backend traces will not connect, so say so rather than failing quietly.
+            Self.log.warning(
+                "No host in the backend base URL; no request will carry trace context"
+            )
+            return []
+        }
+        return [host]
     }
 
     // MARK: - Accessors
@@ -177,5 +159,10 @@ final class OTelService {
         return OpenTelemetry.instance.loggerProvider.loggerBuilder(
             instrumentationScopeName: otelConfig?.instrumentationScopeName ?? OTelConfig.defaultScopeName
         ).build()
+    }
+
+    /// Hands everything currently queued to the exporters. Blocks, so keep it off the main thread.
+    func forceFlush(timeout: TimeInterval? = nil) {
+        runtime?.forceFlush(timeout: timeout)
     }
 }

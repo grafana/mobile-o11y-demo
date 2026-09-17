@@ -16,6 +16,10 @@ let otelConfigProvider = Provider { pod in
 struct OTelConfig {
     let endpointUrl: String?
     let authHeader: String?
+    /// Backend base URL, used to allowlist which hosts receive W3C trace-context
+    /// headers so the app's own backend stays connected but third parties do not
+    /// receive trace identifiers.
+    let backendBaseUrl: String
     let serviceName: String
     let deploymentEnvironment: String
     let appVersion: String
@@ -29,13 +33,9 @@ struct OTelConfig {
     init(configService: ConfigService, runtimeConfig: RuntimeConfig) {
         self.endpointUrl = runtimeConfig.isOtlpEnabled ? runtimeConfig.otlpEndpoint : nil
         self.authHeader = runtimeConfig.otlpAuthHeader
+        self.backendBaseUrl = runtimeConfig.backendBaseUrl
         self.serviceName = configService.serviceName
         self.deploymentEnvironment = configService.deploymentEnvironment
         self.appVersion = configService.appVersion
-    }
-
-    /// Whether OTLP export is enabled (endpoint is configured).
-    var isOtlpEnabled: Bool {
-        endpointUrl != nil
     }
 }

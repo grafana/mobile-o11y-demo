@@ -264,10 +264,25 @@ BASE_URL = https:/$()/abc123.ngrok.io
 
 ## How Observability Works
 
-The app uses the [OpenTelemetry Swift SDK](https://github.com/open-telemetry/opentelemetry-swift) (versions pinned in [`Package.resolved`](QuickPizzaIos.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved)) with the `URLSessionInstrumentation`, `Sessions`, and `MetricKitInstrumentation` libraries.
+The app uses the [OpenTelemetry Swift SDK](https://github.com/open-telemetry/opentelemetry-swift)
+with the `URLSessionInstrumentation`, `Sessions`, and `MetricKitInstrumentation` libraries. The
+tested SDK version is pinned in the Xcode project's
+[`Package.resolved`](QuickPizzaIos.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved).
 
-Automatic URLSession instrumentation uses `semanticConvention: .stable`, emitting
-`http.request.method`, `http.response.status_code`, `url.full` and `server.*`
+SDK startup lives in the local
+[`grafana-opentelemetry-ios`](./grafana-opentelemetry-ios/README.md) package — an experimental
+Grafana reference kit that applies Grafana's iOS defaults and returns the upstream providers. App
+instrumentation keeps using standard OpenTelemetry APIs. See
+[`../docs/GRAFANA_OPENTELEMETRY_IOS.md`](../docs/GRAFANA_OPENTELEMETRY_IOS.md) for the package
+boundary, validation evidence, and open gates.
+
+The app sets one non-default option, `automaticRedirectProtection`. Trace context is injected
+before a redirect destination is known and `URLSession` carries custom headers across a `3xx`, so
+without it an API call redirected off the backend host would take `traceparent` there. The app's
+HTTP client is unchanged: the package filters those redirects itself.
+
+The local package configures automatic URLSession instrumentation with
+`semanticConvention: .stable`, emitting `http.request.method`, `http.response.status_code`, `url.full` and `server.*`
 attributes. Consumers of older traces may still encounter legacy keys such as
 `http.method`, `http.status_code` and `http.url`.
 
@@ -325,6 +340,8 @@ xcrun simctl list devices available
 
 **Traces not appearing in Grafana**
 
-- Double-check `OTLP_ENDPOINT` has no trailing slash
+- Double-check `OTLP_ENDPOINT` is the OTLP **base** URL, not a signal URL. A trailing slash is
+  fine — the reference kit normalises it — but an endpoint that already ends in `/v1/traces`,
+  `/v1/logs` or `/v1/metrics` is rejected at startup
 - Verify `OTLP_INSTANCE_ID` and `OTLP_API_KEY` are correct in `Config.xcconfig`
 - Check the Xcode console for `[OTel]` error messages
