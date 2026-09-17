@@ -46,7 +46,7 @@ final class AuthRepository: AuthServiceProtocol {
 
     func login(username: String, password: String) async -> Bool {
         do {
-            return try await tracer.withActiveSpan("auth.login", kind: .client) { span in
+            return try await tracer.withActiveSpan("auth.login", kind: .internal) { span in
                 span.setAttribute(key: "user.name", value: username)
 
                 struct LoginBody: Encodable {
@@ -59,8 +59,6 @@ final class AuthRepository: AuthServiceProtocol {
                     body: LoginBody(username: username, password: password),
                     includeAuth: false
                 )
-
-                span.setAttribute(key: "http.status_code", value: response.statusCode)
 
                 if response.statusCode == 200 {
                     struct LoginResponse: Decodable {

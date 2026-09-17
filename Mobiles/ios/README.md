@@ -266,7 +266,8 @@ BASE_URL = https:/$()/abc123.ngrok.io
 
 The app uses the [OpenTelemetry Swift SDK](https://github.com/open-telemetry/opentelemetry-swift)
 with the `URLSessionInstrumentation`, `Sessions`, and `MetricKitInstrumentation` libraries. The
-tested SDK version is pinned in the Xcode project's `Package.resolved`.
+tested SDK version is pinned in the Xcode project's
+[`Package.resolved`](QuickPizzaIos.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved).
 
 SDK startup lives in the local
 [`grafana-opentelemetry-ios`](./grafana-opentelemetry-ios/README.md) package — an experimental
@@ -280,11 +281,26 @@ before a redirect destination is known and `URLSession` carries custom headers a
 without it an API call redirected off the backend host would take `traceparent` there. The app's
 HTTP client is unchanged: the package filters those redirects itself.
 
+The local package configures automatic URLSession instrumentation with
+`semanticConvention: .stable`, emitting `http.request.method`, `http.response.status_code`, `url.full` and `server.*`
+attributes. Consumers of older traces may still encounter legacy keys such as
+`http.method`, `http.status_code` and `http.url`.
+
+Manual spans (`auth.login`, `pizza.get_recommendation`, and `pizza.rate`) use
+the internal span kind and record app-specific attributes. HTTP attributes
+are recorded on their automatically instrumented HTTP child spans.
+
+The pinned instrumentation still has upstream gaps for
+[default span names](https://github.com/open-telemetry/opentelemetry-swift/issues/1202),
+[HTTP error metadata](https://github.com/open-telemetry/opentelemetry-swift/issues/1203)
+and [implicit server ports](https://github.com/open-telemetry/opentelemetry-swift/issues/1204).
+Stable mode alone does not resolve these gaps.
+
 | Signal           | What is instrumented                                                                |
 | ---------------- | ----------------------------------------------------------------------------------- |
 | **Spans**        | Auto: every `URLSession` call. Manual: `pizza.get_recommendation`, `auth.login`, `pizza.rate`. MetricKit: `MXMetricPayload` spans (Apple's daily aggregated CPU/memory/hangs/hitch data). |
 | **Logs**         | Auto: `session.start` / `session.end`, MetricKit `metrickit.diagnostic.{crash,hang,cpu_exception,disk_write_exception}`. Manual: app logs at `DEBUG`/`INFO`/`WARN`/`ERROR`, exception logs (`event_name=exception`), screen views (`event_name=app.screen.view`). |
-| **Resource**     | `service.name=quickpizza-ios`, `service.namespace=quickpizza`, `service.version`, `service.build`, `deployment.environment`, `device.id`, `device.model.identifier`, `os.*`, `session.id`, `session.previous_id`, `telemetry.sdk.{language=swift, version}`. |
+| **Resource**     | `service.name=quickpizza-ios`, `service.namespace=quickpizza`, `service.version`, `service.build`, `deployment.environment`, `device.id`, `device.model.identifier`, `os.*`, `session.id`, `session.previous_id`, `telemetry.sdk.language=swift`, `telemetry.sdk.version`. |
 
 Configuration is read from `Config.xcconfig` at build time and injected into
 `BuildConfig.generated.swift` (auto-generated, gitignored). The `OTelService`
