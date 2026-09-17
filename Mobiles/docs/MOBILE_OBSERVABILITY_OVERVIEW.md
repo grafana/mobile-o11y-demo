@@ -269,7 +269,7 @@ materially different amounts of work for you out of the box.
 | Auto crash capture | Via Apple **MetricKit** — OS-managed diagnostic delivery; separate from daily performance reports | Via OTel-Android `CrashReporter` — captured and force-flushed at crash time; delivered on next app launch while disk buffering is on |
 | Auto ANR / hang | Via MetricKit diagnostic reports | Yes — `event_name=device.anr` runtime |
 | Auto slow-frame / jank | **No** (MetricKit hitch metrics arrive as `MXMetricPayload` spans) | Yes — `event_name=app.jank` |
-| Auto session lifecycle | Yes — `Sessions` library (`session.start` / `session.end` log records, `session.id` + `session.previous_id` on every signal) | Yes — emits `session.start`; `session.id` on every signal |
+| Auto session lifecycle | Yes — `Sessions` library (`session.start` / `session.end` log records, `session.id` on spans and logs, plus `session.previous_id` when available) | Yes — emits `session.start`; `session.id` on every signal |
 | Network class attribute | _Not exposed_ | Yes — `network.connection.type` (e.g. `wifi`) |
 | Compose / SwiftUI nav attrs | Manual events carry `app.screen.name` | Manual events carry `app.screen.name` / `nav.previous_destination` / `nav.kind` |
 | Device hardware attrs | `device.id`, `device.model.identifier` | `device.manufacturer`, `device.model.identifier`, `device.model.name`, `android.os.api_level`, `app.installation.id` |
@@ -326,12 +326,12 @@ sections everywhere:
 Per-platform extras:
 
 - **Android only:** an **OTel SDK section** with a `Disable disk
-  buffering` toggle (turn off for ~1–6s telemetry latency at the cost
-  of offline resilience, vs the default ~30–45s buffered window) and an
+  buffering` toggle (enable it and restart for ~1–6s telemetry latency at
+  the cost of offline resilience, vs the default ~30–45s buffered window) and an
   **ANR card** that blocks the main thread for 10 s.
-- **iOS only:** the **Crash Reporting** card explicitly notes that
-  MetricKit diagnostic delivery is controlled by Apple and is separate from
-  daily performance metrics; immediate visibility in Grafana Cloud is not guaranteed.
+- **iOS only:** the **Crash Reporting** card explains that MetricKit delivery
+  is controlled by Apple and may not appear immediately in Grafana Cloud.
+  Diagnostic delivery is separate from daily performance reports.
 
 Code:
 

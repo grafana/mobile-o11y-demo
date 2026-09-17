@@ -132,7 +132,7 @@ include:
 
 The **Crashes**, **Crash-Free Sessions**, and **ANRs** panels match Android's
 `device.crash` / `device.anr` events. They do not count iOS MetricKit diagnostic
-records. Those records appear in **Logs** and **Session Timeline** when the
+records. Those records appear in **Events** and **Session Timeline** when the
 selected session matches; do not interpret a zero crash count as proof that an
 iOS session had no crash. Android retains these event names by disabling the
 SDK's latest experimental semantic conventions.

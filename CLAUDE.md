@@ -127,7 +127,7 @@ read [`Mobiles/docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](./Mobiles/docs/MOBILE_OBS
 ### iOS native (`Mobiles/ios/`)
 
 - **Stack:** Swift, SwiftUI (iOS 26+), Swift Package Manager, `opentelemetry-swift`. Version pinned in the Xcode project's `Package.resolved`.
-- **Observability:** Manual spans (`pizza.get_recommendation`, `auth.login`, `pizza.rate`), auto HTTP via `URLSessionInstrumentation`, sessions via the `Sessions` library (15-min inactivity, `session.id` + `session.previous_id` on every signal), MetricKit crash/hang/CPU/disk-write diagnostics via `MetricKitInstrumentation` (delivered as logs + `MXMetricPayload` spans), manual `app.screen.view` events, OSLog + OTel dual logging.
+- **Observability:** Manual spans (`pizza.get_recommendation`, `auth.login`, `pizza.rate`), auto HTTP via `URLSessionInstrumentation`, sessions via the `Sessions` library (15-min inactivity, `session.id` on spans and logs, plus `session.previous_id` when available), MetricKit crash/hang/CPU/disk-write diagnostics via `MetricKitInstrumentation` (delivered as logs + `MXMetricPayload` spans), manual `app.screen.view` events, OSLog + OTel dual logging.
 - **Where it lands:** OTLP/HTTP → Faro collector `/otlp/<appKey>` → Frontend Observability plugin (Faro app `QuickPizza_iOS`, id `204`); development collectors only for now. Legacy: point `OTLP_ENDPOINT` at the Grafana Cloud OTLP gateway to land raw OTel in Tempo + Loki — invisible to the plugin, read via the "Android & iOS OTel RUM" dashboard (and an iOS-specific dashboard).
 - **Config:** `Config.xcconfig` → auto-generates `BuildConfig.generated.swift` — `OTLP_ENDPOINT`, `OTLP_INSTANCE_ID`, `OTLP_API_KEY`. Runtime overrides via in-app Debug → Config.
 - **Build:** Xcode or `bash Mobiles/ios/Scripts/sim-run.sh`.

@@ -159,6 +159,10 @@ Platform-specific diagnostics and controls are listed in the
 - **Post-login navigation:** the apps dismiss or pop the login screen after a
   successful login. They do not automatically open Profile as specified in
   W4; tap the profile avatar to open it.
+- **Flutter session lifetime:** the Faro SDK pinned in
+  [pubspec.lock](flutter/pubspec.lock) creates one session ID per app process.
+  It does not rotate the session after 15 minutes of inactivity, so it does
+  not yet meet the shared session-timeout requirement.
 - **iOS calorie range:** the native iOS customization slider starts at 300,
   below the shared minimum of 500. Its range is defined in
   [CustomizeSection.swift](ios/QuickPizzaIos/Features/Pizza/Presentation/Components/CustomizeSection.swift).
@@ -202,7 +206,7 @@ All four implementations must cover, at minimum:
 | Auto HTTP signals | one span / `faro.tracing.fetch` event per outgoing request |
 | Logs | Structured app logs at `debug` / `info` / `warn` / `error` |
 | Exceptions | Both handled (`logger.exception(...)` / `o11yErrors.reportError`) and unhandled (global error handler / native crash reporter) paths |
-| Sessions | Session ID attached to telemetry; lifecycle and timeout behavior follow each SDK (see the per-platform inventory below) |
+| Sessions | Session ID stamped on all telemetry, 15-minute inactivity timeout |
 
 Native iOS and Android additionally identify themselves with OTel resource
 attributes:
