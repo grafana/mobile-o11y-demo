@@ -46,13 +46,17 @@ open -a Simulator
 
 **Option 3: Boot Specific Simulator**
 ```bash
-xcrun simctl boot "iPhone 17 Pro"
+xcrun simctl list devices available
+# Replace the placeholder with a simulator UDID from the list.
+xcrun simctl boot "<simulator-udid>"
 open -a Simulator
 ```
 
 ---
 
 ## Run the App
+
+First complete the Flutter app's [installation and configuration](../flutter/README.md#installation), including `flutter pub get`, `config.json`, and a running QuickPizza backend. The commands below start from the repository root.
 
 ### Quick Start (Recommended)
 
@@ -62,11 +66,11 @@ cd Mobiles/flutter
 ./scripts/run-ios.sh
 ```
 
-This script will:
-- Check if an iOS simulator is running
-- Open the simulator if needed
-- Wait for it to be ready
-- Run the app automatically
+This script:
+- Checks for a connected iOS device
+- Opens Simulator if no iOS device is connected
+- Waits for it to be ready
+- Runs the app automatically
 
 ### Manual Steps
 
@@ -81,12 +85,14 @@ cd Mobiles/flutter
 ```
 
 **Using VS Code:**
-- Press **F5** (uses the configured launch.json with config.json)
+- Open the repository root in VS Code, select **Flutter (debug)**, and press **F5** (uses [`.vscode/launch.json`](../../.vscode/launch.json) with `config.json`).
 
 **Or manually:**
 ```bash
 cd Mobiles/flutter
-flutter run -d ios --dart-define-from-file=config.json
+flutter devices
+# Replace the placeholder with a device ID from the list.
+flutter run -d "<ios-device-id>" --dart-define-from-file=config.json
 ```
 
 ---

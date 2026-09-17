@@ -25,6 +25,8 @@ A React Native mobile application that replicates the QuickPizza web and Flutter
 ### 1. Install dependencies
 
 ```bash
+# From the repository root:
+cd Mobiles/react-native
 corepack enable
 yarn install --immutable
 ```
@@ -88,11 +90,11 @@ Edit **`sourcemaps.config.json`** (gitignored, like `config.json`):
 | `endpoint`, `appId`, `stackId` | **Frontend Observability → your app → Settings → Source maps** (not the Faro collector URL). |
 | `apiKey` | Bearer token for the source map API (optional if you use env only). |
 
-**Bundle id (release):** not in `sourcemaps.config.json`. **Android** resolves `applicationId@versionCode@versionName` from the Faro Gradle plugin (`android/app/build/faro/bundle-id-release.txt`). **iOS** sets `FARO_BUNDLE_ID` in the shell or `ios/.xcode.env` before `yarn ios -- --mode Release`.
+**Bundle id (release):** not in `sourcemaps.config.json`. **Android** resolves `applicationId@versionCode@versionName` from the Faro Gradle plugin (`android/app/build/faro/bundle-id-release.txt`). **iOS** sets `FARO_BUNDLE_ID` in the shell or `ios/.xcode.env` before `yarn ios --mode Release`.
 
 For **Android** release, configure **`com.grafana.faro.android-symbols`** in `android/app/build.gradle` and run **`yarn android --mode=release`** (or `./gradlew :app:assembleRelease` from `android/`). Metro reads the same bundle id from Gradle; R8 symbols upload with the plugin.
 
-For **iOS** release, export source map API vars in the same shell where you run **`yarn ios -- --mode Release`** (or inject them into CI **`xcodebuild`**) so the autolinked upload step can run **`faro-upload-source-map`**. Set **`FARO_BUNDLE_ID`** to a stable id per shipped IPA build.
+For **iOS** release, export source map API vars in the same shell where you run **`yarn ios --mode Release`** (or inject them into CI **`xcodebuild`**) so the autolinked upload step can run **`faro-upload-source-map`**. Set **`FARO_BUNDLE_ID`** to a stable id per shipped IPA build.
 
 `FARO_SOURCEMAP_ENDPOINT`, `FARO_SOURCEMAP_APP_ID`, `FARO_SOURCEMAP_STACK_ID`, `FARO_SOURCEMAP_API_KEY` (Android). On iOS, also set **`FARO_BUNDLE_ID`**.
 
@@ -147,14 +149,14 @@ Run everything from **`Mobiles/react-native/`**.
 
 #### iOS — release build, upload, verify
 
-Use the **same** `FARO_*` variables and **`sourcemaps.config.json`** as on Android. After **`cd ios && pod install`**, autolinking adds **`[Faro] Upload composed source map (Release)`** to your app target. 
+Export the same source map API values as Android through **`FARO_SOURCEMAP_*`**, plus **`FARO_BUNDLE_ID`**. The iOS upload phase requires these environment variables; `sourcemaps.config.json` alone only configures Metro and does not satisfy that phase. You can also put the exports in the gitignored `ios/.xcode.env.local`. After **`cd ios && pod install && cd ..`**, autolinking adds **`[Faro] Upload composed source map (Release)`** to your app target.
 
-- **Debug** builds skip upload; 
+- **Debug** builds skip upload;
 - **Release** runs the same `faro-upload-source-map` flow as Android once the composed map exists.
 
 **Prerequisite (`SOURCEMAP_FILE`):** React Native’s iOS bundle step writes the **composed** Hermes map to the path in this user-defined build setting. Without it, **`main.jsbundle.map`** may not be produced where the Faro upload script expects, and upload can be skipped.
 
-- **This demo (QuickPizza):** Already configured — **`Release`** sets **`SOURCEMAP_FILE = $(DERIVED_FILE_DIR)/main.jsbundle.map`** in `ios/QuickPizza.xcodeproj`. You do not need to add anything before **`yarn ios -- --mode Release`**.
+- **This demo (QuickPizza):** Already configured — **`Release`** sets **`SOURCEMAP_FILE = $(DERIVED_FILE_DIR)/main.jsbundle.map`** in `ios/QuickPizza.xcodeproj`. You do not need to add anything before **`yarn ios --mode Release`**.
 - **Another React Native app:** Add the same setting on your **app target** (usually **Release** only):
   - **Xcode:** Select the app target → **Build Settings** → **+** → **Add User-Defined Setting** → name **`SOURCEMAP_FILE`**, value **`$(DERIVED_FILE_DIR)/main.jsbundle.map`**. Set it for **Release** (or all configurations if you want composed maps in Debug too; for Faro uploads, **Release** is what matters).
   - **Project file:** You can instead add the same key/value to the **Release** `XCBuildConfiguration` for your app target in `project.pbxproj`, as in this repo’s QuickPizza target.
@@ -170,7 +172,7 @@ Use the **same** `FARO_*` variables and **`sourcemaps.config.json`** as on Andro
    export ENABLE_FARO_PAYLOAD_DIAGNOSTICS=true
 
    cd ios && pod install && cd ..
-   yarn ios -- --mode Release
+   yarn ios --mode Release
    ```
 
    **What you should see:** the build log should **not** end with **`[Faro] Skipping composed source map upload`** unless a `FARO_*` var is missing, **`FARO_SKIP_SOURCEMAP_UPLOAD`** is set, **`SOURCEMAP_FILE`** is unset in that configuration, or the composed map path is wrong.
@@ -196,13 +198,13 @@ Use the **same** `FARO_*` variables and **`sourcemaps.config.json`** as on Andro
 
 Before you upload to Faro, deploy a build to a real device, or kick off the full E2E loop (rebuild → install → trigger exception → check Grafana), it is much faster to confirm **locally** that the composed map for your release build actually resolves device frames back into `src/` files. That is what **`scripts/verify-sourcemap.js`** does for both Android and iOS.
 
-**Why bother:** the failure modes that matter (composed map with `sources=0`, frames resolving only into `node_modules/`, bundle id drift between the device payload and the map) all show up here without needing a Faro upload, a Grafana round-trip, or even an internet connection. Run it once after every release build whose composed map you intend to upload.
+**Why bother:** the script detects empty source mappings and shows whether captured device frames resolve into app code, without a Faro upload or a Grafana round-trip. It needs frames from the installed build and does not compare bundle IDs; check the diagnostics payload against the upload ID separately. Run it once after every release build whose composed map you intend to upload.
 
 **Prerequisites (same shell as your Release build):**
 
-- The corresponding Release build was produced with **`ENABLE_FARO_PAYLOAD_DIAGNOSTICS=true`** so the app emits `[Faro diagnostics][exception-frames-json]` (Android: `adb logcat`, iOS: `xcrun simctl log show`).
+- The corresponding Release build was produced with **`ENABLE_FARO_PAYLOAD_DIAGNOSTICS=true`** so the app emits `[Faro diagnostics][exception-frames-json]` (Android: `adb logcat`, iOS Simulator: `xcrun simctl spawn booted log show`).
 - The build has been **installed** on the device or simulator and you triggered an exception **after** that install (Debug → Exceptions → **Handled exception**). Frames from a stale build will not match a freshly composed map.
-- The `source-map` package is available. The script will offer either `npm i -D source-map@^0.7` or a one-shot `npx --yes -p source-map@^0.7 …` invocation.
+- The `source-map` package is available from the installed dependencies. If it is missing, run `yarn install --immutable` before invoking the script.
 
 **Android — verify the composed Gradle map:**
 
@@ -224,7 +226,7 @@ node scripts/verify-sourcemap.js --android-release --logcat \
 
 **iOS — verify the composed Xcode map:**
 
-Run from `Mobiles/react-native/` after `yarn ios -- --mode Release` and a Debug → Handled exception:
+Run from `Mobiles/react-native/` after `yarn ios --mode Release` and a Debug → Handled exception:
 
 ```bash
 node scripts/verify-sourcemap.js --ios-release --ios-log
@@ -238,11 +240,11 @@ The script prints a per-map summary (`APP=… DEP=… OTH=… NONE=…`) plus a 
 
 | Verdict | Meaning | What to do |
 | --- | --- | --- |
-| **PASS** | `APP > 0` — at least one device frame resolved into your `src/` tree. The map is upload-ready. | Proceed with `faro-cli metro upload` (or rely on the autolinked Release upload step), reinstall, re-trigger, and verify in Grafana. `DEP` frames pointing at `node_modules/react-native/*` are normal — only the topmost user-code frame is yours. |
-| **FAIL** | Composed map exists but `sources=0`. `compose-source-maps.js` could not match the packager map against the HBC map. | Almost always an outdated `@grafana/faro-metro-plugin` flattening the packager map at Metro time. Upgrade to a version that autodetects the Hermes precompile pipeline, `yarn install`, then rebundle: `( cd android && ./gradlew :app:bundleReleaseJsAndAssets --rerun-tasks )` (Android) or rerun the iOS Release build. |
-| **WARN** | Map has source mappings but every frame resolved outside `src/`. | The frames came from a different build than this map (stale install, or a bundle-id drift). Reinstall, re-trigger Debug → Handled exception against the **current** build, and rerun the script with `--logcat` / `--ios-log`. |
+| **PASS** | `APP > 0` — at least one device frame resolved into your `src/` tree. This checks the captured frames, not the uploaded map or bundle ID. | Proceed with `faro-cli metro upload` (or rely on the autolinked Release upload step), reinstall, re-trigger, and verify in Grafana. `DEP` frames pointing at `node_modules/react-native/*` are normal — only the topmost user-code frame is yours. |
+| **FAIL** | No app frames resolve, and the composed map has empty sources/mappings or lacks the multi-line mapping shape expected by the checker. | One cause is an outdated `@grafana/faro-metro-plugin` flattening the packager map at Metro time. Upgrade to a version that autodetects the Hermes precompile pipeline, `yarn install`, then rebundle: `( cd android && ./gradlew :app:createBundleReleaseJsAndAssets --rerun-tasks )` (Android) or rerun the iOS Release build. |
+| **WARN** | Map has source mappings but every frame resolved outside `src/`. | The frames may come from a different build or contain no app frames. The script does not verify bundle IDs. Reinstall, re-trigger Debug → Handled exception against the **current** build, and rerun the script with `--logcat` / `--ios-log`. |
 
-When a PASS lands, you can confidently upload, reinstall, and run the full Frontend Observability + E2E loop knowing the composed map itself is not the variable. Skip this step only when iterating on something unrelated to symbolication.
+After a PASS, confirm that the upload and telemetry use the same bundle ID, then verify the resulting frames in Frontend Observability.
 
 ## Running the app
 
@@ -256,7 +258,7 @@ docker run --rm -it -p 3333:3333 ghcr.io/grafana/quickpizza-mobile-local:latest
 
 **Option B – Microservices with Grafana Cloud observability** (from the `mobile-o11y-demo` root):
 
-Create a `.env` file with `GRAFANA_CLOUD_STACK` and `GRAFANA_CLOUD_TOKEN`, then:
+Create a `.env` file with `GRAFANA_CLOUD_STACK`, `GRAFANA_CLOUD_TOKEN`, and `QUICKPIZZA_IMAGE=ghcr.io/grafana/quickpizza-mobile-local:latest`, then:
 
 ```bash
 docker compose -f compose.grafana-cloud.microservices.yaml up -d
@@ -268,7 +270,7 @@ docker compose -f compose.grafana-cloud.microservices.yaml up -d
 - **Monolithic (Docker Compose):** `docker compose -f compose.grafana-cloud.monolithic.yaml down -v`, then `up -d` with that file again (or `compose.grafana-local-stack.monolithic.yaml` if you use the local stack).
 - **Monolithic (`docker run`, Option A):** there is no Compose volume; stop the container and run the `docker run` line again (the default image typically uses an in-memory DB per container).
 
-If you build QuickPizza from this repo, run `make docker-build` so your local image picks up backend or seed changes before `up` again.
+If you build QuickPizza from this repo, run `make docker-build` and set `QUICKPIZZA_IMAGE` to the resulting image before `up` again.
 
 ### Run the app
 
@@ -298,7 +300,7 @@ This app depends on `@grafana/faro-react-native` and `@grafana/faro-react-native
 
 In Grafana Cloud the app reports as `app_name=QuickPizza_ReactNative` (Faro app id `123` on the demo stack). Telemetry includes auto fetch + XMLHttpRequest tracing, `app_lifecycle_changed`, `view_changed`, custom business measurements (`pizza.recommendation`, `pizza.rating`), and native crash capture via Faro CrashKit.
 
-**Known issue:** RN exception logs occasionally include `console.error: Faro is already registered. Either add instrumentations, transports etc. to the global faro instance or use the "isolate" property`. This appears to come from a hot-reload / re-bootstrap path in `src/bootstrap.ts`. It does not affect telemetry flow but pollutes the error stream.
+**Duplicate initialization:** If logs include `Faro is already registered`, fully restart the app and check for repeated bootstrap calls. `src/bootstrap.ts` guards repeat calls within the current module instance, but Fast Refresh can reload that module while the global Faro instance remains registered.
 
 ## Project structure
 
@@ -312,7 +314,7 @@ src/
 
 ## E2E tests
 
-End-to-end tests use [Arbigent](https://github.com/takahirom/arbigent) (AI-powered UI automation) and run on an Android emulator.
+End-to-end tests use [Arbigent](https://github.com/takahirom/arbigent) (AI-powered UI automation). The shared runner supports both Android emulators and iOS simulators; the steps below use Android. See the [E2E guide](../e2e/README.md) for iOS.
 
 ### Prerequisites
 
@@ -343,11 +345,11 @@ End-to-end tests use [Arbigent](https://github.com/takahirom/arbigent) (AI-power
 
    The unified runner (`Mobiles/e2e/run_e2e_tests.sh`) is shared by all QuickPizza mobile demo apps. See [`Mobiles/e2e/README.md`](../e2e/README.md) for details.
 
-Results are written to `arbigent-result/` (HTML report included).
+Results are written to `Mobiles/e2e/results/react-native/arbigent-result/` relative to the repository root, including `visual_report.html`. Diagnostic flows use separate result directories.
 
 ### Optional: custom backend URL
 
-If your backend runs elsewhere, set `QUICKPIZZA_BACKEND_URL` before running:
+If your backend runs elsewhere, configure the app's `BASE_URL` first, then set `QUICKPIZZA_BACKEND_URL` to an address reachable from the host running the tests. This variable only changes the runner's reachability probe; it does not configure the app:
 
 ```bash
 export QUICKPIZZA_BACKEND_URL='http://192.168.1.100:3333'
@@ -363,4 +365,3 @@ export QUICKPIZZA_BACKEND_URL='http://192.168.1.100:3333'
 - `GET /api/ratings` - User ratings
 - `DELETE /api/ratings` - Clear ratings
 - `POST /api/users/token/login` - Login
-

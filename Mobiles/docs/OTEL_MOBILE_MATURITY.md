@@ -17,7 +17,10 @@ reproducible friction so that:
 
 Faro mobile SDK quirks live in the per-platform READMEs and in the
 [overview's "Known issues" section](./MOBILE_OBSERVABILITY_OVERVIEW.md#known-issues--open-questions).
-This file is OTel-mobile-specific.
+This file is OTel-mobile-specific. Entries retain their original IDs and
+first-seen dates. The 2026-09-17 review checks the demo source and pinned
+configuration; an open entry is not evidence that every current upstream SDK
+lacks the capability.
 
 ## Entry format
 
@@ -66,21 +69,21 @@ it. New entries are appended — do not renumber existing ones.
 
 **What we wanted to do**
 
-After login, attach the application user id (`enduser.id` per OTel SemConv) to
-**every** span and log record the SDK produces, so dashboards can slice
+After login, attach the application user ID (`user.id` in current OTel semantic
+conventions) to **every** span and log record the SDK produces, so dashboards can slice
 telemetry by user — the same way the Faro mobile SDKs do automatically via
 `Faro.setUserMeta(...)`.
 
 **What actually happened / what's missing**
 
-Neither `opentelemetry-swift` nor the `opentelemetry-android` RUM agent has a
-built-in concept of "current end-user" that can be enriched onto every signal.
-The OTel SemConv defines `enduser.*`
-([docs](https://opentelemetry.io/docs/specs/semconv/registry/attributes/enduser/))
-but stamping it on signals is left entirely to the application — including the
-non-obvious bit that it must be attached **per-signal via processors**, not as
-a Resource attribute (resources are immutable for the lifetime of the SDK,
-which doesn't fit "user logs in/out at runtime").
+Neither native demo configures app-wide user enrichment for login and logout.
+The entry title retains the original `enduser.id` wording. The current
+[user attribute registry](https://opentelemetry.io/docs/specs/semconv/registry/attributes/user/)
+also defines `user.id` and `user.name`; the demo uses `user.name` for login.
+Choose the identifier deliberately when implementing app-wide context.
+Mutable user context belongs on individual signals, for example through
+processors or dynamic attribute suppliers, rather than on the SDK resource
+created at startup.
 
 This is the same shape as `session.id`, which the SDKs *do* solve via the
 `Sessions` library on iOS and the RUM agent on Android. So the precedent for
@@ -88,8 +91,10 @@ This is the same shape as `session.id`, which the SDKs *do* solve via the
 
 **Workaround in this demo (if any)**
 
-None yet. We currently set `enduser.id` only on the manual `auth.login` span
-and nowhere else, leaving the rest of the telemetry user-anonymous.
+None yet. Both apps set `user.name` on the manual `auth.login` span. They do
+not attach the logged-in user to every span or log record. The Android local
+package exposes `globalAttributesSupplier`, which is a possible integration
+point to evaluate before adding custom processors.
 
 **What we'd want upstream**
 
@@ -98,11 +103,12 @@ A small, opt-in user-context library analogous to `Sessions`:
 - `UserContextHolder` (or similar) — thread-safe holder for current user id +
   optional pseudo id and full name. Set/cleared by app code on login/logout.
 - A pre-built `SpanProcessor` and `LogRecordProcessor` pair that read from the
-  holder and stamp `enduser.id` on `onStart` / `onEmit`.
-- PII-conscious defaults (recommend `enduser.pseudo.id` over raw username).
+  holder and stamp `user.id` on `onStart` / `onEmit`.
+- Privacy-conscious defaults that avoid collecting a raw username when a
+  pseudonymous identifier meets the application's needs.
 
-Most likely lives in `opentelemetry-swift-contrib` first (where `Sessions` and
-`MetricKitInstrumentation` live), then promoted later if it earns its keep.
+The Swift instrumentation package already supplies `Sessions` and
+`MetricKitInstrumentation`; a user-context module could follow that pattern.
 
 **Tracking**
 
@@ -112,10 +118,10 @@ Most likely lives in `opentelemetry-swift-contrib` first (where `Sessions` and
 
 ---
 
-### M-002 — No first-class OTel Metrics support on mobile
+### M-002 — No OTel metrics export in the native demos
 
 - **Status:** open
-- **Category:** missing-capability
+- **Category:** missing-capability (demo integration)
 - **Severity:** medium-low (workarounds via logs/spans exist)
 - **SDKs affected:** `opentelemetry-swift`, `opentelemetry-android`
 - **Demo apps affected:** iOS native, Android native
@@ -129,35 +135,34 @@ land in Mimir / Prometheus and show up alongside our infra metrics.
 
 **What actually happened / what's missing**
 
-`opentelemetry-swift` does not currently ship a stable Metrics SDK; the iOS
-demo uses logs + spans only. `opentelemetry-android` has metrics support in
-its core dependencies, but the RUM agent's surface area for "give me a
-`MeterProvider`" is awkward and we haven't wired it.
-
-Net effect: there is no `MeterProvider` in either native demo app, and "rate of
-checkouts" today has to be computed from log lines or spans rather than from a
-counter. That works, but is the wrong shape.
+The iOS setup registers trace and log providers only. The Android local
+Grafana package explicitly calls `disableMetrics()` after applying upstream
+configuration because its Faro OTLP ingest path accepts logs and traces.
+These are limits of this demo's configuration, not evidence that Android's
+underlying OTel SDK lacks a Metrics API.
 
 **Workaround in this demo (if any)**
 
-For Faro Flutter, we use `kind=measurement` Faro signals — which arrive as
-Loki logs, not as Prometheus metrics, so they're queryable but not aggregatable
-the way real metrics are. RN/iOS/Android currently emit no metric-shaped data
-at all.
+Flutter and React Native emit Faro performance measurements as Loki records.
+React Native also emits the custom `pizza.recommendation` and `pizza.rating`
+measurements. Flutter's business measurement adapter is a console-only no-op.
+These values can be aggregated with LogQL, but they are not Prometheus metrics.
+iOS exposes MetricKit performance data as spans; Android emits jank events.
 
-**What we'd want upstream**
+**What needs verification before adding metrics**
 
-- `opentelemetry-swift` to ship a Metrics SDK that meets OTel Metrics spec
-  parity. Track upstream progress; do not roll our own.
-- `opentelemetry-android` to expose a documented, stable `MeterProvider`
-  accessor on the RUM agent, so apps don't have to bypass the agent to add
-  metrics.
+- Check the pinned Swift SDK's Metrics API and exporter support against the
+  required instruments and aggregation behavior.
+- Choose an endpoint that accepts OTLP metrics and explicitly configure metric
+  export; the Android package currently disables it even when an upstream
+  customization specifies a metrics endpoint.
+- Keep any upstream capability gap separate from the demo's ingest and setup
+  choices.
 
 **Tracking**
 
 - Internal: TBD
-- Upstream: TBD — re-evaluate quarterly; this is mostly waiting on upstream
-  rather than something we should drive ourselves.
+- Upstream: TBD — verify a specific SDK limitation before opening an issue.
 
 ---
 
@@ -178,37 +183,31 @@ lifecycle, jank, ANR, crash).
 
 **What actually happened / what's missing**
 
-`OpenTelemetryRumInitializer` (the facade most apps use) appears to take a
-single fluent-builder configuration. It is not yet clear whether this builder
-exposes hooks for adding custom span / log processors, or whether you have to
-construct the underlying `SdkTracerProvider` / `SdkLoggerProvider` yourself
-and lose the agent's auto-instrumentation in the process.
+The demo initializes through the local `GrafanaOtel` package and the upstream
+`OpenTelemetryRumInitializer` DSL. The local package exposes
+`globalAttributes` and `globalAttributesSupplier`, so dynamic attribute
+enrichment has a configuration hook without rebuilding providers.
 
-This needs to be checked before #48 can be implemented on Android.
+Arbitrary custom processor registration through this initialization path
+still needs a focused check. Do not infer that it requires losing the agent's
+auto-instrumentation: the lower-level upstream builder and the initialization
+DSL expose different customization surfaces.
 
 **Workaround in this demo (if any)**
 
-None — we haven't tried yet. If the answer is "you have to build providers
-manually," that's the entry-worthy maturity gap. If the answer is "yes, here's
-the hook," this entry resolves to "docs gap, link the API."
+No custom processor is installed. For user enrichment, first evaluate the
+existing `globalAttributesSupplier` hook in
+[`GrafanaOtelUpstreamConfiguration`](../android/grafana-opentelemetry-android/src/main/java/com/grafana/opentelemetry/android/GrafanaOtel.kt).
 
 **What we'd want upstream (if confirmed)**
 
-A documented public API on `OpenTelemetryRumInitializer` (or its replacement)
-to attach additional `SpanProcessor` / `LogRecordProcessor` instances without
-having to re-wire the agent's internals. A minimal change of the shape:
-
-```kotlin
-OpenTelemetryRumInitializer.builder(...)
-    .addSpanProcessor(myProcessor)
-    .addLogRecordProcessor(myLogProcessor)
-    ...
-    .build()
-```
+Document how to add custom span and log processors while retaining the RUM
+agent's default instrumentation. Verify the pinned version before proposing
+an API.
 
 **Tracking**
 
-- Internal: blocks part of [#48](https://github.com/grafana/mobile-o11y-demo/issues/48)
+- Internal: related to [#48](https://github.com/grafana/mobile-o11y-demo/issues/48)
 - Upstream: TBD — verify the API surface first, then file an issue against
   `opentelemetry-android` if needed.
 
@@ -220,39 +219,34 @@ OpenTelemetryRumInitializer.builder(...)
 - **Category:** missing-capability (with iOS/Android asymmetry)
 - **Severity:** low (workarounds exist; we already emit `screen.view`-shaped
   signals)
-- **SDKs affected:** `opentelemetry-swift` (no screen detection at all),
-  `opentelemetry-android` RUM agent (emits `screen.view` log events but not
-  spans)
+- **SDKs affected:** the SwiftUI and Compose configurations used by these demos
 - **Demo apps affected:** iOS native, Android native
 - **First seen:** 2026-05-06
 
 **What we wanted to do**
 
 Capture each screen the user visits as a **span**, with start / end / duration,
-parented to the user's session. Then a "time spent per screen" panel falls
-out of Tempo for free, and slow screens surface naturally as long-duration
-spans rather than having to be reconstructed from log timestamps.
+correlated with the user's `session.id`. A session ID is not a parent span ID.
+Screen-duration spans support time-per-screen queries in Tempo without
+reconstructing durations from log timestamps.
 
 **What actually happened / what's missing**
 
-- `opentelemetry-swift`: no screen / view-transition instrumentation at all.
-  SwiftUI lacks UIKit's view-controller lifecycle hooks, so there is no
-  obvious place for the SDK to even hang an instrumentation off. The demo's
-  `app.screen.view` events are entirely manual.
-- `opentelemetry-android`: the RUM agent does detect screen views and emits
-  them as `event_name=screen.view` log records (visible in our telemetry
-  inventory). That is useful but it is not a span — there is no duration,
-  no parent / child relationship to user actions on that screen, no Tempo
-  drilldown.
+- iOS: the demo does not configure automatic SwiftUI screen-duration spans.
+  Its `.trackScreenView()` modifier emits `app.screen.view` log records.
+- Android: SDK screen detection covers Activities and Fragments. The Compose
+  demo bridges route changes manually with `TrackScreenViews` in
+  [`MainActivity.kt`](../android/app/src/main/java/com/grafana/quickpizza/MainActivity.kt),
+  emitting `app.screen.view` with `app.screen.name`,
+  `nav.previous_destination`, and `nav.kind`.
 
-So we have an **asymmetry**: Android gives us screen detection (as logs only),
-iOS gives us nothing.
+Neither app creates a duration span for each SwiftUI or Compose screen visit.
+This does not claim that every upstream UI instrumentation lacks spans.
 
 **Workaround in this demo (if any)**
 
-iOS: emit a manual `app.screen.view` log record from a `ViewModifier`
-attached to each top-level screen. Android: rely on the RUM agent's auto
-`screen.view` events. Neither produces spans.
+Both demos emit manual `app.screen.view` logs for their declarative UI routes.
+Android also retains the SDK's Activity/Fragment screen instrumentation.
 
 A more thorough workaround would be a custom `ViewModifier` that calls
 `onAppear` to start a span and `onDisappear` to end it — at the cost of
@@ -265,10 +259,9 @@ boilerplate on every screen. We have not implemented this.
   to be opt-in per screen (or a single `.trackedAsScreen("name")` modifier)
   rather than fully automatic, since SwiftUI views are too granular to
   treat every body re-render as a screen.
-- `opentelemetry-android` RUM agent: complement the existing `screen.view`
-  log events with a span variant (or convert the log to a span). The agent
-  already knows when the user enters / exits a screen — emitting a span
-  for that interval is a small step.
+- `opentelemetry-android` RUM agent: provide a documented Compose navigation
+  integration with screen-duration semantics, including how screen spans
+  relate to user actions and sessions.
 
 **Tracking**
 

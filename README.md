@@ -386,8 +386,13 @@ docker run --rm -it -p 3333:3333 ghcr.io/grafana/quickpizza-mobile-local:latest
 | --- | --- | --- | --- |
 | Flutter (Android & iOS) | `Mobiles/flutter/` | Grafana Faro (`faro` Dart SDK) | Frontend Observability plugin |
 | React Native (Android & iOS) | `Mobiles/react-native/` | Grafana Faro (`@grafana/faro-react-native`) | Frontend Observability plugin |
-| iOS native (Swift / SwiftUI) | `Mobiles/ios/` | `opentelemetry-swift` | OTLP/HTTP → Tempo + Loki |
-| Android native (Kotlin / Compose) | `Mobiles/android/` | `opentelemetry-android` RUM agent | OTLP/HTTP → Tempo + Loki |
+| iOS native (Swift / SwiftUI) | `Mobiles/ios/` | `opentelemetry-swift` | OTLP/HTTP → Faro collector → Frontend Observability plugin |
+| Android native (Kotlin / Compose) | `Mobiles/android/` | `opentelemetry-android` RUM agent | OTLP/HTTP → Faro collector → Frontend Observability plugin |
+
+Native OTLP ingest requires a collector with the `/otlp/<appKey>` route enabled.
+The alternative Grafana Cloud OTLP gateway sends raw telemetry to Tempo and Loki
+for the custom dashboard. Refer to [Connect to Grafana Cloud](./Mobiles/docs/CONNECT_GRAFANA_CLOUD.md)
+for route availability and configuration.
 
 ### Demo app version variation
 

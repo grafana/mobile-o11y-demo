@@ -110,7 +110,7 @@ read [`Mobiles/docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](./Mobiles/docs/MOBILE_OBS
 ### Flutter (`Mobiles/flutter/`)
 
 - **Stack:** Flutter/Dart, Riverpod, GoRouter, `faro` Dart SDK (`faro-mobile-flutter`). Version pinned in `Mobiles/flutter/pubspec.yaml`.
-- **Observability:** Faro emits `event` / `log` / `measurement` / `exception` signals; auto HTTP via `faro.tracing.fetch`; auto perf measurements (`app_memory`, `app_cpu_usage`, frame rates, `app_startup`); native crashes via custom `MethodChannel`-backed `NativeCrashService`.
+- **Observability:** Faro emits `event` / `log` / `measurement` / `exception` signals; auto HTTP via `faro.tracing.fetch`; auto perf measurements (`app_memory`, `app_cpu_usage`, frame rates, `app_startup`); native crash reporting enabled through Faro (`enableCrashReporting: true`); `NativeCrashService` triggers intentional crashes for diagnostics.
 - **Where it lands:** Frontend Observability plugin (Faro app `QuickPizza_Flutter`, id `69`). SDK is configured to send `app_name=QuickPizza_Flutter` to match the registry; older telemetry may still carry the legacy `quickpizza-flutter` kebab-case name.
 - **Config:** `config.json` at project root — `BASE_URL`, `FARO_COLLECTOR_URL`.
 - **Build:** `flutter run --dart-define-from-file=config.json` or `./scripts/run-android.sh` / `./scripts/run-ios.sh`.
@@ -126,12 +126,12 @@ read [`Mobiles/docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](./Mobiles/docs/MOBILE_OBS
 
 ### iOS native (`Mobiles/ios/`)
 
-- **Stack:** Swift, SwiftUI (iOS 17+), Swift Package Manager, `opentelemetry-swift`. Version pinned in the Xcode project's `Package.resolved`.
+- **Stack:** Swift, SwiftUI (iOS 26+), Swift Package Manager, `opentelemetry-swift`. Version pinned in the Xcode project's `Package.resolved`.
 - **Observability:** Manual spans (`pizza.get_recommendation`, `auth.login`, `pizza.rate`), auto HTTP via `URLSessionInstrumentation`, sessions via the `Sessions` library (15-min inactivity, `session.id` + `session.previous_id` on every signal), MetricKit crash/hang/CPU/disk-write diagnostics via `MetricKitInstrumentation` (delivered as logs + `MXMetricPayload` spans), manual `app.screen.view` events, OSLog + OTel dual logging.
 - **Where it lands:** OTLP/HTTP → Faro collector `/otlp/<appKey>` → Frontend Observability plugin (Faro app `QuickPizza_iOS`, id `204`); development collectors only for now. Legacy: point `OTLP_ENDPOINT` at the Grafana Cloud OTLP gateway to land raw OTel in Tempo + Loki — invisible to the plugin, read via the "Android & iOS OTel RUM" dashboard (and an iOS-specific dashboard).
 - **Config:** `Config.xcconfig` → auto-generates `BuildConfig.generated.swift` — `OTLP_ENDPOINT`, `OTLP_INSTANCE_ID`, `OTLP_API_KEY`. Runtime overrides via in-app Debug → Config.
 - **Build:** Xcode or `bash Mobiles/ios/Scripts/sim-run.sh`.
-- **Resource attrs:** `service.name=quickpizza-ios`, `service.namespace=quickpizza`, `service.version`, `service.build`, `deployment.environment`, `device.id`, `device.model.identifier`, `os.*`, `session.id`, `session.previous_id`, `telemetry.sdk.{language=swift, version}`.
+- **Resource attrs:** `service.name=quickpizza-ios`, `service.namespace=quickpizza`, `service.version`, `service.build`, `deployment.environment.name`, `device.id`, `device.model.identifier`, `os.*`, `telemetry.sdk.{language=swift, version}`. Session processors attach `session.id` and, when available, `session.previous_id` to spans and logs.
 
 ### Android native (`Mobiles/android/`)
 
@@ -140,11 +140,11 @@ read [`Mobiles/docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](./Mobiles/docs/MOBILE_OBS
 - **Where it lands:** OTLP/HTTP → Faro collector `/otlp/<appKey>` → Frontend Observability plugin (Faro app `QuickPizza_Android`, id `182`); development collectors only for now. Legacy: point `OTLP_ENDPOINT` at the Grafana Cloud OTLP gateway to land raw OTel in Tempo + Loki — invisible to the plugin, read via the "Android & iOS OTel RUM" dashboard.
 - **Config:** `app/src/main/res/raw/config.json` — `BASE_URL` (default `http://10.0.2.2:3333` on emulators), `OTLP_ENDPOINT`, `OTLP_INSTANCE_ID`, `OTLP_API_KEY`. Runtime overrides via in-app Debug → Config.
 - **Build:** Android Studio or `cd Mobiles/android && ./gradlew installDebug`. Use Android Studio's bundled JDK (system JDK is often too old).
-- **Resource attrs:** `service.name=quickpizza-android`, `service.namespace=quickpizza`, `service.version`, `os.build_id`, `android.os.api_level`, `device.manufacturer`, `device.model.{identifier,name}`, `network.connection.type`, `app.installation.id`, `nav.{destination, previous_destination, kind}`, `telemetry.sdk.{language=java, version}`.
+- **Resource attrs:** `service.name=quickpizza-android`, `service.namespace=quickpizza`, `service.version`, `os.build_id`, `android.os.api_level`, `device.manufacturer`, `device.model.{identifier,name}`, `app.installation.id`, `telemetry.sdk.{language=java, version}`. Compose screen changes are emitted manually as `app.screen.view` events; navigation and network connection attributes are signal attributes, not resource attributes.
 
 ### Shared Debug screen
 
-All four apps now expose an in-app **Debug** tab (Compose / SwiftUI / Flutter widgets / RN) for runtime config overrides, backend error/latency injection, client-side fault simulation, and triggering test logs / handled exceptions / native crashes. Code lives at `features/debug/` in each app. Android additionally exposes a `Disable disk buffering` toggle and an ANR card; iOS calls out the MetricKit delivery delay.
+All four apps now expose an in-app **Debug** tab (Compose / SwiftUI / Flutter widgets / RN) for runtime config overrides, backend error/latency injection, client-side fault simulation, and triggering test logs / handled exceptions / native crashes. Code lives under each app's `features/debug/` directory (`Features/Debug/` on iOS). Android additionally exposes a `Disable disk buffering` toggle and an ANR card; iOS calls out the MetricKit delivery delay.
 
 ### Telemetry CI (`.github/workflows/mobile_demo_telemetry.yaml`)
 

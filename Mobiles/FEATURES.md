@@ -3,7 +3,8 @@
 This document is the **shared feature spec** for all four QuickPizza mobile
 demo apps (Flutter, React Native, native iOS, native Android). Each app
 must implement the same screens and workflows so the four implementations
-can be compared apples-to-apples for observability demos.
+can be compared apples-to-apples for observability demos. The requirements
+describe the parity target; current implementation differences are listed below.
 
 For the observability comparison (what each app emits, where it lands in
 Grafana Cloud, Faro vs OTel), see
@@ -78,6 +79,20 @@ Accessible from the bottom navigation bar.
 
 ---
 
+### 5. Debug screen
+Accessible from the bottom navigation bar.
+
+**Must support:**
+- Runtime backend and telemetry configuration, applied after restarting the app
+- Backend error and latency injection
+- Test logs and handled exceptions
+- Intentional native crashes for testing crash reporting
+
+Platform-specific diagnostics and controls are listed in the
+[observability overview](./docs/MOBILE_OBSERVABILITY_OVERVIEW.md#the-shared-debug-screen).
+
+---
+
 ## Key Workflows
 
 ### W1: App Launch
@@ -122,7 +137,10 @@ Accessible from the bottom navigation bar.
 ### W5: View and Manage Ratings
 1. User taps profile avatar (authenticated).
 2. Profile screen shows all previously rated pizzas.
-3. User can tap "Clear Ratings" to delete all ratings (confirmed by empty state).
+3. With an account allowed to delete ratings, user can tap "Clear Ratings"
+   to delete their ratings (confirmed by empty state). The shared `default`
+   account cannot delete ratings; use a separate account such as the seeded
+   `studio-user` / `k6studiorocks` account.
 4. User can tap "Sign Out" to end session.
 
 ---
@@ -133,6 +151,22 @@ Accessible from the bottom navigation bar.
 3. Home screen is restored correctly (no crash, state preserved).
 
 > Covered by Arbigent `put_app_to_background` and `bring_app_to_foreground` scenarios.
+
+---
+
+## Current implementation differences
+
+- **Post-login navigation:** the apps dismiss or pop the login screen after a
+  successful login. They do not automatically open Profile as specified in
+  W4; tap the profile avatar to open it.
+- **iOS calorie range:** the native iOS customization slider starts at 300,
+  below the shared minimum of 500. Its range is defined in
+  [CustomizeSection.swift](ios/QuickPizzaIos/Features/Pizza/Presentation/Components/CustomizeSection.swift).
+
+These are implementation gaps against the shared requirements, not evidence
+that the E2E flow validates full feature parity. The basic flow covers launch,
+recommendation, rating, and background/foreground behavior; it does not assert
+all screen contents or exercise rating deletion.
 
 ---
 
@@ -168,7 +202,7 @@ All four implementations must cover, at minimum:
 | Auto HTTP signals | one span / `faro.tracing.fetch` event per outgoing request |
 | Logs | Structured app logs at `debug` / `info` / `warn` / `error` |
 | Exceptions | Both handled (`logger.exception(...)` / `o11yErrors.reportError`) and unhandled (global error handler / native crash reporter) paths |
-| Sessions | Session ID stamped on all telemetry, 15-minute inactivity timeout |
+| Sessions | Session ID attached to telemetry; lifecycle and timeout behavior follow each SDK (see the per-platform inventory below) |
 
 Native iOS and Android additionally identify themselves with OTel resource
 attributes:
@@ -176,7 +210,9 @@ attributes:
 - `service.name = quickpizza-ios` / `quickpizza-android`
 - `service.namespace = quickpizza`
 - `service.version = <bundleVersion / versionName>`
-- `deployment.environment = production`
+
+The iOS app also sets `deployment.environment.name = production`. The Android
+demo does not set a deployment environment resource attribute.
 
 The full per-platform inventory (auto-instrumentation, lifecycle spans,
 device attributes, ANR/crash semantics, MetricKit etc.) is documented in

@@ -16,7 +16,9 @@ Setup guide for the native Android QuickPizza app (`Mobiles/android/`).
   AGP 9.1 project (see the [AGP / Studio compatibility table](https://developer.android.com/build/releases/gradle-plugin#android_gradle_plugin_and_android_studio_compatibility));
   older releases such as Hedgehog cannot
 - Android SDK platform 37 — the app's `compileSdk`. Devices only need API 23
-  (Android 6.0 Marshmallow), the app's `minSdk`
+  (Android 6.0 Marshmallow), the app's `minSdk`. API 23 requires HTTPS: its
+  networking policy does not apply the per-host cleartext exceptions used by
+  the local HTTP backend
 - A running QuickPizza backend (see root README)
 
 ---
@@ -90,10 +92,16 @@ adb shell am start -n com.grafana.quickpizza.android/com.grafana.quickpizza.Main
 
 1. Enable **Developer Options** and **USB Debugging** on the device
 2. Connect via USB and accept the debug prompt
-3. Set `BASE_URL` in `config.json` to your machine's LAN IP:
-   ```json
-   { "BASE_URL": "http://192.168.1.100:3333" }
+3. On API 24+, forward the backend over USB and use the device loopback URL:
+   ```bash
+   adb reverse tcp:3333 tcp:3333
    ```
+   ```json
+   { "BASE_URL": "http://127.0.0.1:3333" }
+   ```
+   For a remote backend or API 23 device, use an HTTPS URL. The app permits
+   cleartext HTTP only for loopback and the emulator host alias; a plain HTTP
+   LAN-IP URL is blocked by `network_security_config.xml`.
 4. Run from Android Studio or `./gradlew installDebug`
 
 ---
@@ -116,11 +124,13 @@ Ensure `gradle.properties` has `android.useFullClasspathForDexingTransform=true`
 
 **App can't reach the backend**
 - Emulator: Make sure QuickPizza is running on the host and `BASE_URL` is empty (uses `10.0.2.2:3333`)
-- Physical device: Set `BASE_URL` to your machine's LAN IP
+- Physical device: Use the USB reverse port mapping above or an HTTPS backend.
+  Plain HTTP to a LAN IP is blocked; API 23 requires HTTPS even for loopback
 
 **No telemetry in Grafana**
-- Check `OTLP_ENDPOINT`, `OTLP_INSTANCE_ID`, and `OTLP_API_KEY` in `config.json` (or the
-  overrides set via the in-app **Debug → Config** screen)
+- Check `OTLP_ENDPOINT` in `config.json` (or **Debug → Config**). The legacy
+  OTLP gateway also requires `OTLP_INSTANCE_ID` and `OTLP_API_KEY`; Faro OTLP
+  ingest needs neither
 - Verify the endpoint accepts OTLP HTTP (not gRPC)
 - Use the **Debug** tab to trigger a test debug log, custom event, or
   handled exception and confirm they arrive

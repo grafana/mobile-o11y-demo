@@ -52,7 +52,7 @@ docker run --rm -d --name quickpizza -p 3333:3333 \
 Verify it's up:
 
 ```bash
-curl http://localhost:3333/api/pizza   # should return a JSON pizza
+curl --fail -i http://localhost:3333/healthz   # should return HTTP 200
 ```
 
 > Use the `quickpizza-mobile-local` image for mobile work. The upstream
@@ -67,9 +67,10 @@ Whether this is optional depends on the SDK family:
 - **Flutter / React Native (Faro):** a `FARO_COLLECTOR_URL` is **required** —
   these apps throw at startup without one, even for a local-only demo.
 - **iOS / Android native (OpenTelemetry):** Grafana Cloud is **optional** —
-  the apps still run with the OTLP fields empty. On iOS (debug builds) spans
-  go to the Xcode console; on Android export is simply disabled (the SDK runs
-  as a noop, so no OTel signals are produced). Set the OTLP fields to export.
+  the apps still run with the OTLP fields empty, but OpenTelemetry is not
+  initialized and produces no signals. Local app logging remains available.
+  Configure an OTLP endpoint to enable telemetry; iOS debug builds then also
+  log spans to the Xcode console.
 
 One doc covers both: [**Connect to Grafana Cloud**](./docs/CONNECT_GRAFANA_CLOUD.md)
 (Faro collector URL and OTLP endpoint/token).
@@ -103,12 +104,16 @@ Quick orientation:
 
 These apply to every app, so they're stated once here.
 
-- **Login:** username `default`, password `12345678`.
+- **Login:** username `default`, password `12345678`. This shared account cannot
+  delete ratings. Use a separate account such as `studio-user` / `k6studiorocks`
+  when demonstrating **Clear Ratings**.
 - **Backend URL on emulators/simulators:** leave `BASE_URL` empty — the apps
   auto-resolve to `http://10.0.2.2:3333` on Android emulators (which routes to
   your host) and `http://localhost:3333` on the iOS simulator. For a **physical
-  device**, set `BASE_URL` to your machine's LAN IP (e.g.
-  `http://192.168.1.100:3333`) and make sure the device is on the same network.
+  device**, follow the platform README. Native Android restricts cleartext
+  HTTP to loopback/emulator hosts: use USB `adb reverse tcp:3333 tcp:3333`
+  with `BASE_URL=http://127.0.0.1:3333` on Android 7+, or an HTTPS backend.
+  A plain HTTP LAN-IP URL is blocked in that app.
 - **Debug tab (the demo driver):** every app has an in-app **Debug** screen to
   override config at runtime, inject backend errors/latency, and trigger test
   logs, handled exceptions, and native crashes — this is how you generate

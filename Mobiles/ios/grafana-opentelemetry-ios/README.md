@@ -173,7 +173,8 @@ URL with no query string or fragment, and must be the OTLP **base** URL rather t
 ending in `/v1/traces`, `/v1/logs` or `/v1/metrics`; HTTP remains useful for simulator loopback
 tests while production endpoints should use HTTPS. Each `firstPartyHosts` entry must be a bare
 host, because an entry carrying a scheme, port or path would match nothing and silently stop
-trace-context injection. Header names must be visible ASCII and
+trace-context injection. IPv6 literals are currently rejected by this validation;
+use a hostname or IPv4 address for first-party hosts. Header names must be visible ASCII and
 header values may contain tabs or visible ASCII. Resource attribute keys must be 1–255 printable
 ASCII characters, because upstream's `Resource(attributes:)` silently discards **every** attribute
 when any single key is invalid.
@@ -191,8 +192,8 @@ package appends `/v1/traces` and `/v1/logs` itself, normalising a trailing slash
 
 Configured `headers` are merged with `OTEL_EXPORTER_OTLP_HEADERS` and win on a case-insensitive name
 match. The environment variable is parsed here rather than upstream, and splits on the *first* `=`
-only — upstream requires exactly two `=`-separated components, which silently drops every base64
-value carrying `=` padding, that is, every `Basic` credential. The merge exists because the upstream exporter treats `envVarHeaders` and
+only — upstream requires exactly two `=`-separated components, which silently drops base64
+values carrying `=` padding, including padded `Basic` credentials. The merge exists because the upstream exporter treats `envVarHeaders` and
 `OtlpConfiguration.headers` as mutually exclusive — whenever `envVarHeaders` is non-nil,
 `config.headers` is never read — so configured headers would otherwise be droppable by an
 environment variable. Duplicate names are removed, because the exporter comma-appends repeated
@@ -322,9 +323,10 @@ These are properties of the pinned upstream release, not of this package's confi
 
 - **No lifecycle or screen-view instrumentation.** Nothing upstream emits app-start, foreground,
   background, `screen.view` or jank signals, so they stay app-owned and hand-written.
-- **Crash and hang reporting is MetricKit-only**, so it is delivered on Apple's schedule, typically
-  the next day. There is no signal handler and no next-launch upload, so this package cannot report
-  a crash promptly after it happens.
+- **Crash and hang reporting is MetricKit-only.** [Apple documents immediate diagnostic
+  delivery on iOS 15 and later](https://developer.apple.com/documentation/metrickit), separately
+  from daily metric reports. The package exports available diagnostic payloads; it has no signal
+  handler or independent crash replay and does not guarantee a report for a deliberate crash.
 - **No backoff and no reliable delivery signal.** The OTLP/HTTP exporters have no
   `Retry-After` handling. Buffered traces retry from disk on the persistence schedule, while failed
   log requests are requeued in an unbounded in-memory queue that dies with the process.

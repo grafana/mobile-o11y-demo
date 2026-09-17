@@ -15,7 +15,7 @@ the other apps see [`../README.md`](../README.md).
 ### 2. Install SDK Components
 - Open Android Studio
 - Go to **Settings > Android SDK** (or **Preferences > Android SDK** on macOS)
-- **SDK Platforms tab:** Check at least one Android version (e.g., Android 13.0)
+- **SDK Platforms tab:** Install the platform required by your Flutter SDK's `compileSdkVersion` (used in [`build.gradle.kts`](../flutter/android/app/build.gradle.kts)). The emulator's system image is selected separately below.
 - **SDK Tools tab:** Ensure these are checked:
   - ✅ Android SDK Build-Tools
   - ✅ Android SDK Platform-Tools
@@ -57,13 +57,15 @@ You should see ✓ for Android toolchain.
 # List available emulators
 flutter emulators
 
-# Launch an emulator
-flutter emulators --launch <emulator_id>
+# Replace the placeholder with an emulator ID from the list.
+flutter emulators --launch "<emulator_id>"
 ```
 
 ---
 
 ## Run the App
+
+First complete the Flutter app's [installation and configuration](../flutter/README.md#installation), including `flutter pub get`, `config.json`, and a running QuickPizza backend. The commands below start from the repository root.
 
 ### Quick Start (Recommended)
 
@@ -73,11 +75,11 @@ cd Mobiles/flutter
 ./scripts/run-android.sh
 ```
 
-This script will:
-- Check if an Android emulator is running
-- Launch an emulator if needed
-- Wait for it to be ready
-- Run the app automatically
+This script:
+- Checks for a connected Android device
+- Launches an emulator if no Android device is connected
+- Waits for it to be ready
+- Runs the app automatically
 
 ### Manual Steps
 
@@ -92,12 +94,14 @@ cd Mobiles/flutter
 ```
 
 **Using VS Code:**
-- Press **F5** (uses the configured launch.json with config.json)
+- Open the repository root in VS Code, select **Flutter (debug)**, and press **F5** (uses [`.vscode/launch.json`](../../.vscode/launch.json) with `config.json`).
 
 **Or manually:**
 ```bash
 cd Mobiles/flutter
-flutter run -d android --dart-define-from-file=config.json
+flutter devices
+# Replace the placeholder with a device ID from the list.
+flutter run -d "<android-device-id>" --dart-define-from-file=config.json
 ```
 
 ---

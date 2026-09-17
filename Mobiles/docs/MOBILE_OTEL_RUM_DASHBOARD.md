@@ -27,7 +27,8 @@ Mobiles/dashboards/mobile-otel-rum-dashboard.json
 ```
 
 It uses Grafana's dashboard resource format and a tabbed layout, so it requires
-Grafana 13 or later.
+Grafana 13 or later, where
+[dynamic dashboards are generally available](https://grafana.com/whats-new/2026-04-08-dynamic-dashboards-is-now-generally-available/).
 
 ## Requirements
 
@@ -37,9 +38,9 @@ Grafana 13 or later.
 - A Loki data source named `grafanacloud-logs`.
 - A Tempo data source named `grafanacloud-traces`.
 
-Grafana Cloud stacks commonly use these data source names. If your stack or OSS
-Grafana instance uses different names, update the data source references after
-import.
+These names are the references in the checked-in JSON. Your stack may use
+stack-specific names such as `grafanacloud-<stack>-logs`. Update the references
+to match your data sources after import.
 
 ## Import the Dashboard
 
@@ -75,29 +76,42 @@ discovery would include unrelated services.
 You can also type a service name directly into the dropdown because custom
 values are enabled.
 
+## Select a session
+
+Select a row in **Sessions — click to select**, or enter an exact **Session ID**.
+The log detail panels filter by that value; leaving it blank does not mean
+"all sessions". The trace panel uses a session ID prefix match instead. The
+Overview panels aggregate across the selected services and time range.
+
+The session list uses Android `rum.sdk.init.started` events and iOS
+`session.start` events. An Android session that starts after initialization
+can therefore have telemetry without a corresponding row in that list; enter
+its ID directly.
+
 ## Expected Telemetry Shape
 
 The dashboard expects the same broad telemetry contract used by the native
 QuickPizza demo apps.
 
-Every signal should include these OpenTelemetry resource attributes:
+The service and version views use these OpenTelemetry resource attributes:
 
 ```text
 service.name
 service.namespace
 service.version
-deployment.environment
 ```
 
-The Android demo app does not set `deployment.environment` today, so panels that
-filter on it drop its data. The iOS demo app sets it to `production`.
+The iOS demo also sets `deployment.environment.name=production`. The Android
+demo does not set a deployment environment. The checked-in dashboard does not
+filter on either environment key.
 
 Session-aware views expect session attributes to be present. In Grafana Cloud
 Loki queries, `session.id` is available as `session_id`.
 
 Android signals from `opentelemetry-android` include events such as:
 
-- `screen.view`
+- `screen.view` (SDK Activity/Fragment instrumentation)
+- `app.screen.view` (manual Compose navigation)
 - `app.jank`
 - `session.start`
 - `rum.sdk.init.*`
@@ -116,6 +130,13 @@ include:
 - manual business spans such as `pizza.get_recommendation`, `auth.login`, and
   `pizza.rate`
 
+The **Crashes**, **Crash-Free Sessions**, and **ANRs** panels match Android's
+`device.crash` / `device.anr` events. They do not count iOS MetricKit diagnostic
+records. Those records appear in **Logs** and **Session Timeline** when the
+selected session matches; do not interpret a zero crash count as proof that an
+iOS session had no crash. Android retains these event names by disabling the
+SDK's latest experimental semantic conventions.
+
 For platform-specific setup details, see:
 
 - [Android Native Setup Guide](./ANDROID_NATIVE_SETUP.md)
@@ -127,6 +148,8 @@ If the dashboard is empty:
 
 - Confirm that the selected time range contains recent telemetry.
 - Confirm that **Mobile service names** matches your app's `service.name`.
+- Select a session for log detail panels. If its startup event is outside the
+  time range, widen the range or enter the session ID directly.
 - Confirm that the app is exporting OTLP over HTTP to the correct Grafana Cloud
   endpoint.
 - Confirm that the OTLP credentials allow `logs:write` and `traces:write`.
@@ -135,4 +158,9 @@ If the dashboard is empty:
 
 For Android, use the Debug tab to emit a debug log, handled exception, ANR, or
 crash event. For iOS, use the Debug tab to emit logs and handled exceptions.
-MetricKit crash and hang diagnostics are delayed by Apple and may arrive later.
+MetricKit diagnostic delivery is controlled by Apple and is separate from
+daily performance metrics. SDK buffering and export also affect when records
+become queryable.
+
+The 2026-09-17 review checks this guide against the dashboard JSON and app
+instrumentation. It does not verify a dashboard import or live cloud queries.

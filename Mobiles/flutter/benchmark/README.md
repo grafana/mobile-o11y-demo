@@ -25,6 +25,8 @@ node local-stack.mjs
 In another terminal, start the byte-preserving proxy. Use a new capture directory for every scenario:
 
 ```bash
+# From the repository root:
+cd Mobiles/flutter/benchmark
 node capture-proxy.mjs \
   --output .captures/flutter-session-001 \
   --scenario launch-request-rate-background-foreground
@@ -62,6 +64,8 @@ Complete the named scenario once, allow the Faro batch to flush, then stop the a
 Captured payloads can contain user or device identifiers. The entire `.captures` directory is ignored by Git. Only sanitized summaries should be committed.
 
 ## Sanitize and prepare replay
+
+Run the remaining commands from `Mobiles/flutter/benchmark/`. Keep the local telemetry stack running for replay and validation, and use a new run ID for each replay so earlier rows do not affect the count checks.
 
 ```bash
 node prepare-replay.mjs \
