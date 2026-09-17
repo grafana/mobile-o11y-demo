@@ -241,9 +241,11 @@ spans rather than having to be reconstructed from log timestamps.
   `app.screen.view` events are entirely manual.
 - `opentelemetry-android`: the RUM agent does detect screen views and emits
   them as `event_name=screen.view` log records (visible in our telemetry
-  inventory). That is useful but it is not a span — there is no duration,
-  no parent / child relationship to user actions on that screen, no Tempo
-  drilldown.
+  inventory). Since 1.6.0-alpha the `compose-navigation` module adds
+  per-route `app.navigation.complete` events, which fixes the
+  single-Activity blind spot. Both are still log records, not spans —
+  there is no duration, no parent / child relationship to user actions on
+  that screen, no Tempo drilldown.
 
 So we have an **asymmetry**: Android gives us screen detection (as logs only),
 iOS gives us nothing.

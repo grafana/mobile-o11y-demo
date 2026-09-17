@@ -204,14 +204,13 @@ and exports via OTLP/HTTP. The version is pinned in
 | Signal    | Examples                                                                                                                                                                                                                                                            |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Spans** | `GET` (auto OkHttp), `AppStart` / `Paused` / `Stopped` (auto lifecycle), `pizza.get_recommendation` / `auth.login` / `pizza.rate` (manual)                                                                                                                          |
-| **Logs**  | `screen.view` (auto), `app.jank` (auto, slow rendering), `session.start` (auto), `rum.sdk.init.`* (auto SDK self-telemetry), `exception` (manual `logger.exception`), `device.crash` (auto, next launch), `device.anr` (auto, runtime), `debug.test_event` (manual) |
+| **Logs**  | `screen.view` (auto), `app.navigation.complete` (auto, set up required, Compose navigation), `app.jank` (auto, slow rendering), `session.start` (auto), `rum.sdk.init.`* (auto SDK self-telemetry), `exception` (manual `logger.exception`), `device.crash` (auto, next launch), `device.anr` (auto, runtime), `debug.test_event` (manual) |
 
 
 Core resource attributes: `service.name=quickpizza-android`,
 `service.namespace=quickpizza`, `service.version`. The app does not set
 `deployment.environment`, so environment filters do not match it (the iOS app
-does). The full set (device, network, nav, and
-session attributes) is inventoried in
+does). The full set (device, network, and session attributes) is inventoried in
 [`MOBILE_OBSERVABILITY_OVERVIEW.md § Android native`](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md#android-native-opentelemetry-android).
 
 `OTelService` delegates startup to the local Grafana OpenTelemetry Android library, which uses
@@ -229,6 +228,14 @@ buffering on it is delivered on the next launch.
 every signal.
 - Disk buffering of OTLP exports for offline resilience (toggle off via
   the Debug screen).
+
+One Compose instrumentation needs more than the startup defaults:
+
+- **`compose-navigation`** is the one instrumentation the agent does not
+  auto-discover, because it has to hook a specific `NavController`.
+  `MainActivity` opts in with `navController.withOpenTelemetry(rum)`, which
+  emits `event_name=app.navigation.complete` with
+  `app.navigation.destination.name` set to the route pattern.
 
 The current [Grafana OpenTelemetry Android spike](grafana-opentelemetry-android/README.md) moves
 those shared startup defaults into a local library while returning the upstream OTel runtime. The package

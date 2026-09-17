@@ -223,10 +223,8 @@ Resource attributes are **the richest of any platform**: `service.*`,
 `os.name`, `os.version`, `os.description`, `os.build_id`,
 `android.os.api_level`, `device.manufacturer`, `device.model.identifier`,
 `device.model.name`, `network.connection.type` (e.g. `wifi`),
-`app.installation.id`, `screen.name` (current Activity), `nav.destination`
-+ `nav.previous_destination` + `nav.kind` (Compose navigation), `session.id`,
-`telemetry.sdk.{language, name, version}`,
-`scope.name=com.grafana.quickpizza`.
+`app.installation.id`, `screen.name` (current Activity), `session.id`,
+`telemetry.sdk.{language, name, version}`, `scope.name`.
 
 > **Last verified in cloud:** ~2026-04-24 (the Android demo app hadn't sent
 > data to the demo stack in the ~12 days before this doc was written; the
@@ -244,13 +242,13 @@ materially different amounts of work for you out of the box.
 | --- | --- | --- |
 | Auto HTTP spans | Yes — `URLSessionInstrumentation` | Yes — OkHttp `Call.Factory` wrapper |
 | Auto lifecycle spans | **No** | Yes — `AppStart`, `Paused`, `Stopped` |
-| Auto screen view events | **No** (we emit `app.screen.view` manually via a SwiftUI view modifier) | Yes — `event_name=screen.view` |
+| Auto screen view events | **No** (we emit `app.screen.view` manually via a SwiftUI view modifier) | Yes — `event_name=screen.view` (Activity-level) plus `event_name=app.navigation.complete` per Compose route |
 | Auto crash capture | Via Apple **MetricKit** — delayed (hours / next 24h window) and batched | Via OTel-Android `CrashReporter` — captured and force-flushed at crash time; delivered on next app launch while disk buffering is on |
 | Auto ANR / hang | Via MetricKit (delayed) | Yes — `event_name=device.anr` runtime |
 | Auto slow-frame / jank | **No** (MetricKit hitch metrics arrive as `MXMetricPayload` spans) | Yes — `event_name=app.jank` |
 | Auto session lifecycle | Yes — `Sessions` library (`session.start` / `session.end` log records, `session.id` + `session.previous_id` on every signal) | Yes — emits `session.start`; `session.id` on every signal |
 | Network class attribute | _Not exposed_ | Yes — `network.connection.type` (e.g. `wifi`) |
-| Compose / SwiftUI nav attrs | _None_ | Yes — `nav.destination` / `nav.previous_destination` / `nav.kind` |
+| Compose / SwiftUI nav instrumentation | _None_ | Yes — `compose-navigation` emits `app.navigation.complete` with `app.navigation.destination.name` (opt-in, set up required) |
 | Device hardware attrs | `device.id`, `device.model.identifier` | `device.manufacturer`, `device.model.identifier`, `device.model.name`, `android.os.api_level`, `app.installation.id` |
 | Performance / Apple-specific | `MXMetricPayload` spans (CPU, memory, hangs, hitch ratios — daily) | `app.jank` events, `rum.sdk.init.*` self-telemetry |
 | Custom OTel Metrics API | Not configured | Not configured |
