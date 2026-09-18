@@ -111,7 +111,8 @@ Loki queries, `session.id` is available as `session_id`.
 Android signals from `opentelemetry-android` include events such as:
 
 - `screen.view` (SDK Activity/Fragment instrumentation)
-- `app.screen.view` (manual Compose navigation)
+- `app.navigation.complete` (SDK Compose navigation, after explicit setup;
+  `app.navigation.destination.name` contains the route pattern)
 - `app.jank`
 - `session.start`
 - `rum.sdk.init.*`

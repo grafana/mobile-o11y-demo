@@ -233,7 +233,7 @@ For deeper iOS detail see
 | Signal | Examples | Source |
 | --- | --- | --- |
 | Spans (Tempo) | `GET` (auto, OkHttp telemetry), `AppStart` / `Paused` / `Stopped` (auto, lifecycle instrumentation), `pizza.get_recommendation` / `auth.login` / `pizza.rate` (manual) | manual via `core/o11y/AppTracer.kt`; rest auto from RUM agent |
-| Logs (Loki) | `event_name=screen.view` (auto, Activity/Fragment), `event_name=app.screen.view` (manual, Compose routes), `event_name=app.jank` (auto, slow-rendering instrumentation), `session.start` (auto), `rum.sdk.init.{started, span.exporter, net.provider}` (auto SDK self-telemetry), `event_name=exception` (manual `logger.exception`), `event_name=device.crash` (auto, `CrashReporter`; force-flushed at crash time, delivered next launch when disk buffering is on), `event_name=device.anr` (auto ANR detection), `event_name=debug.test_event` (manual from Debug screen) | mostly auto; `app.screen.view`, `exception`, and `debug.*` are manual |
+| Logs (Loki) | `event_name=screen.view` (auto, Activity/Fragment), `event_name=app.navigation.complete` (SDK Compose navigation, after explicit setup), `event_name=app.jank` (auto, slow-rendering instrumentation), `session.start` (auto), `rum.sdk.init.{started, span.exporter, net.provider}` (auto SDK self-telemetry), `event_name=exception` (manual `logger.exception`), `event_name=device.crash` (auto, `CrashReporter`; force-flushed at crash time, delivered next launch when disk buffering is on), `event_name=device.anr` (auto ANR detection), `event_name=debug.test_event` (manual from Debug screen) | mostly auto; Compose navigation requires explicit setup; `exception` and `debug.*` are manual |
 | Metrics | Disabled by the local Grafana package with `disableMetrics()`; jank information is emitted as events. | — |
 
 Resource attributes include `service.*`,
@@ -242,9 +242,11 @@ Resource attributes include `service.*`,
 `device.model.name`, `app.installation.id`, and
 `telemetry.sdk.{language, name, version}`. Signal attributes include
 `network.connection.type` (e.g. `wifi`), `screen.name` (current Activity), and
-`session.id`. The manual Compose `app.screen.view` events add
-`app.screen.name`, `nav.previous_destination`, and `nav.kind`; they do not set
-`nav.destination`. App instrumentation uses the scope `com.grafana.quickpizza`.
+`session.id`. `MainActivity` attaches the SDK's Compose navigation instrumentation
+with `navController.withOpenTelemetry(rum)`. Its `app.navigation.complete` events
+carry `app.navigation.destination.name` (the route pattern) and use the scope
+`io.opentelemetry.android.instrumentation.compose.navigation`. App-owned business
+instrumentation uses the scope `com.grafana.quickpizza`.
 
 Native C/C++ crashes have a separate demo-owned path:
 [`NativeExitCrashReporter`](../android/app/src/main/java/com/grafana/quickpizza/nativecrash/NativeExitCrashReporter.kt)
@@ -265,21 +267,21 @@ materially different amounts of work for you out of the box.
 | --- | --- | --- |
 | Auto HTTP spans | Yes — `URLSessionInstrumentation` | Yes — OkHttp `Call.Factory` wrapper |
 | Auto lifecycle spans | **No** | Yes — `AppStart`, `Paused`, `Stopped` |
-| Auto screen view events | **No** (we emit `app.screen.view` manually via a SwiftUI view modifier) | Activity/Fragment events; Compose routes use manual `app.screen.view` |
+| Auto screen view events | **No** (we emit `app.screen.view` manually via a SwiftUI view modifier) | Activity/Fragment `screen.view`; Compose `app.navigation.complete` after explicit setup |
 | Auto crash capture | Via Apple **MetricKit** — OS-managed diagnostic delivery; separate from daily performance reports | Via OTel-Android `CrashReporter` — captured and force-flushed at crash time; delivered on next app launch while disk buffering is on |
 | Auto ANR / hang | Via MetricKit diagnostic reports | Yes — `event_name=device.anr` runtime |
 | Auto slow-frame / jank | **No** (MetricKit hitch metrics arrive as `MXMetricPayload` spans) | Yes — `event_name=app.jank` |
 | Auto session lifecycle | Yes — `Sessions` library (`session.start` / `session.end` log records, `session.id` on spans and logs, plus `session.previous_id` when available) | Yes — emits `session.start`; `session.id` on every signal |
 | Network class attribute | _Not exposed_ | Yes — `network.connection.type` (e.g. `wifi`) |
-| Compose / SwiftUI nav attrs | Manual events carry `app.screen.name` | Manual events carry `app.screen.name` / `nav.previous_destination` / `nav.kind` |
+| Compose / SwiftUI nav attrs | Manual events carry `app.screen.name` | SDK navigation events carry `app.navigation.destination.name` |
 | Device hardware attrs | `device.id`, `device.model.identifier` | `device.manufacturer`, `device.model.identifier`, `device.model.name`, `android.os.api_level`, `app.installation.id` |
 | Performance / Apple-specific | `MXMetricPayload` spans (CPU, memory, hangs, hitch ratios — daily) | `app.jank` events, `rum.sdk.init.*` self-telemetry |
 | Custom OTel Metrics API | Not configured | Export explicitly disabled by local package |
 
 The Android demo enables automatic lifecycle, Activity/Fragment screen, jank,
-and ANR instrumentation. The iOS demo uses `MetricKitInstrumentation` for
-OS-level diagnostics. Both apps add manual screen and business events for
-their Compose or SwiftUI interfaces.
+and ANR instrumentation, and explicitly attaches SDK Compose navigation tracking.
+The iOS demo uses `MetricKitInstrumentation` for OS-level diagnostics and emits
+manual SwiftUI screen events. Both apps add manual business events.
 
 ---
 
@@ -354,8 +356,8 @@ there:
 - `M-002` — No OTel metrics export in the native demos.
 - `M-003` — Android RUM agent processor extensibility (needs verification).
 - `M-004` — Screen / view transitions not captured as spans (iOS has no
-  automatic SwiftUI screen tracking configured; Android Compose routes use
-  manual `app.screen.view` events).
+  automatic SwiftUI screen tracking configured; Android Compose routes emit
+  SDK `app.navigation.complete` log events).
 
 ---
 

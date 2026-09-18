@@ -210,15 +210,14 @@ and exports via OTLP/HTTP. The version is pinned in
 | Signal    | Examples                                                                                                                                                                                                                                                            |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Spans** | `GET` (auto OkHttp), `AppStart` / `Paused` / `Stopped` (auto lifecycle), `pizza.get_recommendation` / `auth.login` / `pizza.rate` (manual)                                                                                                                          |
-| **Logs**  | `screen.view` (auto), `app.jank` (auto, slow rendering), `session.start` (auto), `rum.sdk.init.`* (auto SDK self-telemetry), `exception` (manual `logger.exception`), `device.crash` (auto, next launch), `device.anr` (auto, runtime), `debug.test_event` (manual) |
+| **Logs**  | `screen.view` (auto), `app.navigation.complete` (Compose navigation, after explicit setup), `app.jank` (auto, slow rendering), `session.start` (auto), `rum.sdk.init.`* (auto SDK self-telemetry), `exception` (manual `logger.exception`), `device.crash` (auto, next launch), `device.anr` (auto, runtime), `debug.test_event` (manual) |
 
 
 Core resource attributes: `service.name=quickpizza-android`,
 `service.namespace=quickpizza`, `service.version`. The app does not set
 `deployment.environment.name` or the legacy `deployment.environment`, so
 environment filters do not match it (the iOS app
-does). The full set (device, network, nav, and
-session attributes) is inventoried in
+does). The device, network, navigation, and session attributes are inventoried in
 [`MOBILE_OBSERVABILITY_OVERVIEW.md § Android native`](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md#android-native-opentelemetry-android).
 
 `OTelService` delegates startup to the local Grafana OpenTelemetry Android library, which uses
@@ -237,6 +236,12 @@ lifetime, with `session.id` stamped on spans and log records.
   the Debug screen).
 
 The app separately wires auto OkHttp tracing through a `Call.Factory` wrapper.
+
+Compose navigation also requires explicit setup: `MainActivity` calls
+`navController.withOpenTelemetry(rum)` to attach the SDK's `compose-navigation`
+instrumentation. It emits `event_name=app.navigation.complete` with
+`app.navigation.destination.name` set to the route pattern. These are log events,
+not screen-duration spans.
 
 The current [Grafana OpenTelemetry Android spike](grafana-opentelemetry-android/README.md) moves
 those shared startup defaults into a local library while returning the upstream OTel runtime. The package

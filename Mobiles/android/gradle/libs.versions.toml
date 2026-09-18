@@ -53,6 +53,7 @@ gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 opentelemetry-android-bom = { module = "io.opentelemetry.android:opentelemetry-android-bom", version.ref = "opentelemetryAndroid" }
 opentelemetry-android-agent = { module = "io.opentelemetry.android:android-agent" }
 opentelemetry-android-core = { module = "io.opentelemetry.android:core" }
+opentelemetry-android-compose-navigation = { module = "io.opentelemetry.android.instrumentation:compose-navigation", version.ref = "opentelemetryAndroidInstrumentation" }
 opentelemetry-android-okhttp3-library = { module = "io.opentelemetry.android.instrumentation:okhttp3-library", version.ref = "opentelemetryAndroidInstrumentation" }
 opentelemetry-android-okhttp3-agent = { module = "io.opentelemetry.android.instrumentation:okhttp3-agent", version.ref = "opentelemetryAndroidInstrumentation" }
 opentelemetry-okhttp3 = { module = "io.opentelemetry.instrumentation:opentelemetry-okhttp-3.0" }

@@ -28,6 +28,16 @@ class OTelService @Inject constructor(
     val openTelemetry: OpenTelemetry
         get() = rum?.openTelemetry ?: OpenTelemetry.noop()
 
+    /**
+     * The RUM runtime, or `null` until [initialize] succeeds.
+     *
+     * Instrumentations that are wired up by the app rather than auto-discovered — currently
+     * `compose-navigation` — take the runtime itself, not just its [OpenTelemetry]. There is no
+     * noop [OpenTelemetryRum] to fall back on, so callers have to handle the unconfigured case.
+     */
+    val openTelemetryRum: OpenTelemetryRum?
+        get() = rum
+
     @Synchronized
     fun initialize() {
         if (rum != null) {

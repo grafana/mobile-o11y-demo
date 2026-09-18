@@ -234,19 +234,21 @@ reconstructing durations from log timestamps.
 
 - iOS: the demo does not configure automatic SwiftUI screen-duration spans.
   Its `.trackScreenView()` modifier emits `app.screen.view` log records.
-- Android: SDK screen detection covers Activities and Fragments. The Compose
-  demo bridges route changes manually with `TrackScreenViews` in
-  [`MainActivity.kt`](../android/app/src/main/java/com/grafana/quickpizza/MainActivity.kt),
-  emitting `app.screen.view` with `app.screen.name`,
-  `nav.previous_destination`, and `nav.kind`.
+- Android: SDK screen detection covers Activities and Fragments. The demo
+  also attaches the SDK's Compose navigation instrumentation with
+  `navController.withOpenTelemetry(rum)` in
+  [`MainActivity.kt`](../android/app/src/main/java/com/grafana/quickpizza/MainActivity.kt).
+  It emits `app.navigation.complete` log events with
+  `app.navigation.destination.name` set to the route pattern.
 
 Neither app creates a duration span for each SwiftUI or Compose screen visit.
 This does not claim that every upstream UI instrumentation lacks spans.
 
 **Workaround in this demo (if any)**
 
-Both demos emit manual `app.screen.view` logs for their declarative UI routes.
-Android also retains the SDK's Activity/Fragment screen instrumentation.
+iOS emits manual `app.screen.view` logs for SwiftUI routes. Android uses SDK
+`app.navigation.complete` logs for Compose routes and retains the SDK's
+Activity/Fragment screen instrumentation.
 
 A more thorough workaround would be a custom `ViewModifier` that calls
 `onAppear` to start a span and `onDisappear` to end it — at the cost of
@@ -259,9 +261,9 @@ boilerplate on every screen. We have not implemented this.
   to be opt-in per screen (or a single `.trackedAsScreen("name")` modifier)
   rather than fully automatic, since SwiftUI views are too granular to
   treat every body re-render as a screen.
-- `opentelemetry-android` RUM agent: provide a documented Compose navigation
-  integration with screen-duration semantics, including how screen spans
-  relate to user actions and sessions.
+- `opentelemetry-android` RUM agent: extend the Compose navigation integration
+  with screen-duration semantics, including how screen spans relate to user
+  actions and sessions.
 
 **Tracking**
 
