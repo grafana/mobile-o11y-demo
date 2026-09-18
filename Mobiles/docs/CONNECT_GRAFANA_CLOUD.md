@@ -26,10 +26,10 @@ Observability plugin cannot read it, so you query it with the
 > **Faro apps require a collector URL.** The Flutter and React Native apps
 > throw at startup if `FARO_COLLECTOR_URL` is empty, so you must set it (see
 > below) even for a local-only demo. The **native OTel apps (iOS, Android)** are
-> different — they still run with the OTLP fields empty. On iOS (debug builds)
-> spans go to the Xcode console; on Android export is disabled (the SDK runs as
-> a noop, so no OTel signals are produced). Set the OTLP fields when you want
-> data in Grafana.
+> different: they still run with the OTLP fields empty, but OpenTelemetry is
+> not initialized and produces no signals. Local app logging remains available.
+> Configure an OTLP endpoint to enable telemetry; iOS debug builds then also
+> log spans to the Xcode console.
 
 Every app can also take these values at runtime from its in-app **Debug →
 Config** screen (applied on next launch), so you can reconfigure during a demo
@@ -124,9 +124,11 @@ them itself, and on Android the OpenTelemetry SDK exporter handles them.
 The app appears in the **Frontend Observability** plugin, next to the Flutter
 and React Native apps.
 
-> **Android latency note:** the OTel-Android SDK buffers exports to disk
-> (~30–45 s) for offline resilience. For live demos, flip **Debug →
-> OpenTelemetry SDK → Disable disk buffering** to drop latency to ~1–6 s.
+> **Export latency:** both native apps enable disk buffering for offline
+> resilience, so signals may take tens of seconds to arrive. On Android, enable
+> **Debug → OpenTelemetry SDK → Disable disk buffering** and restart the app
+> for faster export. This trades away persistence while offline. The iOS demo
+> has no equivalent runtime toggle.
 
 ### Alternative: the OTLP gateway
 
@@ -159,7 +161,7 @@ This path authenticates with an **instance ID + access token**:
 Put all three values in the same config file. The app computes
 `Authorization: Basic base64(instanceId:apiKey)` for you.
 
-Traces then appear in **Explore → Tempo** within seconds (filter by
+After export, traces appear in **Explore → Tempo** (filter by
 `resource.service.name="quickpizza-ios"` / `"quickpizza-android"`); logs in
 **Explore → Loki** (`service_name="quickpizza-ios"` / `"quickpizza-android"`).
 

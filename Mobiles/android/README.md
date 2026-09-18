@@ -25,6 +25,9 @@ platform emits, dashboards) see
 ## Quickstart
 
 ```bash
+# Run from the repository root
+cd Mobiles/android
+
 # 1. Configure
 cp config.json.example \
    app/src/main/res/raw/config.json
@@ -35,7 +38,6 @@ docker run --rm -d --name quickpizza -p 3333:3333 \
   ghcr.io/grafana/quickpizza-mobile-local:latest
 
 # 3. Build and install on a running emulator
-cd Mobiles/android
 ./gradlew installDebug
 adb shell am start -n com.grafana.quickpizza.android/com.grafana.quickpizza.MainActivity
 ```
@@ -179,17 +181,21 @@ The **Debug** tab exposes:
 - Client-side fault simulation (`useV2PizzaSchema`,
   `skipAuthDepInTools`).
 - An **OTel SDK section** with a `Disable disk buffering` toggle —
-  default-on disk buffering means ~30–45 s end-to-end latency at the
-  cost of offline resilience; turning it off gives ~1–6 s latency for
+  default-on disk buffering means ~30–45 s end-to-end latency in exchange
+  for offline resilience; turning it off gives ~1–6 s latency for
   live demos at the cost of dropping signals if the network is down.
 - **Quick signals** — buttons to send a debug log, an error log, and a custom event (`debug.test_event`).
 - **Handled exception** — emits an OTel exception log via `logger.exception(...)`.
-- **ANR card** — blocks the main thread for 6 s. Android's 5 s ANR threshold trips and `event_name=device.anr` is captured by the OTel agent; the system may show a Wait/Close dialog afterward.
+- **ANR card** — blocks the main thread for 10 s to exercise the OTel agent's `device.anr` reporting. The system may show a Wait/Close dialog.
 - **Crash card** — `RuntimeException` and simulated `NullPointerException`
   variants. The OTel-Android `CrashReporter` emits `device.crash` and the
   SDK force-flushes logs, traces and metrics before the process dies; with
   disk buffering on (the default) the record is written to disk and
   shipped on the next app launch.
+- **NDK crash card** — triggers a real `SIGSEGV`. On Android 11 / API 30 and
+  later, app-owned `NativeExitCrashReporter` replays available native-exit traces
+  as `device.crash` after relaunch; this is separate from the upstream managed
+  exception handler.
 
 ---
 
@@ -204,19 +210,19 @@ and exports via OTLP/HTTP. The version is pinned in
 | Signal    | Examples                                                                                                                                                                                                                                                            |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Spans** | `GET` (auto OkHttp), `AppStart` / `Paused` / `Stopped` (auto lifecycle), `pizza.get_recommendation` / `auth.login` / `pizza.rate` (manual)                                                                                                                          |
-| **Logs**  | `screen.view` (auto), `app.navigation.complete` (auto, set up required, Compose navigation), `app.jank` (auto, slow rendering), `session.start` (auto), `rum.sdk.init.`* (auto SDK self-telemetry), `exception` (manual `logger.exception`), `device.crash` (auto, next launch), `device.anr` (auto, runtime), `debug.test_event` (manual) |
+| **Logs**  | `screen.view` (auto), `app.navigation.complete` (Compose navigation, after explicit setup), `app.jank` (auto, slow rendering), `session.start` (auto), `rum.sdk.init.`* (auto SDK self-telemetry), `exception` (manual `logger.exception`), `device.crash` (auto, next launch), `device.anr` (auto, runtime), `debug.test_event` (manual) |
 
 
 Core resource attributes: `service.name=quickpizza-android`,
 `service.namespace=quickpizza`, `service.version`. The app does not set
-`deployment.environment`, so environment filters do not match it (the iOS app
-does). The full set (device, network, and session attributes) is inventoried in
+`deployment.environment.name` or the legacy `deployment.environment`, so
+environment filters do not match it (the iOS app
+does). The device, network, navigation, and session attributes are inventoried in
 [`MOBILE_OBSERVABILITY_OVERVIEW.md § Android native`](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md#android-native-opentelemetry-android).
 
 `OTelService` delegates startup to the local Grafana OpenTelemetry Android library, which uses
 `OpenTelemetryRumInitializer` to wire up:
 
-- Auto OkHttp tracing via the `Call.Factory` wrapper.
 - Lifecycle / `AppStart` / activity-state spans.
 - Slow-rendering / jank detection (`event_name=app.jank`).
 - Crash reporting (`CrashReporter`) — emits `event_name=device.crash` for
@@ -224,18 +230,18 @@ unhandled exceptions. Since 1.7.0 the SDK force-flushes before delegating
 to the platform handler, so the record survives the crash; with disk
 buffering on it is delivered on the next launch.
 - ANR detection — emits `event_name=device.anr`.
-- Sessions — 15-minute inactivity timeout, `session.id` stamped on
-every signal.
+- Sessions — 15-minute background inactivity timeout and 4-hour maximum
+lifetime, with `session.id` stamped on spans and log records.
 - Disk buffering of OTLP exports for offline resilience (toggle off via
   the Debug screen).
 
-One Compose instrumentation needs more than the startup defaults:
+The app separately wires auto OkHttp tracing through a `Call.Factory` wrapper.
 
-- **`compose-navigation`** is the one instrumentation the agent does not
-  auto-discover, because it has to hook a specific `NavController`.
-  `MainActivity` opts in with `navController.withOpenTelemetry(rum)`, which
-  emits `event_name=app.navigation.complete` with
-  `app.navigation.destination.name` set to the route pattern.
+Compose navigation also requires explicit setup: `MainActivity` calls
+`navController.withOpenTelemetry(rum)` to attach the SDK's `compose-navigation`
+instrumentation. It emits `event_name=app.navigation.complete` with
+`app.navigation.destination.name` set to the route pattern. These are log events,
+not screen-duration spans.
 
 The current [Grafana OpenTelemetry Android spike](grafana-opentelemetry-android/README.md) moves
 those shared startup defaults into a local library while returning the upstream OTel runtime. The package
@@ -274,7 +280,7 @@ Where to view the data on the demo stack:
 | `OTLP_ENDPOINT` | OTLP/HTTP base URL (without `/v1/traces`). Empty disables export. |
 | `OTLP_INSTANCE_ID` | Numeric Grafana Cloud OTLP gateway instance ID. Leave empty for Faro OTLP ingest. |
 | `OTLP_API_KEY` | Grafana Cloud access token (combined with the instance ID into `Authorization: Basic`). Leave empty for Faro OTLP ingest. |
-| `BASE_URL` | QuickPizza backend URL. Empty auto-resolves to `http://10.0.2.2:3333` on emulators. Set to your machine's LAN IP for physical devices ([details](../README.md#shared-basics)). |
+| `BASE_URL` | QuickPizza backend URL. Empty auto-resolves to `http://10.0.2.2:3333` on emulators. For physical devices, use HTTPS or USB port forwarding to loopback ([setup](../docs/ANDROID_NATIVE_SETUP.md#4-run-on-a-physical-device)). |
 
 To obtain the OTLP endpoint, instance ID, and token, see
 [Connect to Grafana Cloud](../docs/CONNECT_GRAFANA_CLOUD.md#opentelemetry-apps-ios-native-android-native).
@@ -287,8 +293,9 @@ without a rebuild — overrides apply on the next launch.
 
 **No telemetry in Grafana**
 
-- Confirm `OTLP_ENDPOINT`, `OTLP_INSTANCE_ID`, `OTLP_API_KEY` (or their
-Debug-screen overrides) are set.
+- Confirm `OTLP_ENDPOINT` (or its Debug-screen override) is set. The legacy
+OTLP gateway also needs `OTLP_INSTANCE_ID` and `OTLP_API_KEY`; Faro OTLP ingest
+needs neither.
 - Verify the endpoint accepts OTLP/HTTP (not gRPC).
 - Use the Debug tab to send a debug log + handled exception and
 confirm they arrive.
@@ -302,7 +309,9 @@ live demos.
 **App can't reach the backend**
 
 - Emulator: leave `BASE_URL` empty (uses `10.0.2.2:3333`).
-- Physical device: set `BASE_URL` to your machine's LAN IP.
+- Physical device: use an HTTPS backend or `adb reverse tcp:3333 tcp:3333` with
+  `BASE_URL=http://127.0.0.1:3333` on API 24+. HTTP to a LAN IP is blocked by the
+  app's network security policy. API 23 requires HTTPS even for loopback.
 
 **Build fails with `ClassNotFoundException` / dex errors**
 

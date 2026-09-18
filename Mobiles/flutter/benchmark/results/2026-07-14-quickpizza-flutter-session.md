@@ -1,5 +1,7 @@
 # QuickPizza Flutter local replay validation
 
+Historical validation recorded on 2026-07-14 for the app and SDK versions below. This is not a validation of subsequent builds.
+
 ## Source
 
 - App: `QuickPizza_Flutter` `1.1.1`

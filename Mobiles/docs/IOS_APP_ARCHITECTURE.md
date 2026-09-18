@@ -2,7 +2,7 @@
 
 This document captures architectural decisions and best practices for building the QuickPizza iOS app. It serves as context for AI agents and developers working on the iOS codebase.
 
-For telemetry-specific implementation details, see `IOS_OBSERVABILITY_OTEL_GUIDE.md`.
+For telemetry-specific implementation details, see the [iOS instrumentation guide](IOS_OBSERVABILITY_OTEL_GUIDE.md).
 
 ## Table of Contents
 
@@ -23,7 +23,7 @@ For telemetry-specific implementation details, see `IOS_OBSERVABILITY_OTEL_GUIDE
 - Use a **standard Xcode project** (`.xcodeproj`). This gives full IDE support for signing, capabilities, asset catalogs, and SwiftUI previews.
 - **No storyboards** — SwiftUI apps are code-only. The entry point is an `@main` struct conforming to `App`.
 - Use **Swift Package Manager** (integrated into Xcode) for dependencies — not CocoaPods.
-- **Minimum deployment target: iOS 17+** — this enables the `@Observable` macro and modern SwiftUI APIs.
+- **Minimum deployment target: iOS 26.0** — both app target configurations override the project-level iOS 17.0 default. Use Xcode 26+ and an iOS 26+ simulator or device. The local telemetry package has a separate iOS 13 minimum.
 - The iOS app lives at `Mobiles/ios/` alongside the Flutter app at `Mobiles/flutter/`.
 - **Build configuration** is managed via `Config.xcconfig` → `Scripts/generate-config.sh` → `BuildConfig.generated.swift`. This file is auto-generated and should not be edited manually.
 
@@ -49,8 +49,10 @@ Mobiles/ios/QuickPizzaIos/
 │   │   └── UserDefaultsTokenStorage.swift
 │   ├── O11y/
 │   │   ├── Logger.swift                  # Logging protocol + CompositeLogger (OSLog + OTel)
-│   │   ├── OTelConfig.swift              # OTel configuration values
-│   │   └── OTelService.swift             # Traces, logs, URLSession instrumentation setup
+│   │   ├── Config/OTelConfig.swift       # OTel configuration values
+│   │   ├── Tracer.swift                  # Standard OTel tracing facade
+│   │   ├── AppEvents.swift               # Screen-view and custom events
+│   │   └── OTelService.swift             # Starts the local Grafana OpenTelemetry package
 │   ├── Theme/
 │   │   └── AppTheme.swift                # AppColors, card styles, button styles
 │   └── UI/
@@ -83,6 +85,8 @@ Mobiles/ios/QuickPizzaIos/
 │   │   │   └── LinkItem.swift
 │   │   └── Presentation/
 │   │       └── AboutView.swift
+│   ├── Debug/
+│   │   └── Presentation/                # Debug and runtime configuration screens
 │   └── Profile/
 │       ├── Domain/
 │       │   ├── RatingsRepositoryProtocol.swift
@@ -93,9 +97,9 @@ Mobiles/ios/QuickPizzaIos/
 │           ├── ProfileView.swift
 │           └── ProfileViewModel.swift
 ├── Navigation/
-│   └── MainShell.swift                   # TabView (Home, About) + sheet modals for Login/Profile
-└── Resources/
-    └── Assets.xcassets
+│   ├── MainShell.swift                   # TabView (Home, About, Debug) + Login/Profile sheets
+│   └── MainShellViewModel.swift
+└── Assets.xcassets
 ```
 
 ### Conventions
@@ -121,6 +125,9 @@ Use the **`@Observable` macro** (iOS 17+). This replaces the older `ObservableOb
 
 ### Basic ViewModel structure
 
+This reduced example shows the pattern; the app's full `HomeViewModel` also
+receives authentication and debug-settings dependencies.
+
 ```swift
 import SwiftUI
 import SwiftiePod
@@ -140,7 +147,7 @@ class HomeViewModel {
     private let logger: Logging
 
     // View state — @Observable tracks these automatically
-    var pizza: Pizza?
+    var recommendation: PizzaRecommendation?
     var isLoading = false
     var errorMessage: String?
 
@@ -153,7 +160,7 @@ class HomeViewModel {
         isLoading = true
         defer { isLoading = false }
         do {
-            pizza = try await pizzaRepository.getRecommendation(restrictions)
+            recommendation = try await pizzaRepository.getRecommendation(restrictions)
         } catch {
             errorMessage = error.localizedDescription
             logger.error("Failed to fetch pizza", error: error)
@@ -172,8 +179,8 @@ struct HomeView: View {
         VStack {
             if viewModel.isLoading {
                 ProgressView()
-            } else if let pizza = viewModel.pizza {
-                PizzaCard(pizza: pizza)
+            } else if let recommendation = viewModel.recommendation {
+                PizzaCard(recommendation: recommendation)
             }
         }
         .task {
@@ -246,10 +253,11 @@ The `@State` property **ignores** the new initial value. It only uses the first 
 
 ## Dependency Injection with SwiftiePod
 
-Use **SwiftiePod** (v1.0.8) as the service locator / DI container. Add it via Swift Package Manager:
+Use **SwiftiePod** as the service locator / DI container. The app requires 1.1.2 or
+newer, with its resolved version recorded in [Package.resolved](../ios/QuickPizzaIos.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved). Add it via Swift Package Manager:
 
 ```
-.package(url: "https://github.com/robert-northmind/SwiftiePod.git", from: "1.0.8")
+.package(url: "https://github.com/robert-northmind/SwiftiePod.git", from: "1.1.2")
 ```
 
 ### Pod setup
@@ -285,6 +293,7 @@ let homeViewModelProvider = Provider(scope: AlwaysCreateNewScope()) { pod in
     HomeViewModel(
         pizzaRepository: pod.resolve(pizzaRepositoryProvider),
         authService: pod.resolve(authRepositoryProvider),
+        debugSettings: pod.resolve(debugSettingsRepositoryProvider),
         logger: pod.resolve(loggerProvider)
     )
 }
@@ -317,7 +326,10 @@ struct HomeView: View {
 }
 ```
 
-`@State` keeps the resolved ViewModel alive. SwiftiePod's `AlwaysCreateNewScope` ensures a fresh instance each time `resolve()` is called, but `@State` prevents re-resolution on parent redraws (it discards the extra instances).
+`@State` keeps the stored ViewModel alive. SwiftiePod's `AlwaysCreateNewScope`
+creates a fresh instance each time `resolve()` is called. Recreating the view
+struct can call `resolve()` again; SwiftUI keeps the existing state value and
+discards the newly created instance.
 
 ### Testing with overrides
 
@@ -407,8 +419,8 @@ class HomeViewModel {
 
     // Subscriptions happen here. Called from .task { }
     func start() async {
-        for await status in authService.authStatusStream {
-            isLoggedIn = (status == .authenticated)
+        for await _ in authService.authStateChanged {
+            isLoggedIn = authService.isAuthenticated
         }
     }
 }
@@ -436,26 +448,27 @@ struct HomeView: View {
 
 ### Multiple concurrent subscriptions
 
-Use `withTaskGroup` inside `start()`:
+Use `withTaskGroup` inside `start()`. The app concurrently loads initial data
+and observes authentication changes:
 
 ```swift
 func start() async {
     await withTaskGroup(of: Void.self) { group in
         group.addTask { @MainActor in
-            for await status in self.authService.authStatusStream {
-                self.isLoggedIn = (status == .authenticated)
+            for await _ in self.authService.authStateChanged {
+                self.isLoggedIn = self.authService.isAuthenticated
             }
         }
         group.addTask { @MainActor in
-            for await event in self.pizzaService.pizzaUpdates {
-                self.latestPizza = event
-            }
+            await self.loadInitialData()
         }
     }
 }
 ```
 
-When `.task` cancels, the entire task group is cancelled — all subscriptions stop.
+When `.task` cancels, cancellation propagates to its task group. Each child must
+cooperate with cancellation; the app uses async streams and cancellable network
+operations.
 
 ### Reacting to parameter changes
 
@@ -478,16 +491,17 @@ Use `NavigationStack` with a `TabView` for bottom navigation (matching the Flutt
 ```swift
 struct MainShell: View {
     var body: some View {
-        TabView {
-            NavigationStack {
+        NavigationStack {
+            TabView {
                 HomeView()
-            }
-            .tabItem { Label("Home", systemImage: "house") }
+                    .tabItem { Label("Home", systemImage: "house") }
 
-            NavigationStack {
                 AboutView()
+                    .tabItem { Label("About", systemImage: "info.circle") }
+
+                DebugView()
+                    .tabItem { Label("Debug", systemImage: "ladybug") }
             }
-            .tabItem { Label("About", systemImage: "info.circle") }
         }
     }
 }
@@ -506,21 +520,22 @@ The iOS app mirrors the Flutter app's architecture. Here's the mapping:
 | Riverpod `Provider` | SwiftiePod `Provider` (co-located in each file) |
 | Riverpod `Notifier` | `@Observable` ViewModel class |
 | `ConsumerWidget` | SwiftUI `View` with `@State` ViewModel |
-| `ref.watch(provider)` | `pod.resolve(provider)` |
+| `ref.read(provider)` for dependency lookup | `pod.resolve(provider)` (lookup, not a reactive subscription) |
 | `core/api/api_client.dart` | `Core/API/APIClient.swift` |
 | `features/pizza/domain/` | `Features/Pizza/Domain/` |
 | `features/pizza/models/` | `Features/Pizza/Models/` |
 | `features/pizza/presentation/` | `Features/Pizza/Presentation/` |
 | GoRouter | `NavigationStack` + `TabView` |
-| `.task { }` in Riverpod `build()` | `.task { await viewModel.start() }` |
+| Async initialization in a Riverpod notifier | `.task { await viewModel.start() }` |
 
-### Flutter features to replicate
+### Shared features
 
 - **Auth**: Login screen, token-based auth, session persistence
 - **Pizza**: Pizza recommendation with customization, quote display
 - **Ratings**: Rate pizzas, view/delete ratings
 - **About**: App info, links
 - **Profile**: User profile, ratings history, sign out
+- **Debug**: Runtime configuration, fault simulation, test telemetry, and crashes
 - **Observability**: OpenTelemetry Swift for traces and logs (OSLog + OTel dual logging)
 
 ---

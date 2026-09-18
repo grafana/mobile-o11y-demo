@@ -97,12 +97,12 @@ distribution:
 
 It delegates all SDK behaviour to upstream and returns `GrafanaOtelRuntime`, which exposes the
 registered `TracerProviderSdk` and `LoggerProviderSdk`, the standard OpenTelemetry API entry point,
-a flush/shutdown path, and the redirect guard the app installs on its own `URLSession`. It does
+a flush/shutdown path, and a redirect guard applications can install on their own `URLSession`. It does
 **not** define Grafana tracer, span, logger, event or meter APIs.
 
 The app still owns application-specific behaviour: the runtime config UI, the debug-only console
 span exporter, business instrumentation, screen-view events, the app's instrumentation scope, and
-installing the redirect guard on the sessions it creates.
+opting into automatic redirect protection for its delegate-less requests.
 
 No `MeterProvider` is registered. Faro OTLP ingest currently accepts logs and traces only, so
 metrics are left off rather than exported to a route that rejects them. This is an ingest
@@ -374,9 +374,10 @@ the Faro session values, `SessionEventInstrumentation` after the logger provider
 exclusion, no meter provider, a feedback handler, creating the persistence directories, the
 main-thread requirement, and avoiding the `MetricKit`/`OpenTelemetryApi` `Logger` ambiguity.
 
-Two guide points remain unaddressed and are listed as gates below: the 256 KiB persisted-batch cap
-(this package does not expose `maxExportBatchSize`), and the storage-directory trade-off between
-`cachesDirectory` being purgeable and `applicationSupportDirectory` being backed up.
+The package reduces buffered batches to 128 records to lower the risk of exceeding the
+256 KiB persistence cap and excludes its default Application Support directory from backups.
+The record-count limit is not a byte-size guarantee: unusually large records can still exceed
+the cap. See [Disk buffering is on by default](#disk-buffering-is-on-by-default).
 
 ### Trace propagation is a host list, not a policy type
 
@@ -566,7 +567,7 @@ what a RUM product needs and `opentelemetry-swift` does not yet provide:
 | --- | --- |
 | Assembled RUM agent | None; this package owns the assembly |
 | Lifecycle, screen-view and jank signals | Not available; app-owned |
-| Crash and hang capture | MetricKit only, delivered on Apple's schedule |
+| Crash and hang capture | MetricKit diagnostics; [Apple documents immediate delivery on iOS 15+](https://developer.apple.com/documentation/metrickit), separately from daily metric reports |
 | Offline buffering | A contrib decorator enabled by default; trace retry from disk is runtime-validated, while logs are durable only until their first export attempt |
 | Export retry | Traces retry from disk on the persistence schedule; log failures are requeued in memory only |
 | Background and termination flush | None; the caller must call `forceFlush` |
@@ -607,8 +608,8 @@ background traffic.
   diagnostics callback. `forceFlush` blocks the caller on synchronous OTLP trace export, so a hook
   cannot simply call it on the main thread.
 - [x] Validate buffered delivery at runtime with a kill and relaunch.
-- [ ] Cover the persisted path in tests. Only its configuration is covered today — `initialize` is
-  one-shot per process, so no test reaches the disk queue end to end.
+- [x] Cover persistence flush, shutdown, and pipeline wiring with real persistence exporters.
+- [ ] Automate retry across process termination and relaunch; that path is runtime-validated only.
 - [ ] Confirm the added latency is acceptable for the demo. Buffering makes records readable after
   ~4.75 s and exports on an adaptive 1–20 s cycle, which changes what a live demo looks like.
 - [ ] Decide whether to strip `device.id`. Upstream's default resource sends

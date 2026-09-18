@@ -17,7 +17,8 @@ It connects to the QuickPizza backend and sends traces/logs to an OTLP collector
 | Requirement                                                       | Notes                               |
 | ----------------------------------------------------------------- | ----------------------------------- |
 | macOS (Apple Silicon or Intel)                                    | Any recent macOS version            |
-| [Xcode](https://apps.apple.com/app/xcode/id497799835)             | Install from Mac App Store (~15 GB) |
+| [Xcode](https://apps.apple.com/app/xcode/id497799835)             | Xcode 26+ with an iOS 26+ simulator runtime |
+| Python 3 | Used by `Scripts/sim-run.sh` to select a simulator |
 | [Docker Desktop](https://www.docker.com/products/docker-desktop/) | For running the backend locally     |
 | Git                                                               | To clone this repository            |
 
@@ -48,10 +49,10 @@ docker run --rm -d \
 Verify it's up:
 
 ```bash
-curl http://localhost:3333/api/pizza
+curl http://localhost:3333/api/quotes
 ```
 
-You should get a JSON pizza recommendation back.
+You should get a JSON response containing quotes.
 
 ### Step 3 — Configure the iOS app
 
@@ -63,11 +64,11 @@ cp Config.xcconfig.example Config.xcconfig
 Open `Config.xcconfig` in any editor. The defaults work for a local simulator run:
 
 ```
-# Backend — localhost works for the simulator (not a physical device)
+// Backend — localhost works for the simulator (not a physical device)
 BASE_URL = http:/$()/localhost:3333
 PORT = 3333
 
-# OTLP — leave empty to skip telemetry export for now
+// OTLP — leave empty to run without OpenTelemetry
 OTLP_ENDPOINT =
 OTLP_INSTANCE_ID =
 OTLP_API_KEY =
@@ -77,10 +78,10 @@ OTLP_API_KEY =
 
 ### Step 4 — Build and run on the simulator
 
-The helper script builds the app and launches it in an iPhone simulator automatically:
+From the `Mobiles/ios` directory used in Step 3, the helper script builds the app
+and launches it in an iPhone simulator automatically:
 
 ```bash
-cd Mobiles/ios
 bash Scripts/sim-run.sh
 ```
 
@@ -107,8 +108,8 @@ xcrun simctl list devices available
 ### Step 5 — Open the app
 
 The Simulator app opens automatically. You'll see the QuickPizza home screen.
-Tap **Get Pizza** to generate a recommendation — this triggers API calls that are
-traced with OpenTelemetry.
+Sign in, then tap **Pizza, Please!** to generate a recommendation. API calls
+produce OpenTelemetry spans when a valid OTLP endpoint is configured.
 
 ---
 
@@ -139,7 +140,7 @@ details.
 ## Sending Telemetry to Grafana Cloud
 
 The app sends OTLP/HTTP to the Faro collector, which translates OTLP to Faro on
-ingest and registers the app in Frontend Observability. Finding the endpoint is
+ingest for the app registered in Frontend Observability. Finding the endpoint is
 the same for both native apps — see
 [**Connect to Grafana Cloud**](../docs/CONNECT_GRAFANA_CLOUD.md#opentelemetry-apps-ios-native-android-native).
 Then fill it into `Config.xcconfig` as shown below.
@@ -164,7 +165,8 @@ bash Scripts/sim-run.sh
 ```
 
 The data appears under the `QuickPizza_iOS` app in **Frontend Observability**
-within seconds. The `/otlp/<appKey>` route runs on development collectors only
+after the export queue drains; allow tens of seconds with default disk buffering.
+The `/otlp/<appKey>` route runs on development collectors only
 for now — a production collector returns `404`.
 
 A legacy option: send to the Grafana Cloud OTLP gateway instead. Set
@@ -179,7 +181,7 @@ traces go to Tempo and logs to Loki for the shared
 
 ## Opening in Xcode (Alternative to the Script)
 
-If you prefer the Xcode GUI:
+If you prefer the Xcode GUI, run this from the repository root:
 
 ```bash
 open Mobiles/ios/QuickPizzaIos.xcodeproj
@@ -298,9 +300,12 @@ Stable mode alone does not resolve these gaps.
 
 | Signal           | What is instrumented                                                                |
 | ---------------- | ----------------------------------------------------------------------------------- |
-| **Spans**        | Auto: every `URLSession` call. Manual: `pizza.get_recommendation`, `auth.login`, `pizza.rate`. MetricKit: `MXMetricPayload` spans (Apple's daily aggregated CPU/memory/hangs/hitch data). |
+| **Spans**        | Auto: `URLSession` calls except the collector host and port. Manual: `pizza.get_recommendation`, `auth.login`, `pizza.rate`. MetricKit: `MXMetricPayload` spans (Apple's daily aggregated CPU/memory/hangs/hitch data). |
 | **Logs**         | Auto: `session.start` / `session.end`, MetricKit `metrickit.diagnostic.{crash,hang,cpu_exception,disk_write_exception}`. Manual: app logs at `DEBUG`/`INFO`/`WARN`/`ERROR`, exception logs (`event_name=exception`), screen views (`event_name=app.screen.view`). |
-| **Resource**     | `service.name=quickpizza-ios`, `service.namespace=quickpizza`, `service.version`, `service.build`, `deployment.environment`, `device.id`, `device.model.identifier`, `os.*`, `session.id`, `session.previous_id`, `telemetry.sdk.language=swift`, `telemetry.sdk.version`. |
+| **Resource**     | `service.name=quickpizza-ios`, `service.namespace=quickpizza`, `service.version`, `service.build`, `deployment.environment.name`, `device.id`, `device.model.identifier`, `os.*`, `telemetry.sdk.language=swift`, `telemetry.sdk.version`. |
+
+Session processors add `session.id` and, when available, `session.previous_id` to
+individual spans and log records; these are not resource attributes.
 
 Configuration is read from `Config.xcconfig` at build time and injected into
 `BuildConfig.generated.swift` (auto-generated, gitignored). The `OTelService`
@@ -310,10 +315,12 @@ Runtime overrides for backend URL, OTLP endpoint, and credentials can be set
 from the **Debug → Config** screen without rebuilding. These are persisted in
 `UserDefaults` and applied on the next app launch via `RuntimeConfigHolder`.
 
-When `OTLP_ENDPOINT` is empty, telemetry is written to the Xcode console only
-(via `OSLog`). When set, it is exported over OTLP/HTTP to your collector.
+When `OTLP_ENDPOINT` is empty or rejected, OpenTelemetry is not initialized:
+application logs still reach OSLog, but there are no spans, session events, or
+MetricKit exports. A valid endpoint enables OTLP/HTTP export with disk buffering
+on by default; see the [buffering guarantees](grafana-opentelemetry-ios/README.md#disk-buffering).
 
-The in-app **Debug** tab additionally lets you simulate backend errors and latency, send test logs / events / handled exceptions, and trigger native crashes (note: MetricKit crash diagnostics are delivered by Apple later and may not appear in Grafana Cloud immediately). See [`../docs/IOS_OBSERVABILITY_OTEL_GUIDE.md § 5`](../docs/IOS_OBSERVABILITY_OTEL_GUIDE.md#5-demo-workflow-customer-facing) for the full demo workflow.
+The in-app **Debug** tab additionally lets you simulate backend errors and latency, send test logs / events / handled exceptions, and trigger native crashes (MetricKit controls diagnostic availability, separately from its daily performance reports). See [`../docs/IOS_OBSERVABILITY_OTEL_GUIDE.md § 5`](../docs/IOS_OBSERVABILITY_OTEL_GUIDE.md#5-demo-workflow-customer-facing) for the full demo workflow.
 
 ---
 
@@ -336,12 +343,12 @@ xcrun simctl list devices available
 **App launches but shows network error**
 
 - Make sure the Docker backend is running: `docker ps`
-- Make sure it's on port 3333: `curl http://localhost:3333/api/pizza`
+- Make sure it's on port 3333: `curl http://localhost:3333/api/quotes`
 
 **Traces not appearing in Grafana**
 
 - Double-check `OTLP_ENDPOINT` is the OTLP **base** URL, not a signal URL. A trailing slash is
   fine — the reference kit normalises it — but an endpoint that already ends in `/v1/traces`,
   `/v1/logs` or `/v1/metrics` is rejected at startup
-- Verify `OTLP_INSTANCE_ID` and `OTLP_API_KEY` are correct in `Config.xcconfig`
+- For the legacy OTLP gateway, verify `OTLP_INSTANCE_ID` and `OTLP_API_KEY` in `Config.xcconfig`; Faro OTLP ingest needs neither
 - Check the Xcode console for `[OTel]` error messages

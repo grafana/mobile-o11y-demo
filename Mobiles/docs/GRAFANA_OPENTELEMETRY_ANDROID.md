@@ -128,6 +128,11 @@ records contained:
 - `faro.tracing.fetch` for `GET /api/quotes` with HTTP status `200`;
 - the same session ID on the startup, screen, and HTTP records.
 
+This historical run predates the Compose navigation integration. The current app
+uses `withOpenTelemetry` to emit `app.navigation.complete` with
+`app.navigation.destination.name`; the `app.screen.view` records above describe
+the older manual tracker.
+
 The connected trace contained the Android `GET` client span, the QuickPizza `GET /api/quotes`
 server span as its child, and the backend `SELECT` span as the server span's child. Faro translation
 labels product records with the registered application identity, which may differ from the Android
@@ -291,7 +296,7 @@ The minified app also cold-started on an API 23 ARM64 emulator. Local HTTP expor
 app's existing `usesCleartextTraffic=false` policy: API 23 does not apply the per-host network
 security configuration. No API 23 export pass is claimed for this run.
 
-App lint reports six errors - API-level findings in `NativeExitCrashReporter`. No relevant 
+App lint reports six errors - API-level findings in `NativeExitCrashReporter`. No relevant
 code changed in this integration. The library's debug and release lint checks pass.
 
 - [x] The module compiles as an Android AAR and is consumed by the runnable demo app.

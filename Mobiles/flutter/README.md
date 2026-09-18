@@ -26,7 +26,7 @@ A Flutter mobile application that replicates the QuickPizza web application func
 
 ### Prerequisites
 
-- Flutter SDK installed (3.10.1 or higher)
+- Flutter SDK with Dart `>=3.12.0 <4.0.0`, as required by the dependencies in [`pubspec.lock`](pubspec.lock). The app's own constraint is `^3.10.1` in [`pubspec.yaml`](pubspec.yaml); the locked dependencies require a newer SDK. Check both versions with `flutter --version`.
 - QuickPizza backend running (default: `http://localhost:3333`)
 
 ### Platform-Specific Setup
@@ -50,6 +50,8 @@ For detailed simulator/emulator setup and troubleshooting, see the documentation
 1. Install dependencies:
 
 ```bash
+# From the repository root:
+cd Mobiles/flutter
 flutter pub get
 ```
 
@@ -252,24 +254,16 @@ into.
 
 `default` / `12345678` (see [Shared basics](../README.md#shared-basics)).
 
-## Running on Different Platforms
+## Running on Android and iOS
 
-### Web
+This demo targets Android and iOS. Its Faro HTTP instrumentation uses `dart:io`, and the project does not include a web target.
 
-```bash
-flutter run -d chrome
-```
-
-### Android
+From `Mobiles/flutter/`, select the device ID shown by `flutter devices` and pass the required configuration:
 
 ```bash
-flutter run -d android
-```
-
-### iOS
-
-```bash
-flutter run -d ios
+flutter devices
+# Replace the placeholder with a device ID from the list.
+flutter run -d "<device-id>" --dart-define-from-file=config.json
 ```
 
 ## AI-Assisted Testing with MCP
@@ -280,7 +274,7 @@ This app supports AI-assisted testing via the Dart MCP server. An AI assistant (
 
 1. **Launch with Flutter Driver enabled:**
 
-   - In VS Code/Cursor, select **"Flutter (debug with driver)"** from the Run and Debug panel
+   - Open the repository root in VS Code/Cursor, then select **"Flutter (debug with driver)"** from the Run and Debug panel (configured in [`.vscode/launch.json`](../../.vscode/launch.json))
    - Or run: `flutter run --dart-define-from-file=config.json lib/driver_main.dart`
 
 2. **Get the DTD (Dart Tooling Daemon) URI:**
