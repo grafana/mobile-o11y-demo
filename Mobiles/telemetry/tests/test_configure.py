@@ -69,7 +69,12 @@ class ConfigurationTests(unittest.TestCase):
         } for s in ('primary', 'secondary')}
         with patch.dict(os.environ, MOBILE_TELEMETRY_DESTINATIONS=json.dumps(data)):
             self.assertEqual(load_destinations(), data)
-        for bad in ('https://example.com/secret;error_log', 'https://example.com/$request_uri', 'https://user:secret@example.com/path'):
+        for bad in (
+            'https://example.com/secret;error_log',
+            'https://example.com/$request_uri',
+            # Synthetic credentials exercise rejection of URL userinfo.
+            'https://user:secret@example.com/path',  # trufflehog:ignore
+        ):
             data['secondary']['flutter'] = bad
             with patch.dict(os.environ, MOBILE_TELEMETRY_DESTINATIONS=json.dumps(data)):
                 with self.assertRaises(ValueError) as error:
