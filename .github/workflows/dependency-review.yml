@@ -26,3 +26,11 @@ jobs:
             BlueOak-1.0.0, Unlicense, CC0-1.0,
             CC-BY-4.0,
             Artistic-2.0
+
+          # GitHub's dependency graph reports pub packages' licenses as the
+          # lowercase licensee key ("apache-2.0") rather than the SPDX id
+          # ("Apache-2.0"), so allow-licenses above cannot match and the run
+          # fails with "could not detect the validity of all licenses".
+          # faro is first-party Grafana, Apache-2.0 per its LICENSE file.
+          # Drop this once the graph returns SPDX ids for pub.
+          allow-dependencies-licenses: pkg:pub/faro
