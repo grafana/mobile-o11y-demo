@@ -5,7 +5,7 @@
 
 set -e
 
-CONFIG_FILE="${SRCROOT}/Config.xcconfig"
+CONFIG_FILE="${QUICKPIZZA_IOS_CONFIG_FILE:-${SRCROOT}/Config.xcconfig}"
 OUTPUT_FILE="${SRCROOT}/QuickPizzaIos/Core/Config/BuildConfig.generated.swift"
 
 # Check if Config.xcconfig exists

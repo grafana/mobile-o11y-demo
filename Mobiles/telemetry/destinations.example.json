@@ -1,0 +1,48 @@
+{
+  "primary": {
+    "flutter": "${FARO_COLLECTOR_URL}",
+    "react-native": "${FARO_COLLECTOR_URL_RN}",
+    "ios": {
+      "endpoint": "${FARO_OTLP_URL_IOS}",
+      "headers": {}
+    },
+    "android": {
+      "endpoint": "${FARO_OTLP_URL_ANDROID}",
+      "headers": {}
+    },
+    "backend": {
+      "endpoint": "${PRIMARY_BACKEND_OTLP_URL}",
+      "headers": {
+        "Authorization": "${PRIMARY_BACKEND_AUTH}"
+      }
+    },
+    "cloud": {
+      "stack": "${GRAFANA_CLOUD_STACK}",
+      "token": "${GRAFANA_CLOUD_TOKEN}",
+      "api_url": "${PRIMARY_API_URL}"
+    }
+  },
+  "secondary": {
+    "flutter": "${SECONDARY_FLUTTER_URL}",
+    "react-native": "${SECONDARY_RN_URL}",
+    "ios": {
+      "endpoint": "${SECONDARY_IOS_OTLP_URL}",
+      "headers": {}
+    },
+    "android": {
+      "endpoint": "${SECONDARY_ANDROID_OTLP_URL}",
+      "headers": {}
+    },
+    "backend": {
+      "endpoint": "${SECONDARY_BACKEND_OTLP_URL}",
+      "headers": {
+        "Authorization": "${SECONDARY_BACKEND_AUTH}"
+      }
+    },
+    "cloud": {
+      "stack": "${SECONDARY_STACK}",
+      "token": "${SECONDARY_TOKEN}",
+      "api_url": "${SECONDARY_API_URL}"
+    }
+  }
+}

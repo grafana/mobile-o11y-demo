@@ -5,6 +5,7 @@ services:
   alloy:
     volumes:
       - "./deployments/docker-compose/grafana-cloud/grafana_cloud_stack.alloy:/etc/alloy/grafana_cloud_stack.alloy:Z"
+      - "./deployments/docker-compose/grafana-cloud/backend_pipeline.alloy:/etc/alloy/backend_pipeline.alloy:Z"
     environment:
       GRAFANA_CLOUD_API_URL: "${GRAFANA_CLOUD_API_URL:-https://grafana-dev.com/api/instances/}"
 

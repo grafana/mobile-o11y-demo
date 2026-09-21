@@ -26,9 +26,31 @@ tasks.register<Delete>("deleteExampleConfig") {
 tasks.matching { it.name.contains("mergeDebugResources") || it.name.contains("mergeReleaseResources") || it.name.contains("packageDebugResources") || it.name.contains("packageReleaseResources") }
     .configureEach { dependsOn("deleteExampleConfig") }
 
+// Select an alternate build input without touching the developer's resource file.
+val alternateConfig = providers.environmentVariable("QUICKPIZZA_ANDROID_CONFIG_FILE").orElse(
+    providers.provider {
+        rootProject.file("../telemetry/.runtime/active/android.json")
+            .takeIf { it.isFile }?.absolutePath
+    }
+)
+val prepareConfiguredResources = tasks.register<Sync>("prepareConfiguredResources") {
+    onlyIf { alternateConfig.isPresent }
+    from("src/main/res") { exclude("raw/config.json", "raw/config.json.example") }
+    if (alternateConfig.isPresent) {
+        from(alternateConfig) { into("raw"); rename { "config.json" } }
+    }
+    into(layout.buildDirectory.dir("configuredResources"))
+}
+if (alternateConfig.isPresent) {
+    tasks.named("preBuild") { dependsOn(prepareConfiguredResources) }
+}
+
 val quickPizzaDemoVersionName = providers.gradleProperty("quickpizzaDemoVersionName").orElse("1.0.0")
 
 android {
+    if (alternateConfig.isPresent) {
+        sourceSets.getByName("main").res.setSrcDirs(listOf(layout.buildDirectory.dir("configuredResources")))
+    }
     namespace = "com.grafana.quickpizza"
     compileSdk = 37
 

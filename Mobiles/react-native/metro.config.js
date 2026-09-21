@@ -67,4 +67,24 @@ const faroMetroOpts = {
  */
 const config = mergeConfig(getDefaultConfig(__dirname), withFaroConfig({}, faroMetroOpts));
 
+// Optional build input; the app still imports its ordinary config.json.
+const localConfig = path.join(__dirname, '../telemetry/.runtime/active/react-native.json');
+const alternateConfig = process.env.QUICKPIZZA_RN_CONFIG_FILE ||
+  (fs.existsSync(localConfig) ? localConfig : undefined);
+if (alternateConfig) {
+  // Metro hashes real paths; the local activation path is a symlink.
+  const configFile = fs.realpathSync(path.resolve(alternateConfig));
+  const originalConfig = path.join(__dirname, 'config.json');
+  config.watchFolders = [...(config.watchFolders || []), path.dirname(configFile)];
+  const resolveRequest = config.resolver.resolveRequest;
+  config.resolver.resolveRequest = (context, moduleName, platform) => {
+    if (path.resolve(path.dirname(context.originModulePath), moduleName) === originalConfig) {
+      return { type: 'sourceFile', filePath: configFile };
+    }
+    return resolveRequest
+      ? resolveRequest(context, moduleName, platform)
+      : context.resolveRequest(context, moduleName, platform);
+  };
+}
+
 module.exports = config;

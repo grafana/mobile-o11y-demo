@@ -137,3 +137,9 @@ These apply to every app, so they're stated once here.
 | Understand the iOS app architecture | [`docs/IOS_APP_ARCHITECTURE.md`](./docs/IOS_APP_ARCHITECTURE.md) |
 | Run the cross-platform E2E tests | [`e2e/README.md`](./e2e/README.md) |
 | Track OTel mobile SDK gaps / contributions | [`docs/OTEL_MOBILE_MATURITY.md`](./docs/OTEL_MOBILE_MATURITY.md) |
+
+## Optional dual-stack telemetry
+
+For local or scheduled telemetry to two Grafana Cloud stacks, see
+[the forwarding profile](telemetry/README.md). Apps retain their normal
+single-endpoint SDK configuration; forwarding and credentials live in tooling.

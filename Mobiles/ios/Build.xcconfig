@@ -1,0 +1,5 @@
+// Local settings are optional when an alternate xcconfig is supplied at build time.
+QUICKPIZZA_IOS_CONFIG_FILE = $(SRCROOT)/Config.xcconfig
+#include? "Config.xcconfig"
+// setup.py activates a private build input; teardown.py removes it.
+#include? "../telemetry/.runtime/active/ios.xcconfig"
