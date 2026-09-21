@@ -44,9 +44,9 @@ Edit `config.json`:
 ```
 
 The app key in the path identifies the app, so the instance ID and token stay
-empty, and the app appears in Frontend Observability. This route runs on
-development collectors only for now — a production collector returns `404`. For
-what each field means, see the
+empty, and the app appears in Frontend Observability. Native mobile OTLP ingestion
+must be enabled on your stack; use the app-specific endpoint from its setup page.
+For what each field means, see the
 [config reference in the Android README](../android/README.md#configuration-reference).
 To obtain the OTLP endpoint — or to send to the Grafana Cloud OTLP gateway
 instead — see

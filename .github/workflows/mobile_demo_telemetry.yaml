@@ -19,6 +19,9 @@ on:
     paths:
       - ".github/workflows/mobile_demo_telemetry.yaml"
       - ".github/scripts/**"
+      - "Mobiles/telemetry/**"
+      - "deployments/docker-compose/grafana-cloud/**"
+      - "compose.grafana-cloud.dev-override.yaml"
       - "Mobiles/e2e/**"
       - "Mobiles/flutter/**"
       - "Mobiles/react-native/**"
@@ -35,6 +38,7 @@ concurrency:
 
 env:
   FLUTTER_CHANNEL: "stable"
+  TELEMETRY_PROFILE: dual-stack
 
 jobs:
   resolve-diagnostics-cadence:
@@ -97,22 +101,22 @@ jobs:
 
     steps:
       - name: Get Vault secrets
-        id: get-secrets
         uses: grafana/shared-workflows/actions/get-vault-secrets@5d7e361bc7e0a183cde8afe9899fb7b596d2659b # v1.2.0
         with:
           repo_secrets: |
-            FARO_COLLECTOR_URL=faro_collector_url:value
-            FARO_COLLECTOR_URL_RN=faro_collector_url_rn:value
-            FARO_OTLP_URL_ANDROID=faro_otlp_url_android:value
-            FARO_OTLP_URL_IOS=faro_otlp_url_ios:value
-            GRAFANA_CLOUD_STACK=grafana_cloud_stack:value
-            GRAFANA_CLOUD_TOKEN=grafana_cloud_token:value
             OPENAI_API_KEY=openai_api_key:value
+            MOBILE_TELEMETRY_DESTINATIONS=mobile_telemetry_destinations:value
 
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+
+      - name: Start dual-stack forwarding
+        run: |
+          sudo apt-get update && sudo apt-get install -y build-essential libssl-dev libpcre2-dev
+          bash Mobiles/telemetry/install-tools.sh
+          python3 Mobiles/telemetry/ci.py android
 
       - name: Free disk space for Android builds and emulator
         run: |
@@ -275,17 +279,16 @@ jobs:
 
       - name: Start QuickPizza backend (Docker Compose)
         env:
-          GRAFANA_CLOUD_STACK: ${{ env.GRAFANA_CLOUD_STACK }}
-          GRAFANA_CLOUD_TOKEN: ${{ env.GRAFANA_CLOUD_TOKEN }}
           DEPLOYMENT_ENVIRONMENT: ci
           # Use dev Alloy config for grafana-dev.net stack
           ALLOY_FILE_NAME: cloud-dev.alloy
           QUICKPIZZA_IMAGE: quickpizza-mobile-local:ci
         run: |
           echo "Starting QuickPizza backend (Grafana Cloud microservices + dev Alloy override)..."
-          docker compose -f compose.grafana-cloud.microservices.yaml -f compose.grafana-cloud.dev-override.yaml up -d
-          docker compose -f compose.grafana-cloud.microservices.yaml -f compose.grafana-cloud.dev-override.yaml ps
+          bash Mobiles/telemetry/backend-compose.sh up -d
+          bash Mobiles/telemetry/backend-compose.sh ps
 
+          python3 Mobiles/telemetry/telemetry.py status --run-dir Mobiles/telemetry/.runtime/ci
           echo "Waiting for backend to be ready..."
           for i in {1..60}; do
             if curl -fsS "http://localhost:3333/ready" > /dev/null 2>&1; then
@@ -297,7 +300,16 @@ jobs:
           done
 
           echo "Backend did not become ready in time"
-          docker compose -f compose.grafana-cloud.microservices.yaml -f compose.grafana-cloud.dev-override.yaml logs --no-color
+          bash Mobiles/telemetry/backend-compose.sh logs --no-color catalog config copy public-api recommendations ws grpc
+          exit 1
+
+      - name: Wait for backend Alloy
+        run: |
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:12345/-/ready >/dev/null; then exit 0; fi
+            sleep 2
+          done
+          echo "Backend Alloy not ready; destination configuration needs checking."
           exit 1
 
       - name: Enable KVM group permissions
@@ -346,6 +358,7 @@ jobs:
             echo "==> Flutter APK: install and E2E"
             adb install -r apk/flutter/app-debug.apk
             bash Mobiles/e2e/run_e2e_tests.sh --app=flutter --platform=android
+            sleep 30 # Allow normal SDK export before stopping the app.
             adb shell am force-stop com.example.flutter_mobile_o11y_demo || true
             adb reverse --remove tcp:3333 || true
             adb reverse tcp:3333 tcp:3333
@@ -353,6 +366,7 @@ jobs:
             echo "==> React Native APK: install and E2E"
             adb install -r apk/react-native/app-debug.apk
             bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=android
+            sleep 30 # Allow normal SDK export before stopping the app.
             adb shell am force-stop com.grafana.quickpizza.rn || true
             adb reverse --remove tcp:3333 || true
             adb reverse tcp:3333 tcp:3333
@@ -360,6 +374,7 @@ jobs:
             echo "==> Android Native APK: install and E2E"
             adb install -r apk/android-native/app-debug.apk
             bash Mobiles/e2e/run_e2e_tests.sh --app=android-native --platform=android
+            sleep 30 # Allow normal SDK export before stopping the app.
             adb shell am force-stop com.grafana.quickpizza.android || true
             adb reverse --remove tcp:3333 || true
             adb reverse tcp:3333 tcp:3333
@@ -385,6 +400,11 @@ jobs:
 
             echo "E2E tests completed (Flutter, React Native, Android Native on same emulator)."
 
+      - name: Finish telemetry export
+        run: |
+          sleep 30
+          python3 Mobiles/telemetry/telemetry.py status --run-dir Mobiles/telemetry/.runtime/ci
+
       - name: Upload e2e test results
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -397,12 +417,17 @@ jobs:
       - name: Collect backend logs
         if: always()
         run: |
-          docker compose -f compose.grafana-cloud.microservices.yaml -f compose.grafana-cloud.dev-override.yaml logs --no-color > backend.log 2>&1 || true
+          bash Mobiles/telemetry/backend-compose.sh logs --no-color catalog config copy public-api recommendations ws grpc > backend.log 2>&1 || true
 
       - name: Stop backend
         if: always()
         run: |
-          docker compose -f compose.grafana-cloud.microservices.yaml -f compose.grafana-cloud.dev-override.yaml down -v || true
+          bash Mobiles/telemetry/backend-compose.sh drain || true
+          bash Mobiles/telemetry/backend-compose.sh down -v || true
+
+      - name: Stop dual-stack forwarding
+        if: always()
+        run: python3 Mobiles/telemetry/telemetry.py stop --run-dir Mobiles/telemetry/.runtime/ci
 
       - name: Upload backend logs
         if: always()
@@ -429,22 +454,22 @@ jobs:
 
     steps:
       - name: Get Vault secrets
-        id: get-secrets
         uses: grafana/shared-workflows/actions/get-vault-secrets@5d7e361bc7e0a183cde8afe9899fb7b596d2659b # v1.2.0
         with:
           repo_secrets: |
-            FARO_COLLECTOR_URL=faro_collector_url:value
-            FARO_COLLECTOR_URL_RN=faro_collector_url_rn:value
-            FARO_OTLP_URL_ANDROID=faro_otlp_url_android:value
-            FARO_OTLP_URL_IOS=faro_otlp_url_ios:value
-            GRAFANA_CLOUD_STACK=grafana_cloud_stack:value
-            GRAFANA_CLOUD_TOKEN=grafana_cloud_token:value
             OPENAI_API_KEY=openai_api_key:value
+            MOBILE_TELEMETRY_DESTINATIONS=mobile_telemetry_destinations:value
 
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+
+      - name: Start dual-stack forwarding
+        run: |
+          brew install openssl@3 pcre2
+          bash Mobiles/telemetry/install-tools.sh
+          python3 Mobiles/telemetry/ci.py ios
 
       - name: Show Xcode version
         run: |
@@ -683,87 +708,6 @@ jobs:
           set -e
           make build-go
 
-      - name: Start Alloy for iOS backend telemetry
-        env:
-          GRAFANA_CLOUD_STACK: ${{ env.GRAFANA_CLOUD_STACK }}
-          GRAFANA_CLOUD_TOKEN: ${{ env.GRAFANA_CLOUD_TOKEN }}
-        run: |
-          set -euo pipefail
-
-          case "$(uname -m)" in
-            arm64) ALLOY_ARCH="arm64" ;;
-            x86_64) ALLOY_ARCH="amd64" ;;
-            *) echo "Unsupported macOS architecture: $(uname -m)" && exit 1 ;;
-          esac
-
-          ALLOY_ZIP="alloy-darwin-${ALLOY_ARCH}.zip"
-          curl -fsSL -o "$ALLOY_ZIP" "https://github.com/grafana/alloy/releases/download/v1.14.2/${ALLOY_ZIP}"
-          curl -fsSL -o alloy-SHA256SUMS "https://github.com/grafana/alloy/releases/download/v1.14.2/SHA256SUMS"
-          grep " ${ALLOY_ZIP}$" alloy-SHA256SUMS | shasum -a 256 -c -
-          unzip -q "$ALLOY_ZIP" -d alloy-bin
-          ALLOY_BIN="$(find alloy-bin -type f -name 'alloy*' | head -1)"
-          chmod +x "$ALLOY_BIN"
-
-          cat > alloy-ios-ci.alloy <<'EOF'
-          import.file "grafana_cloud" {
-            filename = "deployments/docker-compose/grafana-cloud/grafana_cloud_stack.alloy"
-          }
-
-          grafana_cloud.stack "receivers" {
-            stack_name = env("GRAFANA_CLOUD_STACK")
-            token = env("GRAFANA_CLOUD_TOKEN")
-            api_url = coalesce(env("GRAFANA_CLOUD_API_URL"), "https://grafana-dev.com/api/instances/")
-          }
-
-          otelcol.receiver.otlp "ios_backend" {
-            grpc {
-              endpoint = "127.0.0.1:4317"
-            }
-            http {
-              endpoint = "127.0.0.1:4318"
-            }
-            output {
-              metrics = [otelcol.processor.batch.default.input]
-              traces  = [otelcol.processor.batch.default.input]
-            }
-          }
-
-          otelcol.processor.batch "default" {
-            output {
-              metrics = [otelcol.exporter.otlphttp.grafana_cloud.input]
-              traces  = [otelcol.exporter.otlphttp.grafana_cloud.input]
-            }
-          }
-
-          otelcol.auth.basic "grafana_cloud" {
-            username = grafana_cloud.stack.receivers.info["id"]
-            password = env("GRAFANA_CLOUD_TOKEN")
-          }
-
-          otelcol.exporter.otlphttp "grafana_cloud" {
-            client {
-              endpoint = "https://otlp-gateway-" + grafana_cloud.stack.receivers.info["clusterSlug"] + ".grafana-dev.net/otlp"
-              auth     = otelcol.auth.basic.grafana_cloud.handler
-            }
-          }
-          EOF
-
-          "$ALLOY_BIN" run alloy-ios-ci.alloy --server.http.listen-addr=127.0.0.1:12345 --stability.level=public-preview > alloy-ios.log 2>&1 &
-          echo "$!" > alloy-ios.pid
-
-          for i in {1..20}; do
-            if curl -fsS "http://127.0.0.1:12345/-/ready" > /dev/null 2>&1; then
-              echo "Alloy is ready"
-              exit 0
-            fi
-            echo "Waiting for Alloy... attempt $i/20"
-            sleep 1
-          done
-
-          echo "Alloy did not become ready in time"
-          cat alloy-ios.log
-          exit 1
-
       - name: Start QuickPizza backend
         env:
           DEPLOYMENT_ENVIRONMENT: ci
@@ -775,12 +719,13 @@ jobs:
           QUICKPIZZA_ENABLE_ALL_SERVICES=1 \
           QUICKPIZZA_DB= \
           QUICKPIZZA_TIMEOUT=10s \
-          QUICKPIZZA_OTLP_ENDPOINT=http://127.0.0.1:4318 \
+          QUICKPIZZA_OTLP_ENDPOINT="${QUICKPIZZA_OTLP_ENDPOINT:?Forwarding endpoint missing}" \
           QUICKPIZZA_OTEL_SERVICE_NAME=quickpizza-ios-ci-backend \
           OTEL_RESOURCE_ATTRIBUTES="deployment.environment=${DEPLOYMENT_ENVIRONMENT},service.version=quickpizza-local" \
           ./bin/quickpizza > backend-ios.log 2>&1 &
           echo "$!" > backend-ios.pid
 
+          python3 Mobiles/telemetry/telemetry.py status --run-dir Mobiles/telemetry/.runtime/ci
           echo "Waiting for backend to be ready..."
           for i in {1..60}; do
             if curl -fsS "http://localhost:3333/ready" > /dev/null 2>&1; then
@@ -883,6 +828,11 @@ jobs:
 
           echo "iOS E2E tests completed (Native iOS, Flutter iOS, React Native iOS on same simulator)."
 
+      - name: Finish telemetry export
+        run: |
+          sleep 30
+          python3 Mobiles/telemetry/telemetry.py status --run-dir Mobiles/telemetry/.runtime/ci
+
       - name: Upload e2e test results
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -898,9 +848,6 @@ jobs:
           if [ -f backend-ios.log ]; then
             tail -200 backend-ios.log
           fi
-          if [ -f alloy-ios.log ]; then
-            tail -200 alloy-ios.log
-          fi
 
       - name: Stop backend
         if: always()
@@ -908,17 +855,16 @@ jobs:
           if [ -f backend-ios.pid ]; then
             kill "$(cat backend-ios.pid)" || true
           fi
-          if [ -f alloy-ios.pid ]; then
-            kill "$(cat alloy-ios.pid)" || true
-          fi
+
+      - name: Stop dual-stack forwarding
+        if: always()
+        run: python3 Mobiles/telemetry/telemetry.py stop --run-dir Mobiles/telemetry/.runtime/ci
 
       - name: Upload backend logs
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: backend-logs-ios
-          path: |
-            backend-ios.log
-            alloy-ios.log
+          path: backend-ios.log
           retention-days: 3
           if-no-files-found: ignore

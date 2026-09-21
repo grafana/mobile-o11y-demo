@@ -47,6 +47,8 @@ jobs:
               .github/workflows/mobile_demo_telemetry_build.yaml|\
               .github/scripts/**|\
               Mobiles/*|\
+              deployments/docker-compose/grafana-cloud/*|\
+              compose.grafana-cloud.dev-override.yaml|\
               compose.grafana-cloud.microservices.yaml)
                 mobile=true
                 break
@@ -72,6 +74,37 @@ jobs:
 
       - name: Test demo app version scripts
         run: node --test .github/scripts/*.test.mjs
+
+  test-telemetry-forwarding:
+    name: Test local forwarding (${{ matrix.os }})
+    needs: mobile-changes
+    if: needs.mobile-changes.outputs.mobile == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-26]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Install forwarding tools and test dependencies
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then
+            brew install openssl@3 pcre2
+          else
+            sudo apt-get update
+            sudo apt-get install -y build-essential libssl-dev libpcre2-dev unzip
+          fi
+          bash Mobiles/telemetry/install-tools.sh
+          python3 -m venv Mobiles/telemetry/.runtime/test-venv
+          Mobiles/telemetry/.runtime/test-venv/bin/pip install -r Mobiles/telemetry/tests/requirements.txt
+      - name: Test configuration, delivery, retry and shutdown
+        run: |
+          export ALLOY_BIN="$PWD/Mobiles/telemetry/.runtime/tools/alloy"
+          export NGINX_BIN="$PWD/Mobiles/telemetry/.runtime/tools/nginx"
+          Mobiles/telemetry/.runtime/test-venv/bin/python -m unittest discover -s Mobiles/telemetry/tests -v
 
   build-flutter-apk:
     name: Build check — Flutter APK

@@ -65,3 +65,9 @@ logs.txt
 /Mobiles/android/local.properties
 /Mobiles/flutter/benchmark/.captures/
 /Mobiles/flutter/benchmark/.runtime/
+
+# Private forwarding destinations, generated configs and process logs
+/Mobiles/telemetry/.runtime/
+/Mobiles/telemetry/destinations.local.json
+
+/Mobiles/telemetry/**/__pycache__/

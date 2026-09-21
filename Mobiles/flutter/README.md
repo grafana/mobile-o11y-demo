@@ -39,6 +39,7 @@ A Flutter mobile application that replicates the QuickPizza web application func
 
 **For iOS development (macOS only):**
 
+- Minimum deployment target: iOS 15.0.
 - Follow the setup guide: [`../docs/FLUTTER_IOS_SETUP.md`](../docs/FLUTTER_IOS_SETUP.md)
 - Quick check: Run `flutter doctor` - Xcode should show ✓
 - **Quick start:** After setup, use `./scripts/run-ios.sh` to automatically open simulator and run the app

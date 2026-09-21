@@ -50,7 +50,11 @@ fi
 echo "==> Using simulator: $DEVICE"
 
 echo "==> Building $SCHEME for simulator..."
-xcodebuild \
+CONFIG_ARGS=()
+if [[ -n "${QUICKPIZZA_IOS_CONFIG_FILE:-}" ]]; then
+    CONFIG_ARGS=(-xcconfig "$QUICKPIZZA_IOS_CONFIG_FILE")
+fi
+xcodebuild "${CONFIG_ARGS[@]}" \
     -project "$PROJECT_DIR/$PROJECT" \
     -scheme "$SCHEME" \
     -destination "platform=iOS Simulator,name=$DEVICE" \
