@@ -200,26 +200,29 @@ def main():
         parser.error('Choose --platform android or ios.')
     if not 0 <= args.port_offset < 48000:
         parser.error('Invalid port offset.')
-    with setup_lock():
-        env = start(args)
-    print('Dual-stack forwarding ready. Original app settings are unchanged.')
-    if not command:
-        print('Android Studio: sync Gradle, then rebuild/run. Xcode: rebuild/run.')
-        print('React Native: restart Metro with --reset-cache, then rebuild/run.')
-        print(f'Flutter: flutter run --dart-define-from-file={RUN / "flutter.json"}')
-        print('Stop apps before running: python3 Mobiles/telemetry/teardown.py')
-        return 0
     def interrupt(*_):
         raise KeyboardInterrupt
+    # Startup owns partial-state cleanup, so cancellation must raise there too.
     previous = {sig: signal.signal(sig, interrupt) for sig in (signal.SIGINT, signal.SIGTERM)}
-    child = None
     try:
-        child = subprocess.Popen(command, env={**os.environ, **env}, start_new_session=True)
-        return child.wait()
-    finally:
-        stop_child(child)
         with setup_lock():
-            shutdown()
+            env = start(args)
+        print('Dual-stack forwarding ready. Original app settings are unchanged.')
+        if not command:
+            print('Android Studio: sync Gradle, then rebuild/run. Xcode: rebuild/run.')
+            print('React Native: restart Metro with --reset-cache, then rebuild/run.')
+            print(f'Flutter: flutter run --dart-define-from-file={RUN / "flutter.json"}')
+            print('Stop apps before running: python3 Mobiles/telemetry/teardown.py')
+            return 0
+        child = None
+        try:
+            child = subprocess.Popen(command, env={**os.environ, **env}, start_new_session=True)
+            return child.wait()
+        finally:
+            stop_child(child)
+            with setup_lock():
+                shutdown()
+    finally:
         for sig, handler in previous.items():
             signal.signal(sig, handler)
 

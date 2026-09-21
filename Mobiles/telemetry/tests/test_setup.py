@@ -9,6 +9,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import textwrap
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -95,6 +96,53 @@ class SetupTests(unittest.TestCase):
                 setup.start(SimpleNamespace())
             stop.assert_not_called()
             self.assertEqual(setup.STATE.read_text(), '{"platform":"android"}')
+
+    def test_sigterm_during_docker_start_cleans_up_and_restores_handlers(self):
+        # A real signal in a subprocess catches a missing handler without killing
+        # the test runner. Stub Docker and forwarding to leave local services alone.
+        script = textwrap.dedent('''
+            import os, signal, sys
+            from unittest.mock import patch
+            from test_setup import destinations, json, setup, workspace
+
+            wrapped = sys.argv[1] == 'wrapped'
+            with workspace() as (_, here, run):
+                config = here / 'destinations.local.json'
+                config.write_text(json.dumps(destinations()))
+                sys.argv = ['setup.py', '--non-interactive', '--platform', 'android',
+                            '--destinations', str(config), '--docker-backend', '--skip-install']
+                if wrapped:
+                    sys.argv += ['--', sys.executable, '-c', 'raise AssertionError("must not run")']
+                calls = []
+                previous = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}
+                def compose(action):
+                    calls.append(action[0])
+                    if action[0] == 'up':
+                        assert json.loads(setup.STATE.read_text())['docker_backend']
+                        os.kill(os.getpid(), signal.SIGTERM)
+                        raise AssertionError('SIGTERM did not interrupt startup')
+                with patch.object(setup, 'compose', side_effect=compose), \
+                     patch.object(setup, 'run_private') as runner:
+                    try:
+                        setup.main()
+                    except KeyboardInterrupt:
+                        pass
+                    else:
+                        raise AssertionError('Startup cancellation was swallowed')
+                assert calls == ['up', 'drain', 'down'], calls
+                assert 'stop' in runner.call_args.args[0]
+                assert not setup.STATE.exists()
+                assert not setup.ACTIVE.is_symlink()
+                assert json.loads(config.read_text()) == destinations()
+                assert all(signal.getsignal(sig) == handler for sig, handler in previous.items())
+        ''')
+        for mode in ('standalone', 'wrapped'):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as tmp:
+                env = {**os.environ, 'TMPDIR': tmp, 'PYTHONPATH': str(Path(__file__).parent),
+                       'ALLOY_BIN': sys.executable, 'NGINX_BIN': sys.executable}
+                result = subprocess.run([sys.executable, '-c', script, mode], env=env,
+                                        capture_output=True, text=True, timeout=10)
+                self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_noninteractive_missing_platform_fails_without_starting(self):
         result = subprocess.run([sys.executable, str(ROOT / 'Mobiles/telemetry/setup.py'), '--non-interactive'], capture_output=True)
