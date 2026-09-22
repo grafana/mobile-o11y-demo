@@ -26,3 +26,12 @@ jobs:
             BlueOak-1.0.0, Unlicense, CC0-1.0,
             CC-BY-4.0,
             Artistic-2.0
+          # Published Faro 0.17.0 and Dartastic 0.11.0 LICENSE files are Apache-2.0,
+          # but GitHub reports lowercase apache-2.0, which this action rejects.
+          # Related Pub license-casing report: https://github.com/orgs/community/discussions/200564
+          # Remove when GitHub returns canonical SPDX identifiers. These license-only
+          # exceptions cover all versions of these packages; vulnerability checks stay enabled.
+          allow-dependencies-licenses: >-
+            pkg:pub/faro,
+            pkg:pub/dartastic_opentelemetry,
+            pkg:pub/dartastic_opentelemetry_api
