@@ -76,7 +76,10 @@ fi
 # ============================================
 # Config file check (config.json, same as Flutter)
 # ============================================
-CONFIG_FILE="config.json"
+CONFIG_FILE="${QUICKPIZZA_RN_CONFIG_FILE:-config.json}"
+if [ -z "${QUICKPIZZA_RN_CONFIG_FILE:-}" ] && [ -f ../telemetry/.runtime/active/react-native.json ]; then
+  CONFIG_FILE=../telemetry/.runtime/active/react-native.json
+fi
 CONFIG_EXAMPLE="config.json.example"
 
 if [ ! -f "$CONFIG_FILE" ]; then

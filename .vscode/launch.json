@@ -9,8 +9,9 @@
       "cwd": "Mobiles/flutter",
       "flutterMode": "debug",
       "toolArgs": [
-        "--dart-define-from-file=config.json"
-      ]
+        "--dart-define-from-file=.dart_tool/telemetry-config.json"
+      ],
+      "preLaunchTask": "Flutter: Select config"
     },
     {
       "type": "dart",
@@ -20,8 +21,9 @@
       "cwd": "Mobiles/flutter",
       "flutterMode": "debug",
       "toolArgs": [
-        "--dart-define-from-file=config.json"
-      ]
+        "--dart-define-from-file=.dart_tool/telemetry-config.json"
+      ],
+      "preLaunchTask": "Flutter: Select config"
     }
   ]
 }

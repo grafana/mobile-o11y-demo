@@ -4,12 +4,60 @@
     {
       "label": "iOS: Build & Run on Simulator",
       "type": "shell",
-      "command": "${workspaceFolder}/Mobiles/ios/scripts/sim-run.sh",
+      "command": "${workspaceFolder}/Mobiles/ios/Scripts/sim-run.sh",
       "group": "build",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",
         "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: Select config",
+      "type": "process",
+      "command": "python3",
+      "args": [
+        "${workspaceFolder}/Mobiles/telemetry/flutter-config.py"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Mobile demo: Start backend",
+      "type": "process",
+      "command": "python3",
+      "args": [
+        "${workspaceFolder}/Mobiles/telemetry/setup.py"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Mobile demo: Stop backend",
+      "type": "process",
+      "command": "python3",
+      "args": [
+        "${workspaceFolder}/Mobiles/telemetry/teardown.py"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
       },
       "problemMatcher": []
     }

@@ -140,6 +140,9 @@ These apply to every app, so they're stated once here.
 
 ## Optional dual-stack telemetry
 
-For local or scheduled telemetry to two Grafana Cloud stacks, see
-[the forwarding profile](telemetry/README.md). Apps retain their normal
-single-endpoint SDK configuration; forwarding and credentials live in tooling.
+Run `python3 Mobiles/telemetry/setup.py` from the repository root to start a
+shared backend and forwarding to both saved Grafana Cloud stacks. It prepares
+all four apps on both platforms; run `python3 Mobiles/telemetry/teardown.py` to
+stop it. See [the setup guide](telemetry/README.md) for IDE launch instructions.
+Apps retain single-endpoint SDK configuration; forwarding and credentials live
+in tooling.

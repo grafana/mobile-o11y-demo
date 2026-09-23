@@ -72,7 +72,7 @@ class SetupTests(unittest.TestCase):
         with workspace() as (_, here, run):
             config = here / 'destinations.local.json'
             config.write_text(json.dumps(destinations()))
-            args = SimpleNamespace(destinations=config, non_interactive=True, docker_backend=True,
+            args = SimpleNamespace(destinations=config, non_interactive=True, backend='docker', backend_port=None,
                                    platform='android', port_offset=0, skip_install=True)
             calls = []
             def compose(action):
@@ -144,10 +144,14 @@ class SetupTests(unittest.TestCase):
                                         capture_output=True, text=True, timeout=10)
                 self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_noninteractive_missing_platform_fails_without_starting(self):
-        result = subprocess.run([sys.executable, str(ROOT / 'Mobiles/telemetry/setup.py'), '--non-interactive'], capture_output=True)
-        self.assertEqual(result.returncode, 2)
-        self.assertIn(b'Choose --platform', result.stderr)
+    def test_noninteractive_missing_destinations_fails_without_prompting(self):
+        with workspace(), patch.dict(os.environ, {}, clear=True), patch.object(setup, 'start') as start:
+            start.side_effect = RuntimeError('missing destinations')
+            with patch.object(sys, 'argv', ['setup.py', '--non-interactive', '--backend', 'none']):
+                with self.assertRaisesRegex(RuntimeError, 'missing destinations'):
+                    setup.main()
+            self.assertEqual(start.call_args.args[0].platform, 'ios')
+            self.assertEqual(start.call_args.args[0].backend, 'none')
 
     @unittest.skipUnless(ALLOY and NGINX, 'Set ALLOY_BIN and NGINX_BIN')
     def test_real_setup_delivery_teardown_and_command_exit(self):
@@ -156,7 +160,7 @@ class SetupTests(unittest.TestCase):
             root = Path(tmp)
             here = root / 'Mobiles/telemetry'
             here.mkdir(parents=True)
-            for name in ('setup.py', 'teardown.py', 'telemetry.py', 'configure.py'):
+            for name in ('setup.py', 'teardown.py', 'telemetry.py', 'configure.py', 'backend.py'):
                 shutil.copy(ROOT / 'Mobiles/telemetry' / name, here / name)
             for app in ('android', 'ios', 'react-native', 'flutter'):
                 name = 'Config.xcconfig.example' if app == 'ios' else 'config.json.example'
@@ -170,7 +174,7 @@ class SetupTests(unittest.TestCase):
             config = here / 'destinations.local.json'
             config.write_text(json.dumps(destinations(f'http://127.0.0.1:{server.server_port}')))
             command = [sys.executable, str(here / 'setup.py'), '--non-interactive', '--platform', 'android',
-                       '--destinations', str(config), '--skip-install', '--port-offset', '3000']
+                       '--destinations', str(config), '--skip-install', '--backend', 'none', '--port-offset', '3000']
             stop = [sys.executable, str(here / 'teardown.py')]
             env = {**os.environ, 'ALLOY_BIN': ALLOY, 'NGINX_BIN': NGINX}
             def execute(cmd):

@@ -165,24 +165,34 @@ import.file "backend" { filename = "/etc/alloy/backend_pipeline.alloy" }
     return ''.join(blocks) + f'  otlp = {outputs("backend")}\n}}\n'
 
 
-def app_configs(run, platform, ports, root=ROOT):
-    host = '10.0.2.2' if platform == 'android' else '127.0.0.1'
+def app_configs(run, platform, ports, root=ROOT, backend_port=None):
+    """Generate one shared Faro config plus native configs with fixed OS addresses."""
     env = {}
     for app in ('flutter', 'react-native', 'android'):
         directory = root / 'Mobiles' / app
         original = directory / ('app/src/main/res/raw/config.json' if app == 'android' else 'config.json')
         fallback = directory / 'config.json.example'
         data = json.loads((original if original.exists() else fallback).read_text())
+        if backend_port is not None:
+            data.update(BASE_URL='', PORT=str(backend_port))
         if app == 'android':
-            data.update(OTLP_ENDPOINT=f'http://{host}:{ports[app]}', OTLP_INSTANCE_ID='', OTLP_API_KEY='')
+            # Native Android must always use the emulator's host alias.
+            data.update(OTLP_ENDPOINT=f'http://10.0.2.2:{ports[app]}', OTLP_INSTANCE_ID='', OTLP_API_KEY='')
+            if backend_port is not None:
+                data['BASE_URL'] = f'http://10.0.2.2:{backend_port}'
         else:
-            data['FARO_COLLECTOR_URL'] = f'http://{host}:{ports["faro"]}/collect/{app}'
+            for os_name, host in (('ios', '127.0.0.1'), ('android', '10.0.2.2')):
+                data[f'FARO_COLLECTOR_URL_{os_name.upper()}'] = f'http://{host}:{ports["faro"]}/collect/{app}'
+            # Preserve the legacy single-platform field for existing external consumers.
+            data['FARO_COLLECTOR_URL'] = data[f'FARO_COLLECTOR_URL_{platform.upper()}']
         dest = run / f'{app}.json'
         write(dest, json.dumps(data, indent=2) + '\n')
         env[{'flutter': 'QUICKPIZZA_FLUTTER_CONFIG_FILE', 'react-native': 'QUICKPIZZA_RN_CONFIG_FILE', 'android': 'QUICKPIZZA_ANDROID_CONFIG_FILE'}[app]] = str(dest)
     original = root / 'Mobiles/ios/Config.xcconfig'
     text = (original if original.exists() else original.with_suffix('.xcconfig.example')).read_text()
     replacements = {'OTLP_ENDPOINT': f'http:/$()/127.0.0.1:{ports["ios"]}', 'OTLP_INSTANCE_ID': '', 'OTLP_API_KEY': '', 'QUICKPIZZA_IOS_CONFIG_FILE': str(run / 'ios.xcconfig')}
+    if backend_port is not None:
+        replacements.update(BASE_URL=f'http:/$()/127.0.0.1:{backend_port}', PORT=str(backend_port))
     for key, value in replacements.items():
         text = re.sub(r'^\s*' + key + r'\s*=.*$', '', text, flags=re.M)
         text += f'\n{key} = {value}\n'

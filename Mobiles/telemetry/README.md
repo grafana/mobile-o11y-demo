@@ -15,33 +15,55 @@ From the repository root:
 python3 Mobiles/telemetry/setup.py
 ```
 
-Choose a simulator platform, whether to manage the Docker backend, and enter
-both stacks’ destinations. Setup saves credentials privately, installs missing
-forwarding tools, and starts them. Later runs reuse the saved destinations.
+Setup reuses your saved destinations (or asks for them once), installs missing
+forwarding tools, starts one QuickPizza backend, and activates build configs for
+**all four apps on both iOS and Android**. There is no platform selection.
+The services stay running until teardown; you launch the apps yourself.
+
+The default backend is Docker microservices when Docker responds. Otherwise,
+setup builds/runs the native Go backend and prints its URL. Docker uses port
+`3333`; native uses `29333`. Generated app configs select the matching backend
+port and the correct host address for each simulator/emulator.
 
 Then build/run:
 
 | App | After setup |
 | --- | --- |
-| Android Studio | Sync Gradle, rebuild/run |
-| Xcode | Rebuild/run |
-| React Native | Restart Metro with `--reset-cache`, rebuild/run |
-| Flutter | From `Mobiles/flutter`: `flutter run --dart-define-from-file=../telemetry/.runtime/local/flutter.json` |
+| Flutter in Cursor / VS Code | Open the repo root, choose **Flutter (debug)**, select your device, press **F5**. The launch task selects the active config automatically. |
+| Flutter from terminal | Run `Mobiles/flutter/scripts/run-ios.sh` or `run-android.sh`. Both select the active config automatically. |
+| React Native | Restart Metro with `--reset-cache`, then rebuild/run on either platform. One Metro instance can serve both platforms. |
+| Native Android | Sync Gradle in Android Studio, then rebuild/run. |
+| Native iOS | Rebuild/run in Xcode. |
 
-## CI / agents
+You can run several apps against the same setup. Build the two Flutter platforms
+sequentially in one checkout. Saved in-app endpoint overrides still take
+precedence: clear those overrides in Debug → Config if an app uses an old URL.
 
-Fill in a private copy of [destinations.example.json](destinations.example.json)
-using the [field guide](DETAILS.md#destination-json).
-Pass its path; `--docker-backend` is optional.
+## Backend options and automation
 
 ```sh
-python3 Mobiles/telemetry/setup.py --non-interactive --platform android \
-  --destinations /path/to/destinations.json --docker-backend
+# Require Docker, or explicitly choose the native backend.
+python3 Mobiles/telemetry/setup.py --backend docker
+python3 Mobiles/telemetry/setup.py --backend native
+
+# Forwarding only, when you manage the backend yourself.
+python3 Mobiles/telemetry/setup.py --backend none
+
+# No prompts; use a private destination file.
+python3 Mobiles/telemetry/setup.py --non-interactive \
+  --destinations /path/to/destinations.json
 ```
 
-Alternatively, supply JSON in `MOBILE_TELEMETRY_DESTINATIONS` or with
+Native mode requires Go and exports backend OTLP; Docker additionally collects
+container logs, scraped metrics and profiles. Use `--backend-port` to override
+the native port. Docker setup uses the mobile QuickPizza image; set
+`QUICKPIZZA_IMAGE` explicitly to use your own build.
+
+JSON can also be supplied in `MOBILE_TELEMETRY_DESTINATIONS` or with
 `--destinations -` on stdin. Append `-- COMMAND ARG…` to wrap a complete test run
-with automatic teardown.
+with automatic teardown. Existing `--docker-backend` remains an alias for
+`--backend docker`; `--platform` only selects the legacy single-platform field
+for external consumers, not which apps setup enables.
 
 ## GitHub Actions
 
@@ -70,9 +92,10 @@ Stop apps after their SDKs flush, then:
 python3 Mobiles/telemetry/teardown.py
 ```
 
-Forwarding drains/stops; any Docker backend managed by setup stops too. Saved
-credentials and Docker volumes remain. **Sync/rebuild/reinstall apps** to restore
-original endpoints; restart Metro. Restart the backend using your usual Compose
+Forwarding drains/stops; the managed Docker or native backend stops too. Saved
+credentials and Docker volumes remain. **Rebuild/reinstall apps** to restore
+original endpoints; restart Metro and sync native Android. Flutter’s next Cursor
+launch or helper-script run selects the ordinary `config.json` automatically. Restart the backend using your usual Compose
 command. Already-installed apps do not switch endpoints automatically.
 
 One active setup per checkout; emulator/simulator only. Docker setup manages the

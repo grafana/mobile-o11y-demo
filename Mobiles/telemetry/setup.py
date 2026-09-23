@@ -13,6 +13,7 @@ import signal
 import subprocess
 import sys
 
+from backend import select_backend, check_port, build_native
 from configure import HERE, ROOT, load_destinations, write
 from telemetry import active, stop_child
 
@@ -108,7 +109,8 @@ def run_private(command, name, env=None):
 def compose(action):
     run_private(['bash', str(HERE / 'backend-compose.sh'), *action], 'backend.log',
                 {**os.environ, 'TELEMETRY_PROFILE': 'dual-stack',
-                 'MOBILE_TELEMETRY_RUN_DIR': str(RUN), 'ALLOY_FILE_NAME': 'cloud-dev.alloy'})
+                 'MOBILE_TELEMETRY_RUN_DIR': str(RUN), 'ALLOY_FILE_NAME': 'cloud-dev.alloy',
+                 'QUICKPIZZA_IMAGE': os.environ.get('QUICKPIZZA_IMAGE', 'ghcr.io/grafana/quickpizza-mobile-local:latest')})
 
 
 def deactivate():
@@ -142,6 +144,11 @@ def start(args):
     RUN.mkdir(parents=True, exist_ok=True, mode=0o700)
     RUN.chmod(0o700)
     path = destinations(args)
+    mode = select_backend(args.backend)
+    args.docker_backend = mode == 'docker'
+    backend_port = (args.backend_port or 29333) if mode == 'native' else (3333 if mode == 'docker' else None)
+    if mode != 'native' and args.backend_port is not None:
+        raise RuntimeError('--backend-port is only supported with the native backend.')
     if args.docker_backend:
         from configure import docker_config
         docker_config(load_destinations(path))  # Fail before installing/starting anything.
@@ -153,20 +160,28 @@ def start(args):
             print('Installing forwarding tools. See the private install.log for progress.', flush=True)
             run_private(['bash', str(HERE / 'install-tools.sh')], 'install.log')
             break
+    binary = None
+    if mode == 'native':
+        check_port(backend_port)
+        binary = build_native(ROOT, RUN, run_private)
     command = [sys.executable, str(HERE / 'telemetry.py'), 'start', '--profile', 'dual-stack',
                '--platform', args.platform, '--run-dir', str(RUN), '--port-offset', str(args.port_offset)]
     if path:
         command += ['--destinations', str(path)]
     if args.docker_backend:
         command += ['--docker-backend']
+    if backend_port is not None:
+        command += ['--backend-port', str(backend_port)]
+    if binary:
+        command += ['--native-backend', str(binary)]
     try:
         run_private(command, 'lifecycle.log')
-        write(STATE, json.dumps({'docker_backend': False, 'platform': args.platform}))
+        write(STATE, json.dumps({'docker_backend': False, 'backend': mode, 'backend_port': backend_port}))
         if args.docker_backend:
             # Record intent before Compose so a partial startup is recoverable.
-            write(STATE, json.dumps({'docker_backend': True, 'platform': args.platform}))
+            write(STATE, json.dumps({'docker_backend': True, 'backend': mode, 'backend_port': backend_port}))
             compose(['up', '-d', '--wait', '--wait-timeout', '120'])
-        if args.platform == 'ios':
+        if (ROOT / 'Mobiles/ios/Scripts/generate-config.sh').is_file():
             run_private(['bash', str(ROOT / 'Mobiles/ios/Scripts/generate-config.sh')], 'ios-config.log',
                         {**os.environ, 'SRCROOT': str(ROOT / 'Mobiles/ios'),
                          'QUICKPIZZA_IOS_CONFIG_FILE': str(RUN / 'ios.xcconfig')})
@@ -174,30 +189,33 @@ def start(args):
     except BaseException:
         shutdown()
         raise
+    if backend_port:
+        print(f'QuickPizza ready: http://localhost:{backend_port} ({mode} backend)', flush=True)
     return json.loads((RUN / 'env.json').read_text())
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--non-interactive', action='store_true', help='Never prompt; require --platform.')
-    parser.add_argument('--platform', choices=('android', 'ios'))
+    parser.add_argument('--non-interactive', action='store_true', help='Never prompt; require saved destinations, a file or environment.')
+    parser.add_argument('--platform', choices=('android', 'ios'), default='ios',
+                        help='Legacy default field for external consumers; all apps support both platforms.')
     parser.add_argument('--destinations', type=Path, help='Private destination JSON; - reads stdin. Defaults to saved file or environment.')
-    parser.add_argument('--docker-backend', action='store_true', help='Start/manage this checkout’s existing Docker microservices backend.')
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('--backend', choices=('auto', 'docker', 'native', 'none'), default='auto',
+                       help='Default: Docker when available, otherwise native Go. none starts forwarding only.')
+    group.add_argument('--docker-backend', dest='backend', action='store_const', const='docker',
+                       help='Alias for --backend docker.')
+    parser.add_argument('--backend-port', type=int, help='Native HTTP port (default: 29333).')
     parser.add_argument('--skip-install', action='store_true', help='Fail if forwarding binaries are missing.')
     parser.add_argument('--port-offset', type=int, default=0, help='Offset local forwarding ports.')
     argv = sys.argv[1:]
     split = argv.index('--') if '--' in argv else len(argv)
     args = parser.parse_args(argv[:split])
     command = argv[split + 1:]
-    if not args.non_interactive:
-        if not sys.stdin.isatty():
-            parser.error('Use --non-interactive when stdin is not a terminal.')
-        if not args.platform:
-            args.platform = ask('Simulator platform: android or ios', 'android').lower()
-        if not args.docker_backend:
-            args.docker_backend = ask('Also manage this checkout’s Docker backend? y/n', 'n').lower() in ('y', 'yes')
-    if args.platform not in ('android', 'ios'):
-        parser.error('Choose --platform android or ios.')
+    if not sys.stdin.isatty():
+        args.non_interactive = True
+    if args.backend_port is not None and not 0 < args.backend_port < 65536:
+        parser.error('Invalid backend port.')
     if not 0 <= args.port_offset < 48000:
         parser.error('Invalid port offset.')
     def interrupt(*_):
@@ -207,11 +225,11 @@ def main():
     try:
         with setup_lock():
             env = start(args)
-        print('Dual-stack forwarding ready. Original app settings are unchanged.')
+        print('All mobile apps are configured for both iOS and Android. Saved app settings are unchanged.')
         if not command:
             print('Android Studio: sync Gradle, then rebuild/run. Xcode: rebuild/run.')
             print('React Native: restart Metro with --reset-cache, then rebuild/run.')
-            print(f'Flutter: flutter run --dart-define-from-file={RUN / "flutter.json"}')
+            print('Flutter: launch from Cursor, or use Mobiles/flutter/scripts/run-ios.sh / run-android.sh.')
             print('Stop apps before running: python3 Mobiles/telemetry/teardown.py')
             return 0
         child = None

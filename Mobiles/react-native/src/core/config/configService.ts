@@ -4,6 +4,8 @@ import { loadSavedDebugSettings } from '../../features/debug/domain/debugSetting
 
 interface AppConfig {
   FARO_COLLECTOR_URL?: string;
+  FARO_COLLECTOR_URL_IOS?: string;
+  FARO_COLLECTOR_URL_ANDROID?: string;
   BASE_URL?: string;
   PORT?: string;
 }
@@ -44,7 +46,11 @@ function getDefaultBaseUrl(): string {
 }
 
 function getConfiguredFaroCollectorUrl(): string {
-  const collectorUrl = config.FARO_COLLECTOR_URL ?? '';
+  const platformUrl =
+    Platform.OS === 'android'
+      ? config.FARO_COLLECTOR_URL_ANDROID
+      : config.FARO_COLLECTOR_URL_IOS;
+  const collectorUrl = platformUrl || config.FARO_COLLECTOR_URL || '';
   if (!collectorUrl || collectorUrl.trim().length === 0) {
     throw new Error(
       [
@@ -77,7 +83,8 @@ export async function initializeRuntimeConfig(): Promise<RuntimeConfig> {
     baseUrl: saved.backendUrlOverride
       ? normalizeUrl(saved.backendUrlOverride)
       : defaults.baseUrl,
-    faroCollectorUrl: saved.faroCollectorUrlOverride || defaults.faroCollectorUrl,
+    faroCollectorUrl:
+      saved.faroCollectorUrlOverride || defaults.faroCollectorUrl,
     port: defaults.port,
   };
   return activeRuntimeConfig;
@@ -117,7 +124,9 @@ export function getApiBaseUrl(): string {
  * Includes common dev aliases (127.0.0.1, ::1) so propagation still applies if `BASE_URL` uses
  * one host while `fetch` resolves another — otherwise the backend starts a new trace id.
  */
-export function getQuickPizzaTracePropagationUrlPatterns(): Array<string | RegExp> {
+export function getQuickPizzaTracePropagationUrlPatterns(): Array<
+  string | RegExp
+> {
   const base = activeRuntimeConfig.baseUrl.replace(/\/$/, '');
   const escaped = base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const port = String(activeRuntimeConfig.port).trim();
