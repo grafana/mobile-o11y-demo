@@ -96,7 +96,10 @@ Never commit the JSON or upload generated configs/logs as artifacts.
 
 `setup.py` (equivalent to `setup.py --backend docker`) manages the demo
 microservices Compose project and ports. Teardown stops that backend and retains volumes. It is not a second,
-isolated Compose project. Docker Alloy uses `backend_pipeline.alloy` for
+isolated Compose project. Stop a standalone backend on port `3333` before setup;
+an existing instance of this Compose project can be reconfigured by setup.
+The default image is built locally from the checkout; export `QUICKPIZZA_IMAGE`
+to skip building and use a specific image. Docker Alloy uses `backend_pipeline.alloy` for
 discovery and resource transforms.
 
 For an independently managed native backend (`--backend none`), source

@@ -366,18 +366,19 @@ upstream QuickPizza image used by k6 and web workshops:
 | k6 tests, example workflows, compose defaults | `ghcr.io/grafana/quickpizza-local` (upstream) |
 | Mobile demos, mobile CI, releases from this repo | `ghcr.io/grafana/quickpizza-mobile-local` |
 
-When running the backend for **mobile** work with Docker Compose, override the
-image (compose defaults stay on upstream `quickpizza-local` for k6 compatibility):
+For local **mobile** work, build the image from this checkout and select it for
+Docker Compose (compose defaults stay on upstream `quickpizza-local` for k6 compatibility):
 
 ```bash
-export QUICKPIZZA_IMAGE=ghcr.io/grafana/quickpizza-mobile-local:latest
+docker build -t quickpizza-mobile-local:development .
+export QUICKPIZZA_IMAGE=quickpizza-mobile-local:development
 docker compose -f compose.grafana-cloud.microservices.yaml up -d
 ```
 
-For a single container (no compose):
+Or run that local image as a single container (no compose):
 
 ```bash
-docker run --rm -it -p 3333:3333 ghcr.io/grafana/quickpizza-mobile-local:latest
+docker run --rm -it -p 3333:3333 quickpizza-mobile-local:development
 ```
 
 ### Supported platforms

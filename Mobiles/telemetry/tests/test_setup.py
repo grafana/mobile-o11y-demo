@@ -72,6 +72,59 @@ class SetupTests(unittest.TestCase):
             self.assertFalse(setup.ACTIVE.is_symlink())
             self.assertFalse(setup.STATE.exists())
 
+    def test_local_build_is_default_and_explicit_image_skips_build(self):
+        with workspace(), patch.dict(os.environ, {}, clear=True), \
+             patch.object(setup, 'run_private') as runner:
+            self.assertEqual(setup.prepare_backend_image(), setup.LOCAL_IMAGE)
+            runner.assert_called_once_with(
+                ['docker', 'build', '-t', setup.LOCAL_IMAGE, '.'], 'backend-build.log')
+            runner.reset_mock()
+            with patch.dict(os.environ, QUICKPIZZA_IMAGE='custom-mobile:test'):
+                self.assertEqual(setup.prepare_backend_image(), 'custom-mobile:test')
+            runner.assert_not_called()
+
+    def test_teardown_compose_uses_saved_image_when_environment_changes(self):
+        with workspace(), patch.object(setup, 'run_private') as runner, \
+             patch.dict(os.environ, QUICKPIZZA_IMAGE='different-mobile:test'):
+            setup.STATE.write_text(json.dumps({'docker_backend': True, 'backend_image': 'saved-mobile:test'}))
+            setup.compose(['down'])
+            self.assertEqual(runner.call_args.args[2]['QUICKPIZZA_IMAGE'], 'saved-mobile:test')
+
+    def test_missing_cloud_names_required_fields_without_exposing_values(self):
+        for side in ('primary', 'secondary'):
+            with self.subTest(side=side), workspace() as (_, here, run):
+                data = destinations()
+                del data[side]['cloud']
+                config = here / 'destinations.local.json'
+                config.write_text(json.dumps(data))
+                args = SimpleNamespace(destinations=config, non_interactive=True, backend='docker')
+                with patch.object(setup, 'require_docker'), patch.object(setup, 'run_private') as runner:
+                    with self.assertRaisesRegex(RuntimeError, side + r'\.cloud') as error:
+                        setup.start(args)
+                    runner.assert_not_called()
+                self.assertIn('stack, token and api_url', str(error.exception))
+                self.assertIn('--backend none', str(error.exception))
+                self.assertNotIn('private-token', str(error.exception))
+                self.assertFalse(setup.STATE.exists())
+                self.assertFalse(setup.ACTIVE.is_symlink())
+
+    def test_failed_build_does_not_start_forwarding_or_compose(self):
+        with workspace() as (_, here, run):
+            config = here / 'destinations.local.json'
+            config.write_text(json.dumps(destinations()))
+            args = SimpleNamespace(destinations=config, non_interactive=True, backend='docker',
+                                   platform='ios', port_offset=0, skip_install=True)
+            with patch.object(setup, 'require_docker'), \
+                 patch.dict(os.environ, ALLOY_BIN=sys.executable, NGINX_BIN=sys.executable), \
+                 patch.object(setup, 'prepare_backend_image', side_effect=RuntimeError('Build failed')), \
+                 patch.object(setup, 'run_private') as runner, patch.object(setup, 'compose') as compose:
+                with self.assertRaisesRegex(RuntimeError, 'Build failed'):
+                    setup.start(args)
+                runner.assert_not_called()
+                compose.assert_not_called()
+                self.assertFalse(setup.STATE.exists())
+                self.assertFalse(setup.ACTIVE.is_symlink())
+
     def test_guided_setup_hides_app_keys_and_tokens(self):
         values = ['https://cloud.test/collect/private-key'] * 4 + [
             'https://gateway.test/otlp', '123', 'private-token', 'my-stack', 'production']

@@ -20,10 +20,16 @@ forwarding tools, starts one QuickPizza backend, and activates build configs for
 **all four apps on both iOS and Android**. There is no platform selection.
 The services stay running until teardown; you launch the apps yourself.
 
-Setup requires a running Docker engine and starts the microservices backend on
+Setup requires a running Docker engine, builds the backend image from this
+checkout using the existing Dockerfile, and starts the microservices backend on
 port `3333`. If Docker is unavailable or unresponsive, setup exits with guidance
 to start or restart it. Generated app configs select the correct host address
 for each simulator/emulator.
+
+If you already started the standalone backend from the Mobile README, stop it
+with `docker stop quickpizza` before setup: both use port `3333`. An existing
+`quickpizza` Compose project is managed by setup and stopped by teardown.
+Use `--backend none` to keep managing a backend separately.
 
 Then build/run:
 
@@ -54,9 +60,16 @@ python3 Mobiles/telemetry/setup.py --non-interactive \
 ```
 
 Docker collects backend OTLP, container logs, scraped metrics and profiles.
-Setup uses the mobile QuickPizza image; set `QUICKPIZZA_IMAGE` explicitly to
-use your own build. `--backend none` skips the Docker check and preserves the
-backend addresses from your saved app configs.
+By default, setup builds `quickpizza-mobile-local:development` on every start;
+Docker reuses cached layers. The first build needs internet access for base
+images and build dependencies, but no private mobile-image registry access.
+Export `QUICKPIZZA_IMAGE` to use an existing local or pullable image and skip the
+build. Setup records the selected image for teardown; it does not change `.env`.
+
+`--backend none` skips Docker checks and builds, and preserves the backend
+addresses from your saved app configs. It does not redirect an existing
+backend's telemetry: configure its OTLP export separately as described in
+[Backend scope](DETAILS.md#backend-scope).
 
 JSON can also be supplied in `MOBILE_TELEMETRY_DESTINATIONS` or with
 `--destinations -` on stdin. Append `-- COMMAND ARG…` to wrap a complete test run

@@ -20,6 +20,7 @@ RUNTIME = HERE / '.runtime'
 RUN = RUNTIME / 'local'
 ACTIVE = RUNTIME / 'active'
 STATE = RUN / 'setup.json'
+LOCAL_IMAGE = 'quickpizza-mobile-local:development'
 
 
 @contextmanager
@@ -118,11 +119,21 @@ def require_docker():
                        'Use --backend none only if you manage the backend separately.')
 
 
+def prepare_backend_image():
+    image = os.environ.get('QUICKPIZZA_IMAGE') or LOCAL_IMAGE
+    if not os.environ.get('QUICKPIZZA_IMAGE'):
+        print('Building the mobile backend image from this checkout. See private backend-build.log for progress.', flush=True)
+        run_private(['docker', 'build', '-t', image, '.'], 'backend-build.log')
+    return image
+
+
 def compose(action):
+    state = json.loads(STATE.read_text()) if STATE.exists() else {}
+    image = state.get('backend_image') or os.environ.get('QUICKPIZZA_IMAGE') or LOCAL_IMAGE
     run_private(['bash', str(HERE / 'backend-compose.sh'), *action], 'backend.log',
                 {**os.environ, 'TELEMETRY_PROFILE': 'dual-stack',
                  'MOBILE_TELEMETRY_RUN_DIR': str(RUN), 'ALLOY_FILE_NAME': 'cloud-dev.alloy',
-                 'QUICKPIZZA_IMAGE': os.environ.get('QUICKPIZZA_IMAGE', 'ghcr.io/grafana/quickpizza-mobile-local:latest')})
+                 'QUICKPIZZA_IMAGE': image})
 
 
 def deactivate():
@@ -161,7 +172,17 @@ def start(args):
     path = destinations(args)
     if args.docker_backend:
         from configure import docker_config
-        docker_config(load_destinations(path))  # Fail before installing/starting anything.
+        targets = load_destinations(path)
+        for side in ('primary', 'secondary'):
+            cloud = targets[side].get('cloud')
+            if not isinstance(cloud, dict) or any(
+                not isinstance(cloud.get(key), str) or not cloud[key].strip()
+                for key in ('stack', 'token', 'api_url')
+            ):
+                raise RuntimeError(f'Docker backend requires {side}.cloud with stack, token and api_url. '
+                                   'Add these fields to your destinations, or use --backend none '
+                                   'to manage the backend and its telemetry separately.')
+        docker_config(targets)  # Fail before installing/starting anything.
     for env, name in (('ALLOY_BIN', 'alloy'), ('NGINX_BIN', 'nginx')):
         binary = os.environ.get(env, str(RUNTIME / 'tools' / name))
         if not shutil.which(binary):
@@ -170,6 +191,7 @@ def start(args):
             print('Installing forwarding tools. See the private install.log for progress.', flush=True)
             run_private(['bash', str(HERE / 'install-tools.sh')], 'install.log')
             break
+    image = prepare_backend_image() if args.docker_backend else None
     command = [sys.executable, str(HERE / 'telemetry.py'), 'start', '--profile', 'dual-stack',
                '--platform', args.platform, '--run-dir', str(RUN), '--port-offset', str(args.port_offset)]
     if path:
@@ -178,10 +200,10 @@ def start(args):
         command += ['--docker-backend']
     try:
         run_private(command, 'lifecycle.log')
-        write(STATE, json.dumps({'docker_backend': False}))
+        write(STATE, json.dumps({'docker_backend': False, 'backend_image': image}))
         if args.docker_backend:
             # Record intent before Compose so a partial startup is recoverable.
-            write(STATE, json.dumps({'docker_backend': True}))
+            write(STATE, json.dumps({'docker_backend': True, 'backend_image': image}))
             compose(['up', '-d', '--wait', '--wait-timeout', '120'])
         if (ROOT / 'Mobiles/ios/Scripts/generate-config.sh').is_file():
             run_private(['bash', str(ROOT / 'Mobiles/ios/Scripts/generate-config.sh')], 'ios-config.log',
