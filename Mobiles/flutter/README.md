@@ -84,6 +84,12 @@ flutter pub get
      [emulator/device defaults in the Mobile README](../README.md#shared-basics).
    - `PORT`: Backend port (optional, defaults to `3333`)
 
+When [shared local setup](../telemetry/README.md) is active, the helper scripts
+and the repository's Cursor/VS Code launch configurations automatically use its
+generated backend and collector settings on either platform. After teardown they
+select your ordinary `config.json` again. Manual `flutter run` can use
+`--dart-define-from-file=../telemetry/.runtime/active/flutter.json` while setup is active.
+
 3. Run the app:
 
 ```bash

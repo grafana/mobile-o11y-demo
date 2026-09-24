@@ -42,11 +42,14 @@ For a side-by-side of what each app actually emits, see
 
 ### Step 1 — Start the backend
 
-All four apps need the QuickPizza backend. The simplest way is one container:
+All four apps need the QuickPizza backend. To send telemetry to two stacks,
+use [dual-stack setup](#optional-dual-stack-telemetry) instead of this step.
+For a standalone backend, build the mobile image from this checkout and run it:
 
 ```bash
+docker build -t quickpizza-mobile-local:development .
 docker run --rm -d --name quickpizza -p 3333:3333 \
-  ghcr.io/grafana/quickpizza-mobile-local:latest
+  quickpizza-mobile-local:development
 ```
 
 Verify it's up:
@@ -140,6 +143,14 @@ These apply to every app, so they're stated once here.
 
 ## Optional dual-stack telemetry
 
-For local or scheduled telemetry to two Grafana Cloud stacks, see
-[the forwarding profile](telemetry/README.md). Apps retain their normal
-single-endpoint SDK configuration; forwarding and credentials live in tooling.
+This is an alternative to Step 1. If its standalone `quickpizza` container is
+running, stop it first with `docker stop quickpizza` to release port `3333`.
+
+Run `python3 Mobiles/telemetry/setup.py` from the repository root to build and start a
+shared Docker backend and forwarding to both saved Grafana Cloud stacks. It prepares
+all four apps on both platforms; run `python3 Mobiles/telemetry/teardown.py` to
+stop it. See [the setup guide](telemetry/README.md) for IDE launch instructions.
+To keep a separately managed backend, use `--backend none` and configure that
+backend's telemetry forwarding yourself; the flag only configures the mobile
+apps and forwarders. Apps retain single-endpoint SDK configuration; forwarding
+and credentials live in tooling.

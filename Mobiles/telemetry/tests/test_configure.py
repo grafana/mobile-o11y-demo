@@ -40,7 +40,11 @@ class ConfigurationTests(unittest.TestCase):
                 self.assertEqual(native['OTLP_API_KEY'], '')
                 self.assertEqual(native['OTLP_INSTANCE_ID'], '')
                 self.assertNotIn('secret', (run / 'ios.xcconfig').read_text())
-                self.assertIn('10.0.2.2' if platform == 'android' else '127.0.0.1', native['OTLP_ENDPOINT'])
+                self.assertIn('10.0.2.2', native['OTLP_ENDPOINT'])
+                for app in ('flutter', 'react-native'):
+                    data = json.loads((run / f'{app}.json').read_text())
+                    self.assertIn('10.0.2.2', data['FARO_COLLECTOR_URL_ANDROID'])
+                    self.assertIn('127.0.0.1', data['FARO_COLLECTOR_URL_IOS'])
                 self.assertNotIn('XCODE_XCCONFIG_FILE', env)  # Do not override RN's Xcode build.
                 self.assertEqual((run / 'env.sh').stat().st_mode & 0o777, 0o600)
 

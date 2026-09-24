@@ -31,7 +31,8 @@ Requires Python 3.10+, a C compiler, OpenSSL and PCRE2 headers:
 - Debian/Ubuntu: `sudo apt-get install build-essential libssl-dev libpcre2-dev unzip`
 
 `setup.py` installs private, checksum-verified Alloy 1.19.2 and nginx 1.30.5
-binaries when missing. Docker is required only for `--docker-backend`; app builds
+binaries when missing. The default setup requires a running Docker engine.
+`--backend none` skips backend management and does not require Docker; app builds
 still need their usual toolchains. Nothing is installed as a system service.
 
 ## Destination JSON
@@ -59,8 +60,8 @@ There are two complete objects: `primary` (the preferred destination) and
 
 Use a stack-scoped Cloud Access Policy token with `metrics:write`, `logs:write`,
 `traces:write`, `profiles:write` and `stacks:read`. A Grafana login/service-account
-token is a different credential. Both `cloud` objects are required for CI's
-Docker collection; native-only local runs can omit them.
+token is a different credential. Both `cloud` objects are required for local and CI
+Docker collection; forwarding-only local runs can omit them.
 
 Keep native app URLs separate from the backend gateway. OTLP base URLs must not
 include `/v1/traces`, `/v1/logs` or `/v1/metrics`. Use the advertised backend URL;
@@ -93,12 +94,16 @@ Never commit the JSON or upload generated configs/logs as artifacts.
 
 ## Backend scope
 
-`setup.py --docker-backend` manages the demo microservices Compose project
-and ports. Teardown stops that backend and retains volumes. It is not a second,
-isolated Compose project. Docker Alloy uses `backend_pipeline.alloy` for
+`setup.py` (equivalent to `setup.py --backend docker`) manages the demo
+microservices Compose project and ports. Teardown stops that backend and retains volumes. It is not a second,
+isolated Compose project. Stop a standalone backend on port `3333` before setup;
+an existing instance of this Compose project can be reconfigured by setup.
+The default image is built locally from the checkout; export `QUICKPIZZA_IMAGE`
+to skip building and use a specific image. Docker Alloy uses `backend_pipeline.alloy` for
 discovery and resource transforms.
 
-For a native backend, source `.runtime/local/env.sh` before starting it, and keep
+For an independently managed native backend (`--backend none`), source
+`.runtime/local/env.sh` before starting it, and keep
 `QUICKPIZZA_TRUST_CLIENT_TRACEID=1`. This supplies `QUICKPIZZA_OTLP_ENDPOINT` and
 preserves mobile/backend trace relationships. Native runs, including macOS CI,
 duplicate OTLP only; they do not add scraping, process logs or profiling.
@@ -112,7 +117,7 @@ stacks need symbolication.
 | Symptom | Check |
 | --- | --- |
 | Setup fails | Missing tools, occupied ports or incomplete destination JSON. Private logs are in `.runtime/local/`; they can contain credentials. |
-| App still sends directly | Sync/rebuild/reinstall; restart Metro with `--reset-cache`. Clear saved in-app endpoint overrides. Flutter needs the generated `--dart-define-from-file`. |
+| App still sends directly | Sync/rebuild/reinstall; restart Metro with `--reset-cache`. Clear saved in-app endpoint overrides. Flutter needs the repository launch config/helper scripts or the generated `--dart-define-from-file`. |
 | Setup says already active | Run teardown before another setup. Retry teardown after a partial failure; saved destinations remain. |
 | Ready, but Cloud data missing | App key, token scopes, TLS/CA and sampling. Inspect both stacks; a successful primary response does not prove secondary delivery. |
 | Returning to direct export | Teardown, rebuild/reinstall and restart Metro. Unset any explicit `QUICKPIZZA_*_CONFIG_FILE` variables. Installed apps retain their built endpoint. |
@@ -145,6 +150,12 @@ with `SRCROOT="$PWD" Scripts/generate-config.sh` from `Mobiles/ios`.
 
 Listeners bind to loopback: iOS `17118`, Android `17120`, backend `17119`, Faro
 `17134`, Alloy health `17123`. Android uses `10.0.2.2`; iOS uses `127.0.0.1`.
+The generated native configs always use the address for their own platform.
+Flutter/RN configs contain `FARO_COLLECTOR_URL_IOS` and
+`FARO_COLLECTOR_URL_ANDROID`; the apps choose at runtime. The ordinary
+`FARO_COLLECTOR_URL` remains the fallback outside local setup. Managed backend
+configs override backend addresses in generated files only.
+
 Concurrent lower-level sessions need separate run directories and `--port-offset`
 values; parallel app builds also need separate build directories/worktrees.
 Physical devices are outside this profile.

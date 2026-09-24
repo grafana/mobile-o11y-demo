@@ -58,7 +58,13 @@ class ConfigService {
   /// Faro collector URL for observability.
   /// Throws [StateError] if not configured, as Faro is required for this demo app.
   static String get faroCollectorUrl {
-    const url = String.fromEnvironment('FARO_COLLECTOR_URL');
+    const sharedUrl = String.fromEnvironment('FARO_COLLECTOR_URL');
+    const iosUrl = String.fromEnvironment('FARO_COLLECTOR_URL_IOS');
+    const androidUrl = String.fromEnvironment('FARO_COLLECTOR_URL_ANDROID');
+    final platformUrl = defaultTargetPlatform == TargetPlatform.android
+        ? androidUrl
+        : iosUrl;
+    final url = platformUrl.isNotEmpty ? platformUrl : sharedUrl;
     if (url.isEmpty) {
       throw StateError(
         '\n'

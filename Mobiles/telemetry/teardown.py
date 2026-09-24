@@ -12,7 +12,7 @@ def main():
     with setup_lock():
         if RUN.exists():
             shutdown()
-    print('Dual-stack setup stopped. Saved destinations and Docker volumes are kept.')
+    print('Backend and dual-stack forwarding stopped. Saved destinations and Docker volumes are kept.')
     print('Sync/rebuild/reinstall apps to use original endpoints. Restart Metro if used.')
     return 0
 

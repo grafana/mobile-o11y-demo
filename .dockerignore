@@ -7,3 +7,9 @@ Makefile
 # on every build, which both slows builds down and can fill the builder
 # VM's disk. Has no effect on git or what's in the repo.
 Mobiles
+
+# Local credentials and repository metadata are not backend build inputs.
+.git
+**/.env
+**/.env.*
+!**/.env.example

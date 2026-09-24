@@ -87,7 +87,7 @@ def serve(args):
         write(run / 'ports.json', json.dumps(ports))
         write(run / 'forward.alloy', alloy_config(targets, ports))
         write(run / 'nginx.conf', nginx_config(targets, ports['faro'], ca_file))
-        env = app_configs(run, args.platform, ports)
+        env = app_configs(run, args.platform, ports, backend_port=3333 if args.docker_backend else None)
         if args.docker_backend:
             write(run / 'backend.alloy', docker_config(targets))
             # Existing Compose files still own discovery, services and their lifecycle.
