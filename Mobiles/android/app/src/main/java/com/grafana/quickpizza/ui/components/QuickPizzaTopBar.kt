@@ -61,7 +61,7 @@ fun QuickPizzaTopBar(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Filled.LocalPizza,
-                    contentDescription = null,
+                    contentDescription = "Logo",
                     tint = Color(0xFFCC2200),
                     modifier = Modifier.size(28.dp),
                 )

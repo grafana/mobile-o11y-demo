@@ -52,6 +52,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.grafana.quickpizza.features.debug.ReplayProbeCaptureButton
+import com.grafana.quickpizza.features.debug.grafanaNoCapture
 import com.grafana.quickpizza.ui.theme.OrangeAccent
 import com.grafana.quickpizza.ui.theme.WarmCream
 
@@ -106,7 +108,7 @@ fun LoginScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Person,
-                        contentDescription = null,
+                        contentDescription = "Account",
                         tint = Color.White,
                         modifier = Modifier.size(36.dp),
                     )
@@ -161,7 +163,9 @@ fun LoginScreen(
                             focusManager.clearFocus()
                             viewModel.login(onLoginSuccess)
                         }),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .grafanaNoCapture(),
                     )
 
                     state.errorMessage?.let { error ->
@@ -204,6 +208,8 @@ fun LoginScreen(
                             Text("Sign In", style = MaterialTheme.typography.titleSmall)
                         }
                     }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    ReplayProbeCaptureButton(screenName = "Login")
                 }
             }
 

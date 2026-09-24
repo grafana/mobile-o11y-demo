@@ -37,6 +37,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.grafana.quickpizza.features.debug.ReplayProbeCaptureButton
 import com.grafana.quickpizza.features.pizza.presentation.components.CustomizeSection
 import com.grafana.quickpizza.features.pizza.presentation.components.PizzaCard
 import com.grafana.quickpizza.features.pizza.presentation.components.RatingButtons
@@ -166,6 +167,8 @@ fun HomeScreen(
                     )
                 }
             }
+
+            ReplayProbeCaptureButton(screenName = "Home")
 
             // Error
             if (state.errorMessage != null && !state.isLoading) {
