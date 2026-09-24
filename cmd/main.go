@@ -158,7 +158,7 @@ func main() {
 		}()
 	}
 
-	listen := ":" + envHTTPPort()
+	listen := ":3333"
 	slog.Info("Starting QuickPizza", "listenAddress", listen)
 	err := http.ListenAndServe(listen, server)
 	if err != nil {
@@ -289,20 +289,12 @@ func envServe(name string) bool {
 	return envServeAll() || envBool(name)
 }
 
-// envHTTPPort configures the HTTP listener and monolithic service clients together.
-func envHTTPPort() string {
-	if port := os.Getenv("QUICKPIZZA_HTTP_PORT"); port != "" {
-		return port
-	}
-	return "3333"
-}
-
 // envEndpoint returns the endpoint URL for a service.
-// If the service is enabled, it uses localhost and QUICKPIZZA_HTTP_PORT (default 3333).
+// If the service is enabled (envServe(svcEnv) == true), it returns "http://localhost:3333".
 // Otherwise, it returns the value of the endpointEnv environment variable.
 func envEndpoint(svcEnv, endpointEnv string) string {
 	if envServe(svcEnv) {
-		return "http://localhost:" + envHTTPPort()
+		return "http://localhost:3333"
 	}
 
 	endpoint, _ := os.LookupEnv(endpointEnv)

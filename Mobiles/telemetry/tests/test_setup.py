@@ -43,6 +43,35 @@ def workspace():
 
 
 class SetupTests(unittest.TestCase):
+    def test_docker_check_is_bounded_and_reports_unavailable_engine(self):
+        with patch.object(setup.shutil, 'which', return_value='/bin/docker'), \
+             patch.object(setup.subprocess, 'run') as run:
+            run.return_value.returncode = 0
+            setup.require_docker()
+            self.assertEqual(run.call_args.kwargs['timeout'], 5)
+            run.return_value.returncode = 1
+            with self.assertRaisesRegex(RuntimeError, 'Start or restart Docker'):
+                setup.require_docker()
+            run.side_effect = subprocess.TimeoutExpired('docker', 5)
+            with self.assertRaisesRegex(RuntimeError, 'unresponsive'):
+                setup.require_docker()
+        with patch.object(setup.shutil, 'which', return_value=None), \
+             patch.object(setup.subprocess, 'run') as run:
+            with self.assertRaisesRegex(RuntimeError, 'Docker is unavailable'):
+                setup.require_docker()
+            run.assert_not_called()
+
+    def test_default_requires_docker_before_onboarding_or_starting_services(self):
+        with workspace(), patch.object(setup, 'require_docker', side_effect=RuntimeError('Docker unavailable')), \
+             patch.object(setup, 'destinations') as configure, patch.object(setup, 'run_private') as runner, \
+             patch.object(sys, 'argv', ['setup.py', '--non-interactive']):
+            with self.assertRaisesRegex(RuntimeError, 'Docker unavailable'):
+                setup.main()
+            configure.assert_not_called()
+            runner.assert_not_called()
+            self.assertFalse(setup.ACTIVE.is_symlink())
+            self.assertFalse(setup.STATE.exists())
+
     def test_guided_setup_hides_app_keys_and_tokens(self):
         values = ['https://cloud.test/collect/private-key'] * 4 + [
             'https://gateway.test/otlp', '123', 'private-token', 'my-stack', 'production']
@@ -72,14 +101,14 @@ class SetupTests(unittest.TestCase):
         with workspace() as (_, here, run):
             config = here / 'destinations.local.json'
             config.write_text(json.dumps(destinations()))
-            args = SimpleNamespace(destinations=config, non_interactive=True, backend='docker', backend_port=None,
+            args = SimpleNamespace(destinations=config, non_interactive=True, backend='docker',
                                    platform='android', port_offset=0, skip_install=True)
             calls = []
             def compose(action):
                 calls.append(action[0])
                 if action[0] == 'up':
                     raise RuntimeError('Compose failed')
-            with patch.object(setup, 'run_private') as runner, patch.object(setup, 'compose', side_effect=compose), \
+            with patch.object(setup, 'require_docker'), patch.object(setup, 'run_private') as runner, patch.object(setup, 'compose', side_effect=compose), \
                  patch.dict(os.environ, ALLOY_BIN=sys.executable, NGINX_BIN=sys.executable):
                 with self.assertRaisesRegex(RuntimeError, 'Compose failed'):
                     setup.start(args)
@@ -121,7 +150,7 @@ class SetupTests(unittest.TestCase):
                         assert json.loads(setup.STATE.read_text())['docker_backend']
                         os.kill(os.getpid(), signal.SIGTERM)
                         raise AssertionError('SIGTERM did not interrupt startup')
-                with patch.object(setup, 'compose', side_effect=compose), \
+                with patch.object(setup, 'require_docker'), patch.object(setup, 'compose', side_effect=compose), \
                      patch.object(setup, 'run_private') as runner:
                     try:
                         setup.main()
@@ -160,7 +189,7 @@ class SetupTests(unittest.TestCase):
             root = Path(tmp)
             here = root / 'Mobiles/telemetry'
             here.mkdir(parents=True)
-            for name in ('setup.py', 'teardown.py', 'telemetry.py', 'configure.py', 'backend.py'):
+            for name in ('setup.py', 'teardown.py', 'telemetry.py', 'configure.py'):
                 shutil.copy(ROOT / 'Mobiles/telemetry' / name, here / name)
             for app in ('android', 'ios', 'react-native', 'flutter'):
                 name = 'Config.xcconfig.example' if app == 'ios' else 'config.json.example'

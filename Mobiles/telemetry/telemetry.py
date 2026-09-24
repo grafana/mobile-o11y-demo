@@ -14,7 +14,6 @@ import sys
 import time
 from urllib.request import urlopen
 
-from backend import native_env
 from configure import (HERE, ROOT, PORTS, write, load_destinations, alloy_config,
                        nginx_config, docker_config, app_configs)
 
@@ -66,7 +65,6 @@ def serve(args):
         raise RuntimeError('This run directory is already active') from None
     children = []
     command = None
-    backend = None
     logs = []
     stopping = False
     def request_stop(*_):
@@ -89,7 +87,7 @@ def serve(args):
         write(run / 'ports.json', json.dumps(ports))
         write(run / 'forward.alloy', alloy_config(targets, ports))
         write(run / 'nginx.conf', nginx_config(targets, ports['faro'], ca_file))
-        env = app_configs(run, args.platform, ports, backend_port=args.backend_port)
+        env = app_configs(run, args.platform, ports, backend_port=3333 if args.docker_backend else None)
         if args.docker_backend:
             write(run / 'backend.alloy', docker_config(targets))
             # Existing Compose files still own discovery, services and their lifecycle.
@@ -111,28 +109,11 @@ def serve(args):
             if stopping or any(p.poll() is not None for p in children) or time.monotonic() > deadline:
                 raise RuntimeError('Forwarding startup failed; inspect private run logs')
             time.sleep(.2)
-        if args.native_backend:
-            log = (run / 'backend-native.log').open('w')
-            logs.append(log)
-            backend = subprocess.Popen([str(args.native_backend)], cwd=ROOT,
-                env=native_env(args.backend_port, env['QUICKPIZZA_OTLP_ENDPOINT']),
-                stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
-            deadline = time.monotonic() + 15
-            while True:
-                if stopping or backend.poll() is not None or time.monotonic() > deadline:
-                    raise RuntimeError('Native backend startup failed; inspect private backend-native.log')
-                try:
-                    get(f'http://127.0.0.1:{args.backend_port}/healthz')
-                    break
-                except OSError:
-                    time.sleep(.2)
         write(run / 'ready', 'ready\n')
         print(f'Forwarding ready. Build configuration: {run / "env.sh"}', flush=True)
         if args.command:
             command = subprocess.Popen(args.command, env={**os.environ, **env}, start_new_session=True)
         while not stopping and not (run / 'stop').exists():
-            if backend and backend.poll() is not None:
-                raise RuntimeError('Native backend exited; inspect private backend-native.log')
             if any(p.poll() is not None for p in children):
                 raise RuntimeError('A forwarding process exited; inspect private run logs')
             if command and command.poll() is not None:
@@ -147,7 +128,6 @@ def serve(args):
     finally:
         (run / 'ready').unlink(missing_ok=True)
         stop_child(command)
-        stop_child(backend)
         # SDKs need their own export window before apps are terminated. Here we finish
         # in-flight Faro mirrors, then give OTLP queues bounded time to empty.
         if len(children) == 2:
@@ -202,16 +182,10 @@ def main():
     parser.add_argument('--alloy', default=os.environ.get('ALLOY_BIN', str(HERE / '.runtime/tools/alloy')))
     parser.add_argument('--nginx', default=os.environ.get('NGINX_BIN', str(HERE / '.runtime/tools/nginx')))
     parser.add_argument('--docker-backend', action='store_true')
-    parser.add_argument('--native-backend', type=Path)
-    parser.add_argument('--backend-port', type=int)
     argv = sys.argv[1:]
     command = argv[argv.index('--') + 1:] if '--' in argv else []
     args = parser.parse_args(argv[:argv.index('--')] if '--' in argv else argv)
     args.command = command
-    if args.native_backend and (args.docker_backend or not args.backend_port):
-        parser.error('--native-backend requires --backend-port and cannot use --docker-backend')
-    if args.backend_port is not None and not 0 < args.backend_port < 65536:
-        parser.error('Invalid backend port')
     args.run_dir = args.run_dir.resolve()
     if args.destinations:
         args.destinations = args.destinations.resolve()
@@ -243,7 +217,7 @@ def main():
         with (args.run_dir / 'supervisor.log').open('w') as log:
             child = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), 'run', *sys.argv[2:]],
                                      stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
-        deadline = time.monotonic() + 60
+        deadline = time.monotonic() + 40
         while not (args.run_dir / 'ready').exists():
             if child.poll() is not None or time.monotonic() > deadline:
                 stop_child(child, timeout=args.drain_seconds + 65)

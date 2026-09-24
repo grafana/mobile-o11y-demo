@@ -20,10 +20,10 @@ forwarding tools, starts one QuickPizza backend, and activates build configs for
 **all four apps on both iOS and Android**. There is no platform selection.
 The services stay running until teardown; you launch the apps yourself.
 
-The default backend is Docker microservices when Docker responds. Otherwise,
-setup builds/runs the native Go backend and prints its URL. Docker uses port
-`3333`; native uses `29333`. Generated app configs select the matching backend
-port and the correct host address for each simulator/emulator.
+Setup requires a running Docker engine and starts the microservices backend on
+port `3333`. If Docker is unavailable or unresponsive, setup exits with guidance
+to start or restart it. Generated app configs select the correct host address
+for each simulator/emulator.
 
 Then build/run:
 
@@ -42,9 +42,8 @@ precedence: clear those overrides in Debug → Config if an app uses an old URL.
 ## Backend options and automation
 
 ```sh
-# Require Docker, or explicitly choose the native backend.
+# Docker microservices (the default).
 python3 Mobiles/telemetry/setup.py --backend docker
-python3 Mobiles/telemetry/setup.py --backend native
 
 # Forwarding only, when you manage the backend yourself.
 python3 Mobiles/telemetry/setup.py --backend none
@@ -54,10 +53,10 @@ python3 Mobiles/telemetry/setup.py --non-interactive \
   --destinations /path/to/destinations.json
 ```
 
-Native mode requires Go and exports backend OTLP; Docker additionally collects
-container logs, scraped metrics and profiles. Use `--backend-port` to override
-the native port. Docker setup uses the mobile QuickPizza image; set
-`QUICKPIZZA_IMAGE` explicitly to use your own build.
+Docker collects backend OTLP, container logs, scraped metrics and profiles.
+Setup uses the mobile QuickPizza image; set `QUICKPIZZA_IMAGE` explicitly to
+use your own build. `--backend none` skips the Docker check and preserves the
+backend addresses from your saved app configs.
 
 JSON can also be supplied in `MOBILE_TELEMETRY_DESTINATIONS` or with
 `--destinations -` on stdin. Append `-- COMMAND ARG…` to wrap a complete test run
@@ -92,7 +91,7 @@ Stop apps after their SDKs flush, then:
 python3 Mobiles/telemetry/teardown.py
 ```
 
-Forwarding drains/stops; the managed Docker or native backend stops too. Saved
+Forwarding drains/stops; the managed Docker backend stops too. Saved
 credentials and Docker volumes remain. **Rebuild/reinstall apps** to restore
 original endpoints; restart Metro and sync native Android. Flutter’s next Cursor
 launch or helper-script run selects the ordinary `config.json` automatically. Restart the backend using your usual Compose

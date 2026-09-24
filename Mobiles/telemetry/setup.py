@@ -13,7 +13,6 @@ import signal
 import subprocess
 import sys
 
-from backend import select_backend, check_port, build_native
 from configure import HERE, ROOT, load_destinations, write
 from telemetry import active, stop_child
 
@@ -106,6 +105,19 @@ def run_private(command, name, env=None):
         raise RuntimeError(f'Command failed. Details are in the private log: {log_path}')
 
 
+def require_docker():
+    try:
+        if shutil.which('docker') and subprocess.run(
+            ['docker', 'info', '--format', '{{.ServerVersion}}'],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5,
+        ).returncode == 0:
+            return
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    raise RuntimeError('Docker is unavailable or unresponsive. Start or restart Docker and retry setup. '
+                       'Use --backend none only if you manage the backend separately.')
+
+
 def compose(action):
     run_private(['bash', str(HERE / 'backend-compose.sh'), *action], 'backend.log',
                 {**os.environ, 'TELEMETRY_PROFILE': 'dual-stack',
@@ -143,12 +155,10 @@ def start(args):
         raise RuntimeError('A local setup already exists. Run teardown.py before switching configuration.')
     RUN.mkdir(parents=True, exist_ok=True, mode=0o700)
     RUN.chmod(0o700)
+    args.docker_backend = args.backend == 'docker'
+    if args.docker_backend:
+        require_docker()
     path = destinations(args)
-    mode = select_backend(args.backend)
-    args.docker_backend = mode == 'docker'
-    backend_port = (args.backend_port or 29333) if mode == 'native' else (3333 if mode == 'docker' else None)
-    if mode != 'native' and args.backend_port is not None:
-        raise RuntimeError('--backend-port is only supported with the native backend.')
     if args.docker_backend:
         from configure import docker_config
         docker_config(load_destinations(path))  # Fail before installing/starting anything.
@@ -160,26 +170,18 @@ def start(args):
             print('Installing forwarding tools. See the private install.log for progress.', flush=True)
             run_private(['bash', str(HERE / 'install-tools.sh')], 'install.log')
             break
-    binary = None
-    if mode == 'native':
-        check_port(backend_port)
-        binary = build_native(ROOT, RUN, run_private)
     command = [sys.executable, str(HERE / 'telemetry.py'), 'start', '--profile', 'dual-stack',
                '--platform', args.platform, '--run-dir', str(RUN), '--port-offset', str(args.port_offset)]
     if path:
         command += ['--destinations', str(path)]
     if args.docker_backend:
         command += ['--docker-backend']
-    if backend_port is not None:
-        command += ['--backend-port', str(backend_port)]
-    if binary:
-        command += ['--native-backend', str(binary)]
     try:
         run_private(command, 'lifecycle.log')
-        write(STATE, json.dumps({'docker_backend': False, 'backend': mode, 'backend_port': backend_port}))
+        write(STATE, json.dumps({'docker_backend': False}))
         if args.docker_backend:
             # Record intent before Compose so a partial startup is recoverable.
-            write(STATE, json.dumps({'docker_backend': True, 'backend': mode, 'backend_port': backend_port}))
+            write(STATE, json.dumps({'docker_backend': True}))
             compose(['up', '-d', '--wait', '--wait-timeout', '120'])
         if (ROOT / 'Mobiles/ios/Scripts/generate-config.sh').is_file():
             run_private(['bash', str(ROOT / 'Mobiles/ios/Scripts/generate-config.sh')], 'ios-config.log',
@@ -189,8 +191,8 @@ def start(args):
     except BaseException:
         shutdown()
         raise
-    if backend_port:
-        print(f'QuickPizza ready: http://localhost:{backend_port} ({mode} backend)', flush=True)
+    if args.docker_backend:
+        print('QuickPizza ready: http://localhost:3333 (Docker backend)', flush=True)
     return json.loads((RUN / 'env.json').read_text())
 
 
@@ -201,11 +203,10 @@ def main():
                         help='Legacy default field for external consumers; all apps support both platforms.')
     parser.add_argument('--destinations', type=Path, help='Private destination JSON; - reads stdin. Defaults to saved file or environment.')
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('--backend', choices=('auto', 'docker', 'native', 'none'), default='auto',
-                       help='Default: Docker when available, otherwise native Go. none starts forwarding only.')
+    group.add_argument('--backend', choices=('docker', 'none'), default='docker',
+                       help='Default: Docker microservices. none starts forwarding only.')
     group.add_argument('--docker-backend', dest='backend', action='store_const', const='docker',
                        help='Alias for --backend docker.')
-    parser.add_argument('--backend-port', type=int, help='Native HTTP port (default: 29333).')
     parser.add_argument('--skip-install', action='store_true', help='Fail if forwarding binaries are missing.')
     parser.add_argument('--port-offset', type=int, default=0, help='Offset local forwarding ports.')
     argv = sys.argv[1:]
@@ -214,8 +215,6 @@ def main():
     command = argv[split + 1:]
     if not sys.stdin.isatty():
         args.non_interactive = True
-    if args.backend_port is not None and not 0 < args.backend_port < 65536:
-        parser.error('Invalid backend port.')
     if not 0 <= args.port_offset < 48000:
         parser.error('Invalid port offset.')
     def interrupt(*_):

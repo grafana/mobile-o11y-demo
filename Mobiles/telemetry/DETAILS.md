@@ -31,9 +31,9 @@ Requires Python 3.10+, a C compiler, OpenSSL and PCRE2 headers:
 - Debian/Ubuntu: `sudo apt-get install build-essential libssl-dev libpcre2-dev unzip`
 
 `setup.py` installs private, checksum-verified Alloy 1.19.2 and nginx 1.30.5
-binaries when missing. The default setup uses Docker when available and otherwise requires Go for the
-native backend. `--backend none` requires neither; app builds still need their
-usual toolchains. Nothing is installed as a system service.
+binaries when missing. The default setup requires a running Docker engine.
+`--backend none` skips backend management and does not require Docker; app builds
+still need their usual toolchains. Nothing is installed as a system service.
 
 ## Destination JSON
 
@@ -60,8 +60,8 @@ There are two complete objects: `primary` (the preferred destination) and
 
 Use a stack-scoped Cloud Access Policy token with `metrics:write`, `logs:write`,
 `traces:write`, `profiles:write` and `stacks:read`. A Grafana login/service-account
-token is a different credential. Both `cloud` objects are required for CI's
-Docker collection; native-only local runs can omit them.
+token is a different credential. Both `cloud` objects are required for local and CI
+Docker collection; forwarding-only local runs can omit them.
 
 Keep native app URLs separate from the backend gateway. OTLP base URLs must not
 include `/v1/traces`, `/v1/logs` or `/v1/metrics`. Use the advertised backend URL;
@@ -94,17 +94,10 @@ Never commit the JSON or upload generated configs/logs as artifacts.
 
 ## Backend scope
 
-`setup.py --backend docker` (also the automatic choice when Docker is available) manages the demo microservices Compose project
-and ports. Teardown stops that backend and retains volumes. It is not a second,
+`setup.py` (equivalent to `setup.py --backend docker`) manages the demo
+microservices Compose project and ports. Teardown stops that backend and retains volumes. It is not a second,
 isolated Compose project. Docker Alloy uses `backend_pipeline.alloy` for
 discovery and resource transforms.
-
-`setup.py --backend native` builds QuickPizza from the current checkout and
-supervises it with Alloy/nginx. It enables the HTTP services on port 29333
-(`--backend-port` overrides this) without occupying the default gRPC ports.
-The backend’s `QUICKPIZZA_HTTP_PORT` configures its listener and internal service
-clients together. Teardown stops this owned process before draining forwarding;
-no saved PID is used to stop arbitrary processes. Its SQLite data is ephemeral.
 
 For an independently managed native backend (`--backend none`), source
 `.runtime/local/env.sh` before starting it, and keep
