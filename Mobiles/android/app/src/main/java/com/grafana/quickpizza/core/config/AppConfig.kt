@@ -23,6 +23,9 @@ class AppConfig @Inject constructor(
     val otlpEndpoint: String get() = config.otlpEndpoint.trim()
     val otlpInstanceId: String get() = config.otlpInstanceId.trim()
     val otlpApiKey: String get() = config.otlpApiKey.trim()
+    // Debug replay remains opt-in and uses a separate Faro collection endpoint.
+    val replayEndpoint: String get() = config.replayEndpoint.trim()
+    val replayTestSessionLifetimeSeconds: Long get() = config.replayTestSessionLifetimeSeconds
 
     /** Matches `defaultConfig.applicationId` in `app/build.gradle.kts`. */
     val applicationId: String get() = context.packageName
@@ -69,6 +72,8 @@ class AppConfig @Inject constructor(
         @SerializedName("OTLP_INSTANCE_ID") val otlpInstanceId: String = "",
         @SerializedName("OTLP_API_KEY") val otlpApiKey: String = "",
         @SerializedName("BASE_URL") val baseUrl: String = "",
+        @SerializedName("REPLAY_ENDPOINT") val replayEndpoint: String = "",
+        @SerializedName("REPLAY_TEST_SESSION_LIFETIME_SECONDS") val replayTestSessionLifetimeSeconds: Long = 0,
     )
 }
 

@@ -3,6 +3,8 @@ package com.grafana.quickpizza
 import android.app.Application
 import com.grafana.quickpizza.core.config.RuntimeConfigHolder
 import com.grafana.quickpizza.core.o11y.OTelService
+import com.grafana.quickpizza.core.config.AppConfig
+import com.grafana.quickpizza.features.debug.ReplayJourney
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
@@ -14,6 +16,7 @@ class QuickPizzaApp : Application() {
 
     @Inject
     lateinit var otelService: OTelService
+    @Inject lateinit var appConfig: AppConfig
 
     override fun onCreate() {
         super.onCreate()
@@ -21,5 +24,6 @@ class QuickPizzaApp : Application() {
         // ApiClient see the same snapshot for the rest of the session.
         runtimeConfig.current
         otelService.initialize()
+        ReplayJourney.install(this, otelService, appConfig)
     }
 }

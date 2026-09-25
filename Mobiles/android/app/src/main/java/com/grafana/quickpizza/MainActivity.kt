@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.DisposableEffect
+import com.grafana.quickpizza.features.debug.ReplayJourney
 import androidx.navigation.compose.rememberNavController
 import com.grafana.quickpizza.core.o11y.OTelService
 import com.grafana.quickpizza.navigation.AppNavGraph
@@ -30,6 +32,17 @@ class MainActivity : ComponentActivity() {
         setContent {
             QuickPizzaTheme {
                 val navController = rememberNavController()
+                DisposableEffect(navController) {
+                    val listener = androidx.navigation.NavController.OnDestinationChangedListener { _, destination, _ ->
+                        ReplayJourney.screenChanged(when (destination.route) {
+                            "login" -> "Login"
+                            "home" -> "Home"
+                            else -> null
+                        })
+                    }
+                    navController.addOnDestinationChangedListener(listener)
+                    onDispose { navController.removeOnDestinationChangedListener(listener) }
+                }
                 otelService.openTelemetryRum?.let { navController.withOpenTelemetry(it) }
 
                 Scaffold(

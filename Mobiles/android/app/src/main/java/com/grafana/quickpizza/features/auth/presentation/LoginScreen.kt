@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.grafana.quickpizza.features.debug.ReplayProbeCaptureButton
 import com.grafana.quickpizza.features.debug.grafanaNoCapture
+import com.grafana.quickpizza.features.debug.replayPublicLabel
 import com.grafana.quickpizza.ui.theme.OrangeAccent
 import com.grafana.quickpizza.ui.theme.WarmCream
 
@@ -119,12 +120,14 @@ fun LoginScreen(
 
             Text(
                 text = "Welcome to QuickPizza",
+                modifier = Modifier.replayPublicLabel(),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Sign in to save your favorite pizzas",
+                modifier = Modifier.replayPublicLabel(),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

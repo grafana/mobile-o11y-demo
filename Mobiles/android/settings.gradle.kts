@@ -28,3 +28,12 @@ dependencyResolutionManagement {
 rootProject.name = "QuickPizza"
 include(":app")
 include(":grafana-opentelemetry-android")
+
+// Explicit local development dependency; the hackathon library is not published to Maven yet.
+val replayCheckout = providers.gradleProperty("faroReplayDir").orNull
+    ?: error("Set -PfaroReplayDir=/absolute/path/to/faro-android-replay for this integration branch")
+includeBuild(replayCheckout) {
+    dependencySubstitution {
+        substitute(module("com.grafana.faro:faro-android-replay")).using(project(":replay"))
+    }
+}

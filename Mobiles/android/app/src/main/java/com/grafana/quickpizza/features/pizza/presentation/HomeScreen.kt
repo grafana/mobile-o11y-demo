@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.grafana.quickpizza.features.debug.ReplayProbeCaptureButton
+import com.grafana.quickpizza.features.debug.replayPublicLabel
 import com.grafana.quickpizza.features.pizza.presentation.components.CustomizeSection
 import com.grafana.quickpizza.features.pizza.presentation.components.PizzaCard
 import com.grafana.quickpizza.features.pizza.presentation.components.RatingButtons
@@ -113,12 +114,14 @@ fun HomeScreen(
             ) {
                 Text(
                     text = "Looking to break out of\nyour pizza routine?",
+                    modifier = Modifier.replayPublicLabel(),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
                 )
                 Text(
                     text = "QuickPizza has your back!",
+                    modifier = Modifier.replayPublicLabel(),
                     style = MaterialTheme.typography.titleLarge,
                     color = OrangeAccent,
                     fontWeight = FontWeight.Bold,
