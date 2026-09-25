@@ -20,6 +20,7 @@ import java.net.URL
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.*
+import org.junit.After
 import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
@@ -28,6 +29,14 @@ import org.junit.Test
 @SdkSuppress(minSdkVersion = 30)
 class QuickPizzaFormatComparisonTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+    private var tracing = false
+
+    @After fun stopProfiling() {
+        if (tracing) {
+            tracing = false
+            Debug.stopMethodTracing()
+        }
+    }
 
     @Test fun fiveMinuteJourney() {
         val args = InstrumentationRegistry.getArguments()
@@ -48,6 +57,10 @@ class QuickPizzaFormatComparisonTest {
         val recorder = QuickPizzaFormatRecorder(dir)
         val appSamples = JSONArray()
         val actions = JSONArray()
+        if (args.getString("benchmarkTrace") == "true") {
+            Debug.startMethodTracingSampling(File(dir, "capture-methods.trace").path, 32*1024*1024, 1_000)
+            tracing = true
+        }
         val cpuStart = Process.getElapsedCpuTime()
         val mainStart = compose.runOnIdle { SystemClock.currentThreadTimeMillis() }
         val started = SystemClock.elapsedRealtime()
@@ -128,6 +141,7 @@ class QuickPizzaFormatComparisonTest {
             .put("mainThreadCpuMs", compose.runOnIdle { SystemClock.currentThreadTimeMillis() }-mainStart)
         compose.runOnIdle { ReplayJourney.recorder!!.stop() }
         File(dir, "journey.json").writeText(journey.toString(2))
+        stopProfiling()
         if (capturing) recorder.finish(end, request("/_benchmark/latest").getLong("bodyBytes"), journey)
         Log.i("QuickPizzaBenchmark", "$run complete; capturing=$capturing; seconds=$seconds")
     }

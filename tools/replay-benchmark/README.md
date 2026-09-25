@@ -71,6 +71,25 @@ They decode every video frame, verify timestamps/hold durations and provide loca
 checks. Preserve receiver bodies, run summaries and exact APK/source hashes with the results.
 Stop the two local servers and the test emulator when finished.
 
+## Locate capture CPU cost
+
+For a short diagnostic run, add `-e benchmarkTrace true -e benchmarkSeconds 30` and use a new
+run name. This samples ART method stacks every millisecond into `capture-methods.trace` in that
+run's app directory. Tracing stops before the post-journey video encoding and is also stopped
+when the test fails. Export it with `adb exec-out run-as` before uninstalling the app.
+
+The replay library's `tools/replay-comparison/profile.py` reads the Android 15 ART v3 dual-clock
+format, rejects overflow/unbalanced traces and reports main/encoder-thread CPU attribution:
+
+```sh
+python3 /path/to/faro-android-replay/tools/replay-comparison/profile.py \
+  /path/to/capture-methods.trace --output /path/to/profile.json
+```
+
+Inclusive method costs overlap and must not be added together. Sampling affects timing;
+use separate five-minute runs **without** `benchmarkTrace` for before/after overhead comparisons.
+The normal benchmark does not enable method tracing.
+
 ## Candidate formats and limits
 
 The test derives both candidates from the same received, already-masked screenshots. It normalizes
