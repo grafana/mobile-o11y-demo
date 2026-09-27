@@ -1,5 +1,8 @@
 # QuickPizza Android Demo App
 
+On this replay integration branch, use the [replay handoff](../../tools/replay-benchmark/HANDOFF.md)
+for the required local library checkout, test config and emulator smoke.
+
 A native Kotlin / Jetpack Compose app that demonstrates mobile observability
 using the [opentelemetry-android](https://github.com/open-telemetry/opentelemetry-android)
 RUM agent. It connects to the QuickPizza backend and exports traces and

@@ -46,15 +46,18 @@ class QuickPizzaFormatComparisonTest {
         val run = checkNotNull(args.getString("benchmarkRun"))
         require(run.matches(Regex("[a-z0-9-]{1,48}")))
         val capturing = args.getString("benchmarkBaseline") != "true"
+        val lossless = args.getString("losslessBenchmark") == "true"
+        require(!lossless || capturing) { "Source capture and baseline are separate runs" }
         check(request("/_benchmark/start", JSONObject().put("run", run)).getString("kind") == "local-quickpizza-benchmark")
         compose.waitForIdle()
         compose.runOnIdle {
             checkNotNull(compose.activity.otelService.openTelemetryRum)
             checkNotNull(ReplayJourney.recorder)
         }
-        val dir = File(compose.activity.filesDir, "format-comparison-$run")
+        val dir = File(compose.activity.filesDir, if (lossless) "fair-$run" else "format-comparison-$run")
         check(!dir.exists() && dir.mkdirs()) { "Use a fresh run name to preserve evidence" }
         val recorder = QuickPizzaFormatRecorder(dir)
+        val source = if (lossless) LosslessReplayCapture(dir) else null
         val appSamples = JSONArray()
         val actions = JSONArray()
         if (args.getString("benchmarkTrace") == "true") {
@@ -107,7 +110,18 @@ class QuickPizzaFormatComparisonTest {
                 SystemClock.sleep(300); compose.waitForIdle()
             }
             if (capturing && (reached(100) || reached(200))) compose.runOnIdle { ReplayJourney.recorder!!.stop() }
-            if (capturing) {
+            if (source != null) {
+                val bridge = compose.activity.otelService.replaySession
+                val identity = compose.runOnIdle {
+                    val session = checkNotNull(bridge.resolveSessionIdForUserCapture())
+                    JSONObject().put("session", session).put("recording", "source-${second / 100}")
+                        .put("timestamp", checkNotNull(bridge.epochMillis())).put("screen", screen)
+                        .put("epoch", bridge.invalidationEpoch())
+                }
+                source.capture(compose.activity.window, {
+                    ReplayJourney.geometry.snapshot(compose.activity.window, screen, MaskOptions(maskAllText = false))
+                }, identity, { bridge.invalidationEpoch() == identity.getLong("epoch") })
+            } else if (capturing) {
                 val geometry = compose.runOnIdle { checkNotNull(ReplayJourney.geometry.snapshot(
                     compose.activity.window, screen, MaskOptions(maskAllText = false))) }
                 val before = SystemClock.elapsedRealtimeNanos()
@@ -142,7 +156,8 @@ class QuickPizzaFormatComparisonTest {
         compose.runOnIdle { ReplayJourney.recorder!!.stop() }
         File(dir, "journey.json").writeText(journey.toString(2))
         stopProfiling()
-        if (capturing) recorder.finish(end, request("/_benchmark/latest").getLong("bodyBytes"), journey)
+        if (source != null) source.finish(end, journey.put("kind", "actual QuickPizza; conservative public-label masking"))
+        else if (capturing) recorder.finish(end, request("/_benchmark/latest").getLong("bodyBytes"), journey)
         Log.i("QuickPizzaBenchmark", "$run complete; capturing=$capturing; seconds=$seconds")
     }
 

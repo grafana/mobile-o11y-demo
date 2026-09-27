@@ -1,0 +1,36 @@
+{
+  "sourceBase": "259d36a7167c8e19f074dbb349ca1789df8a60d6",
+  "libraryHead": "bebac1490e6948e4a95b58b7426a0724d8f5e5f4",
+  "files": {
+    "Mobiles/android/app/src/androidTest/java/com/grafana/quickpizza/features/debug/LosslessReplayCapture.kt": "7f1e75eaaf6f8db3af1926eb730d4db2699daafeae11d02b66990e6172081aa2",
+    "Mobiles/android/app/src/androidTest/java/com/grafana/quickpizza/features/debug/FairVideoEncoder.kt": "ef976478927cd3a5c4cdeb1e66de951a8773f8b777fe930a0e9531e297d62055",
+    "Mobiles/android/app/src/androidTest/java/com/grafana/quickpizza/features/debug/BenchmarkVideoEncoder.kt": "e8b7221f3c19a0422929ea197b462c68a08f1d1d6a5928bbafaa04c0e35514f8",
+    "Mobiles/android/app/src/androidTest/java/com/grafana/quickpizza/features/debug/FairMotionComparisonTest.kt": "06907e2a56076cd84e203799751411c80c0f9d15886bda8699eacc82303ff409",
+    "Mobiles/android/app/src/androidTest/java/com/grafana/quickpizza/features/debug/QuickPizzaFormatRecorder.kt": "f7d6a3b4491f103d3f9ea564e40b29ac41a4cacf314137efc9446895e8bdf9c8",
+    "Mobiles/android/app/src/androidTest/java/com/grafana/quickpizza/features/debug/FairReplayEncoderTest.kt": "469fb970fcff101b07c5ddeb508e8e8e6dd31fe55d59fec14e8b06d3dfd6018c",
+    "Mobiles/android/app/src/androidTest/java/com/grafana/quickpizza/features/debug/ReplayJourneyTest.kt": "9feb6f56d070826c632b1d210e79685449767b31d545433a45ef238a9549065e",
+    "Mobiles/android/app/src/androidTest/java/com/grafana/quickpizza/features/debug/QuickPizzaFormatComparisonTest.kt": "16e69b91a58eff7fc5de26e3d6301ec09e083363098f3d8b2a6d19a934d8a853",
+    "Mobiles/android/app/build/outputs/apk/debug/app-debug.apk": "f3b6e147e99ba9b8ff51eb6247ecd93b2d2d556e6fa12ead83b99d43a9cac6d6",
+    "Mobiles/android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk": "ba8d808c20ef9e601a5fe50724fc5a670e0f25315d313377b1cbdf56d4580a8d"
+  },
+  "device": "google/sdk_gphone64_arm64/emu64a:15/AE3A.240806.043/12960925:userdebug/dev-keys",
+  "phase": "Color-corrected native video candidates; source capture and WebP artifacts unchanged",
+  "pipeline": "sRGB transfer; BT.709 primaries/matrix; limited range",
+  "toolFiles": {
+    "tools/replay-benchmark/fair_run.py": "c6b2096bd043c07ac3a9fc66d5bd2d7ec475a316895bc97d87a93829f391817b",
+    "tools/replay-benchmark/fair_serve.py": "94af5f74aa6f5eeda6bf91c35940f64a2f8addc8a2bbef1a392671d58874c538",
+    "tools/replay-benchmark/fair_viewer.html": "7514a307875aa475f61532ae678dc19b18947698b8de732a7ea69e15851b03ee",
+    "tools/replay-benchmark/fair_text.py": "09f83f74c0a6c5704b7b2b9137d26b0bc2f7773623f8de3b51962cb15eedc49a",
+    "tools/replay-benchmark/fair_analyze.py": "494186d924ffe352c0d529ee67213a6d38f841cae280c6b8109ce80ed8ab3bf4",
+    "tools/replay-benchmark/FAIR_COMPARISON.md": "1f1ea5194c94a07c0ed8ba6d56ef4fa70ce9f51768a3953d1425fff49cfda280",
+    "tools/replay-benchmark/README.md": "c2420281dcf07b5e374d8daf458932a8626e9d68098c6353c0522287695bb7f3",
+    "tools/replay-benchmark/ocr.swift": "10025f3cb6be828c767bb956525b0d67642210c0e7a9d5831585c6faf45e945f",
+    "tools/replay-benchmark/test_fair_analyze.py": "5b5b2d3d7c0e886e81f395f5960ae5dee160fb6758f5e522c4ab9ba3d2d883c2"
+  },
+  "capturedOn": "2026-09-25",
+  "notes": [
+    "Historical benchmark evidence. This does not assert validation of a later library or app revision.",
+    "File paths are relative to the mobile-o11y-demo repository. APK hashes identify historical builds; APKs are not included.",
+    "The final color-corrected encoder provenance supersedes the initial color-mismatched video trials. Source capture and WebP artifacts were unchanged."
+  ]
+}

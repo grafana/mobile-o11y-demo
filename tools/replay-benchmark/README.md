@@ -1,5 +1,14 @@
 # QuickPizza replay format comparison
 
+For a short app setup check, start with the [teammate handoff](HANDOFF.md).
+The [corrected five-minute results](results/2026-09-25/README.md) are packaged with this checkout.
+
+For the follow-up comparison using one lossless masked source, independent WebP/H.264 encoders,
+matched color handling and a synthetic scrolling/animation workload, use
+[Comparison from a common lossless source](FAIR_COMPARISON.md). The older procedure below is
+retained to reproduce the original WebP-to-video experiment; its sizes do not establish a
+comparison at equal visual quality.
+
 This opt-in instrumentation test drives the actual QuickPizza Activity and its existing OTel SDK.
 It uses the public replay recorder, the current conservative masking policy and current Faro
 transport. The local receiver saves every received checkpoint and acknowledges it after writing.
@@ -26,6 +35,8 @@ test-owned output directory outside the repository for the following commands.
 From the repository root, start these as two separate local processes:
 
 ```sh
+mkdir -p pkg/web/build
+test -f pkg/web/build/index.html || cp pkg/web/dev.html pkg/web/build/index.html
 go build -o /path/to/output/quickpizza-backend tools/replay-benchmark/backend.go
 /path/to/output/quickpizza-backend /path/to/output/pizza.db
 ```
