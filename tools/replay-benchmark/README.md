@@ -1,7 +1,7 @@
 # QuickPizza replay format comparison
 
 For a short app setup check, start with the [teammate handoff](HANDOFF.md).
-The [corrected five-minute results](results/2026-09-25/README.md) are packaged with this checkout.
+The [corrected five-minute results](results/common-source/README.md) are packaged with this checkout.
 
 For the follow-up comparison using one lossless masked source, independent WebP/H.264 encoders,
 matched color handling and a synthetic scrolling/animation workload, use

@@ -27,7 +27,6 @@
     "tools/replay-benchmark/ocr.swift": "10025f3cb6be828c767bb956525b0d67642210c0e7a9d5831585c6faf45e945f",
     "tools/replay-benchmark/test_fair_analyze.py": "5b5b2d3d7c0e886e81f395f5960ae5dee160fb6758f5e522c4ab9ba3d2d883c2"
   },
-  "capturedOn": "2026-09-25",
   "notes": [
     "Historical benchmark evidence. This does not assert validation of a later library or app revision.",
     "File paths are relative to the mobile-o11y-demo repository. APK hashes identify historical builds; APKs are not included.",

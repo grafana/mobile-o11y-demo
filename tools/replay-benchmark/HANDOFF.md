@@ -5,7 +5,7 @@ session, the replay library, conservative masking and current Faro screenshot re
 no Grafana credentials or new file-upload API. The receiver is a local test sink; this run does
 not prove Grafana storage, the mobile session panel or Narrator links.
 
-The corrected [five-minute format comparison](results/2026-09-25/README.md) is ready to read.
+The corrected [five-minute format comparison](results/common-source/README.md) is ready to read.
 Keep screenshots for the hackathon while the new API is being investigated. Image reuse and
 video are experiments, not changes to the current upload contract.
 
@@ -62,7 +62,7 @@ Success requires `OK (1 test)` in `instrumentation.log` and ten received frames 
 The smoke still runs the original WebP-to-video harness after capture. Its sizes are **not** new
 format-comparison results. Use the separate common-source report for that decision.
 
-## Verification on September 27
+## Verification
 
 The setup was built from a clean source export with no prior app build output or private Android
 config, using library `da8ff66c8a2fa220fc8096cc91e8956acd003771`. Debug and instrumentation APKs
@@ -76,9 +76,9 @@ A separate `:app:lintDebug` run still reports six `NewApi` errors in unchanged
 `NativeExitCrashReporter.kt` (lines 138–143 and 181), plus 41 warnings and two hints. The smoke
 script deliberately runs build, unit tests and its selected device test; it does not claim a
 passing full-app lint result. No suppression or baseline was added. The fair comparison report
-retains its original September 25 source hashes and results; it was not rerun for this handoff.
+retains its original source hashes and results; it was not rerun for this handoff.
 
-## Monday integration sequence
+## Integration sequence
 
 1. Yahima can review the library PR and run this smoke independently of the replacement API.
 2. Once she has a testable API, confirm its repo/commit, local run instructions, authentication,

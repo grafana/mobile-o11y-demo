@@ -1,6 +1,6 @@
 # Replay format comparison: common lossless source
 
-Recorded September 25, 2026. This is the corrected benchmark, replacing the earlier exploratory 168 KB versus 872 KB comparison. The test results below belong to the source and library revisions in [provenance.json](provenance.json); packaging them for handoff does not rerun or revalidate a later revision.
+This is the corrected benchmark, replacing the earlier exploratory 168 KB versus 872 KB comparison. The test results below belong to the source and library revisions in [provenance.json](provenance.json); packaging them for handoff does not rerun or revalidate a later revision.
 
 **Recommendation: keep screenshots with exact image reuse for the hackathon.** The corrected five-second video baseline did not provide a size advantage at comparable measured quality on either journey. Low-bitrate longer clips were smaller on moving content, but visibly smeared text and graphics. This is a result for one emulator and these workloads, not a claim that screenshots are generally more efficient than video.
 

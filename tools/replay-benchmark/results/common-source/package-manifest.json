@@ -1,7 +1,5 @@
 {
-  "preparedOn": "2026-09-27",
-  "sourceOutputDirectory": "fair-comparison-2026-09-25",
-  "scope": "Evidence packaging only; no benchmark rerun. README adapted for portable links; provenance file paths normalized to repository-relative paths.",
+  "scope": "Evidence packaging only; no benchmark rerun. Calendar labels removed; README links and provenance paths use portable names.",
   "crossChecks": {
     "compactRowsComparedWithFullAnalysis": 48,
     "browserSeekChecks": 760,
@@ -10,8 +8,8 @@
   },
   "files": {
     "README.md": {
-      "sha256": "fef9de22d22da44e87facd57e725574b69520094ef311fa935f0445f9e349f63",
-      "bytes": 11219,
+      "sha256": "10ff40fdd0e5728b87356663f1cf516afb610dccb9f5543d67d4834d6df3f963",
+      "bytes": 11190,
       "sourceArtifact": null,
       "unchangedCopy": false
     },
@@ -34,8 +32,8 @@
       "unchangedCopy": true
     },
     "provenance.json": {
-      "sha256": "bd1adc7fb805bdd9658abdf69ca8709000eacf75c1085cd512f928f194726ecb",
-      "bytes": 3607,
+      "sha256": "8ca9c92d5b50850e65a207d3b826922961d17648ed72d4ad2f39b58d6c79a160",
+      "bytes": 3577,
       "sourceArtifact": null,
       "unchangedCopy": false
     },
