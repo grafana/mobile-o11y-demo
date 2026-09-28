@@ -56,6 +56,27 @@ persist to `SharedPreferences` and apply on the next launch.
 
 ---
 
+## CI replay dependency
+
+The Android jobs in `mobile_demo_telemetry_build.yaml` and
+`mobile_demo_telemetry.yaml` check out the unpublished replay library at a fixed
+commit and set `FARO_REPLAY_DIR`. Both use the `app-o11y-kwl-ci` token broker's
+`replay-read` permission set, limited to `contents: read` on
+`grafana/hackathon-18-faro-android-replay`.
+
+Before CI can use this checkout, platform owners must confirm the app's access to
+the replay repository and apply the two workflow grants in
+`deployment_tools/terraform/repositories/mobile-o11y-demo/github-app-configs/config.yaml`.
+The PR grant needs `pull_request`; the telemetry grant needs `push`, `schedule`,
+and `workflow_dispatch` on `main`. Adding checkout steps does not grant access.
+
+Fork PRs fail with an explicit private-dependency message. Keep the
+`pull_request` trigger; do not switch to `pull_request_target` for access.
+Dispatching the telemetry workflow from another branch requires a separately
+authorized broker ref. The token is short-lived, the broker attempts revocation
+after the job, and checkout does not persist credentials. No personal token or
+app private key is required in these workflows.
+
 ## Release build and Android symbols
 
 Release builds enable R8 (`isMinifyEnabled = true`) and emit native debug
