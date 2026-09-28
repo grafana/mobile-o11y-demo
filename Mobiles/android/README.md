@@ -1,9 +1,9 @@
 # QuickPizza Android Demo App
 
-On this replay integration branch, use the [replay handoff](../../tools/replay-benchmark/HANDOFF.md)
-for the required local library checkout, test config and emulator smoke.
-The current MP4 demo uses [automatic captures](../../tools/replay-benchmark/AUTOMATIC_CAPTURE.md)
-after navigation, scrolling and registered state changes.
+On this replay integration branch, set up the [replay library checkout](#replay-library-checkout)
+before building or opening Android Studio. The current MP4 demo uses
+[automatic captures](../../tools/replay-benchmark/AUTOMATIC_CAPTURE.md) after navigation,
+scrolling and registered state changes; that guide covers test config and emulator smoke.
 
 A native Kotlin / Jetpack Compose app that demonstrates mobile observability
 using the [opentelemetry-android](https://github.com/open-telemetry/opentelemetry-android)
@@ -27,7 +27,37 @@ platform emits, dashboards) see
 
 ---
 
+## Replay library checkout
+
+This branch requires the unpublished replay library for every Android build.
+You need GitHub access to the private `grafana/hackathon-18-faro-android-replay`
+repository. For a new checkout, run from the `mobile-o11y-demo` repository root:
+
+```bash
+git clone https://github.com/grafana/hackathon-18-faro-android-replay.git \
+  ../hackathon-18-faro-android-replay
+git -C ../hackathon-18-faro-android-replay checkout --detach \
+  f657f93c56ef95a6c553b1b915f6c31d967380fa
+```
+
+That is the same library commit used by CI. Gradle finds this sibling checkout
+automatically, including during Android Studio sync. If you already have a
+library checkout, keep your work and point Gradle at it instead:
+
+```bash
+export FARO_REPLAY_DIR=/absolute/path/to/hackathon-18-faro-android-replay
+# From Mobiles/android, a per-command alternative is:
+./gradlew -PfaroReplayDir=/absolute/path/to/hackathon-18-faro-android-replay installDebug
+```
+
+For Android Studio with a non-sibling checkout, add
+`faroReplayDir=/absolute/path/to/hackathon-18-faro-android-replay` to your user
+`~/.gradle/gradle.properties`. Do not commit a machine-specific path. The checkout
+must contain `replay/build.gradle.kts`; a Maven dependency is not available yet.
+
 ## Quickstart
+
+Complete the [replay library checkout](#replay-library-checkout) first.
 
 ```bash
 # Run from the repository root
