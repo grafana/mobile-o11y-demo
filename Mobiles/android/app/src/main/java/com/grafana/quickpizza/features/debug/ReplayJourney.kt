@@ -9,6 +9,7 @@ import com.grafana.faro.replay.ReplayUploadConfig
 import com.grafana.faro.replay.StartResult
 import com.grafana.quickpizza.BuildConfig
 import com.grafana.quickpizza.core.config.AppConfig
+import com.grafana.quickpizza.core.config.RuntimeConfig
 import com.grafana.quickpizza.core.o11y.OTelService
 import com.grafana.quickpizza.core.o11y.OtelLogger
 import io.opentelemetry.api.common.AttributeKey
@@ -29,16 +30,22 @@ internal object ReplayJourney {
     var lastError: ReplayDemoError? = null
         private set
 
-    fun install(application: Application, otel: OTelService, config: AppConfig) {
-        if (!BuildConfig.DEBUG || config.replayEndpoint.isBlank() || otel.openTelemetryRum == null) return
+    fun install(application: Application, otel: OTelService, config: AppConfig, runtime: RuntimeConfig) {
+        if (!BuildConfig.DEBUG || config.otlpEndpoint.isBlank() || otel.openTelemetryRum == null) return
         check(recorder == null) { "Replay is process-owned; install only once" }
-        val local = URI(config.replayEndpoint).host in setOf("localhost", "127.0.0.1", "10.0.2.2")
+        val local = URI(config.otlpEndpoint).host in setOf("localhost", "127.0.0.1", "10.0.2.2")
+        val headers = runtime.otlpAuthHeader?.let { mapOf("Authorization" to it) }.orEmpty()
         val bridge = otel.replaySession
         recorder = AndroidReplayRecorder.create(
             application, bridge, geometry,
-            ReplayUploadConfig(config.replayEndpoint, OTelService.SERVICE_NAME, config.appVersion,
-                allowLoopbackHttp = local),
-            ReplayConfig(masks = MaskOptions(maskAllText = false)),
+            ReplayUploadConfig(
+                ingestEndpoint = config.otlpEndpoint,
+                appName = OTelService.SERVICE_NAME,
+                appVersion = config.appVersion,
+                headers = headers,
+                allowLoopbackHttp = local,
+            ),
+            ReplayConfig(masks = MaskOptions(maskAllText = false), useMobileVideoClips = true),
             epochMillis = { checkNotNull(bridge.epochMillis()) },
         )
         telemetry = otel

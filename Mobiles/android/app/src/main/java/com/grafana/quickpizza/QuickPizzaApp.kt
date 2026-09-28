@@ -24,6 +24,6 @@ class QuickPizzaApp : Application() {
         // ApiClient see the same snapshot for the rest of the session.
         runtimeConfig.current
         otelService.initialize()
-        ReplayJourney.install(this, otelService, appConfig)
+        ReplayJourney.install(this, otelService, appConfig, runtimeConfig.current)
     }
 }

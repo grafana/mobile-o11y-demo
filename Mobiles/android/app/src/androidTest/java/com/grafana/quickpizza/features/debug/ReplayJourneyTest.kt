@@ -28,7 +28,7 @@ class ReplayJourneyTest {
         compose.waitForIdle()
         compose.runOnIdle {
             assertNotNull("Configure the local OTLP endpoint before running", compose.activity.otelService.openTelemetryRum)
-            assertNotNull("Configure REPLAY_ENDPOINT before running", ReplayJourney.recorder)
+            assertNotNull("Configure OTLP_ENDPOINT before running", ReplayJourney.recorder)
         }
         val first = capture("Home")
         compose.onNodeWithContentDescription("Profile").performClick()
