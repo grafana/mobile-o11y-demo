@@ -65,6 +65,10 @@ class OTelService @Inject constructor(
             return
         }
 
+        if (diskBufferingEnabled) {
+            ensureOtelDiskBufferCacheDirs(application)
+        }
+
         rum = runCatching {
             GrafanaOtel.initialize(
                 application = application,
@@ -131,6 +135,13 @@ class OTelService @Inject constructor(
         openTelemetry.getTracer(instrumentationScope)
 
     fun getLoggerProvider() = openTelemetry.logsBridge
+
+    private fun ensureOtelDiskBufferCacheDirs(application: Application) {
+        val signalsRoot = application.cacheDir.resolve("opentelemetry/signals")
+        for (subdir in listOf("logs", "spans", "metrics")) {
+            signalsRoot.resolve(subdir).mkdirs()
+        }
+    }
 
     companion object {
         private const val TAG = "OTelService"

@@ -44,7 +44,7 @@ internal class ReplayJourneyGeometry : ReplayMaskSource {
     }
 
     override fun snapshot(window: Window, screenName: String, masks: MaskOptions): ReplayMaskGeometry? {
-        if (screenName !in setOf("Login", "Home")) return null
+        val expectedRoute = SCREEN_ROUTES[screenName] ?: return null
         val decor = window.peekDecorView() ?: return null
         if (ViewCompat.getRootWindowInsets(decor)?.isVisible(WindowInsetsCompat.Type.ime()) != false) return null
         val width = decor.width
@@ -56,7 +56,6 @@ internal class ReplayJourneyGeometry : ReplayMaskSource {
         // holes for the incoming screen, even when their bounds happen to remain unchanged.
         val entries = labels.map { it.entry }.distinctBy { it.id }
         val entry = entries.singleOrNull() ?: return null
-        val expectedRoute = if (screenName == "Login") "login" else "home"
         if (entry.destination.route != expectedRoute || entry.lifecycle.currentState != Lifecycle.State.RESUMED) return null
         val publicLabels = labels.map { it.rect }
         val full = ReplayMaskRect(0f, 0f, width.toFloat(), height.toFloat())
@@ -90,6 +89,16 @@ internal class ReplayJourneyGeometry : ReplayMaskSource {
     }
 
     private data class PublicLabel(val entry: NavBackStackEntry, val rect: ReplayMaskRect)
+
+    private companion object {
+        /** Nav routes that expose replay capture (must match [ReplayJourney.screenChanged] labels). */
+        val SCREEN_ROUTES = mapOf(
+            "Login" to "login",
+            "Home" to "home",
+            "About" to "about",
+            "Debug" to "debug",
+        )
+    }
 }
 
 /** Use ONLY on a hard-coded public text label, never on a parent, input, image or dynamic text. */

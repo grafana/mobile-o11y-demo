@@ -81,6 +81,8 @@ fun DebugScreen(
         ) {
             RestartRequiredBanner(ui.restartBanner)
 
+            ReplayProbeCaptureButton(screenName = "Debug")
+
             ConfigEntryCard(onClick = onNavigateToConfig)
 
             Text(

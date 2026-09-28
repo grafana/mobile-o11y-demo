@@ -37,6 +37,8 @@ class MainActivity : ComponentActivity() {
                         ReplayJourney.screenChanged(when (destination.route) {
                             "login" -> "Login"
                             "home" -> "Home"
+                            "about" -> "About"
+                            "debug" -> "Debug"
                             else -> null
                         })
                     }

@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.grafana.quickpizza.features.debug.ReplayProbeCaptureButton
 import com.grafana.quickpizza.ui.components.QuickPizzaTopBar
 
 private data class LinkItem(val label: String, val subtitle: String, val url: String, val icon: ImageVector, val iconColor: Color)
@@ -85,6 +86,8 @@ fun AboutScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            ReplayProbeCaptureButton(screenName = "About")
+
             // Header
             Column(
                 modifier = Modifier.fillMaxWidth(),

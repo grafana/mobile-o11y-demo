@@ -48,9 +48,10 @@ class RuntimeConfigHolder @Inject constructor(
         val saved = runBlocking { debugSettings.snapshot() }
         val instanceId = saved.otlpInstanceIdOverride ?: appConfig.otlpInstanceId
         val apiKey = saved.otlpApiKeyOverride ?: appConfig.otlpApiKey
+        val otlpEndpoint = saved.otlpEndpointOverride ?: appConfig.otlpEndpoint
         RuntimeConfig(
             backendBaseUrl = saved.backendUrlOverride ?: appConfig.baseUrl,
-            otlpEndpoint = saved.otlpEndpointOverride ?: appConfig.otlpEndpoint,
+            otlpEndpoint = otlpEndpoint,
             otlpInstanceId = instanceId,
             otlpApiKey = apiKey,
             otlpAuthHeader = buildOtlpAuthHeader(instanceId, apiKey),
