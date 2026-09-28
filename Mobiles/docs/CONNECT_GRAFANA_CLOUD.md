@@ -131,9 +131,8 @@ and React Native apps.
 
 ### Alternative: the OTLP gateway
 
-This is the legacy path. Prefer Faro OTLP ingest above — unless you need the
-Mobile OTel RUM dashboard, or you target a production stack, where the
-`/otlp/<appKey>` route is not enabled yet.
+This is the legacy path. Prefer Faro OTLP ingest above unless you need the
+Mobile OTel RUM dashboard.
 
 The gateway bypasses the collector, so nothing translates the payloads. The data
 stays **raw OTel**: Loki streams carry `service_name` and `service_namespace`

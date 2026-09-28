@@ -166,8 +166,6 @@ bash Scripts/sim-run.sh
 
 The data appears under the `QuickPizza_iOS` app in **Frontend Observability**
 after the export queue drains; allow tens of seconds with default disk buffering.
-The `/otlp/<appKey>` route runs on development collectors only
-for now — a production collector returns `404`.
 
 A legacy option: send to the Grafana Cloud OTLP gateway instead. Set
 `OTLP_ENDPOINT` to `https:/$()/otlp-gateway-<clusterSlug>.grafana.net/otlp` and

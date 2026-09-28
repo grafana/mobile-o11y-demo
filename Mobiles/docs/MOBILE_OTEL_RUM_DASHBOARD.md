@@ -14,8 +14,7 @@ them — this dashboard is how you query them.
 
 The preferred path sends OTLP to the Faro collector at `/otlp/<appKey>`, which
 translates it to Faro and puts the native apps in the Frontend Observability
-plugin next to the Flutter and React Native apps. That route runs on development
-collectors only for now. See
+plugin next to the Flutter and React Native apps. See
 [Connect to Grafana Cloud](./CONNECT_GRAFANA_CLOUD.md) for both paths.
 
 ## Dashboard Artifact
