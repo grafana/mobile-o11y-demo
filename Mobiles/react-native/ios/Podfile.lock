@@ -1,5 +1,5 @@
 PODS:
-  - FaroReactNative (1.4.0):
+  - FaroReactNative (1.4.1):
     - PLCrashReporter (~> 1.11)
     - React-Core
   - FBLazyVector (0.84.1)
@@ -2180,7 +2180,7 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
 SPEC CHECKSUMS:
-  FaroReactNative: e289462cf021779b2f38b36962288887d1e17910
+  FaroReactNative: cc67a97e812b20519e5a8e4d031d30e51b9430d2
   FBLazyVector: e97c19a5a442429d1988f182a1940fb08df514da
   hermes-engine: cbc267903904a60b1506f5e9acab3f894f21fc6b
   PLCrashReporter: db59ef96fa3d25f3650040d02ec2798cffee75f2
