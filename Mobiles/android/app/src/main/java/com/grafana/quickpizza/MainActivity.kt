@@ -26,6 +26,16 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var otelService: OTelService
 
+    override fun onResume() {
+        super.onResume()
+        ReplayJourney.foregroundChanged(true)
+    }
+
+    override fun onPause() {
+        ReplayJourney.foregroundChanged(false)
+        super.onPause()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

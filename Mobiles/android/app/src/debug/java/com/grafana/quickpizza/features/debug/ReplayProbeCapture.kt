@@ -25,6 +25,7 @@ fun ReplayProbeCaptureButton(screenName: String, modifier: Modifier = Modifier) 
     var showError by remember { mutableStateOf(ReplayJourney.errorVisible) }
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
+    LaunchedEffect(showError) { ReplayJourney.changed(screenName) }
     LaunchedEffect(requested) {
         if (!requested) return@LaunchedEffect
         withFrameNanos { }
@@ -38,20 +39,30 @@ fun ReplayProbeCaptureButton(screenName: String, modifier: Modifier = Modifier) 
         OutlinedButton(onClick = {
             focus.clearFocus(force = true)
             keyboard?.hide()
+            val result = ReplayJourney.startAutomatic()
+            status = if (result == com.grafana.faro.replay.StartResult.STARTED ||
+                result == com.grafana.faro.replay.StartResult.ALREADY_STARTED) "" else result.name
+        }, modifier = Modifier.fillMaxWidth().testTag("replay.start")) {
+            Text(if (ReplayJourney.automaticActive) "Replay running" else "Start replay",
+                modifier = Modifier)
+        }
+        OutlinedButton(onClick = {
+            focus.clearFocus(force = true)
+            keyboard?.hide()
             requested = true
         }, modifier = Modifier.fillMaxWidth().testTag("replay.capture")) {
-            Text("Capture replay", modifier = Modifier.replayPublicLabel())
+            Text("Capture replay", modifier = Modifier)
         }
         if (screenName == "Home") {
             OutlinedButton(onClick = {
                 ReplayJourney.emitDemoError()
                 showError = true
             }, modifier = Modifier.fillMaxWidth().testTag("replay.error")) {
-                Text("Try demo checkout", modifier = Modifier.replayPublicLabel())
+                Text("Try demo checkout", modifier = Modifier)
             }
-            if (showError) Text("Demo checkout failed", modifier = Modifier.replayPublicLabel().testTag("replay.error.visible"))
+            if (showError) Text("Demo checkout failed", modifier = Modifier.testTag("replay.error.visible"))
         }
-        OutlinedButton(onClick = { ReplayJourney.recorder?.stop(); status = "STOPPED" },
+        OutlinedButton(onClick = { ReplayJourney.stop(); status = "STOPPED" },
             modifier = Modifier.testTag("replay.stop")) { Text("Stop replay") }
         if (status.isNotEmpty()) Text("Capture request: $status")
     }

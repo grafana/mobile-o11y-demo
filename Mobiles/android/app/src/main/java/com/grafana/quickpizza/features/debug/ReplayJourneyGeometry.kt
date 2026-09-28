@@ -24,93 +24,127 @@ import com.grafana.faro.replay.ReplayMaskSource
 import java.util.WeakHashMap
 
 /**
- * Conservative QuickPizza integration policy: mask the entire window except explicitly marked,
- * static, public labels. No semantics reflection, text collection or automatic coverage claim.
- * Credentials, media, dynamic content, system bars and every unregistered surface remain covered.
+ * Explicit geometry for the four inspected QuickPizza demo screens. Their inputs register bounds;
+ * a screen root proves this is a supported surface even when it has no inputs. No text is read.
+ * Unknown routes, transitions, dialogs, keyboard and incomplete geometry fail closed.
  */
-internal class ReplayJourneyGeometry : ReplayMaskSource {
-    private val windows = WeakHashMap<Window, MutableMap<Any, PublicLabel>>()
+internal class ReplayJourneyGeometry(
+    private val onLayoutChanged: (String) -> Unit = {},
+) : ReplayMaskSource {
+    private val windows = WeakHashMap<Window, MutableMap<Any, Region>>()
     private var epoch = 0L
 
     fun invalidate() { epoch++ }
-    fun update(window: Window, token: Any, entry: NavBackStackEntry, rect: ReplayMaskRect) {
-        val values = windows.getOrPut(window) { mutableMapOf() }
-        val label = PublicLabel(entry, rect)
-        if (values.put(token, label) != label) invalidate()
+
+    fun register(window: Window, token: Any, entry: NavBackStackEntry, kind: ReplayRegionKind) {
+        windows.getOrPut(window) { mutableMapOf() }[token] = Region(entry, kind, null)
+        invalidate()
+        notifyLayout(entry)
     }
+
+    fun update(window: Window, token: Any, rect: ReplayMaskRect) {
+        val values = windows[window] ?: return
+        val previous = values[token] ?: return
+        if (previous.rect == rect) return
+        values[token] = previous.copy(rect = rect)
+        invalidate()
+        notifyLayout(previous.entry)
+    }
+
     fun remove(window: Window, token: Any) {
-        if (windows[window]?.remove(token) != null) invalidate()
+        val removed = windows[window]?.remove(token)
+        if (removed != null) {
+            invalidate()
+            notifyLayout(removed.entry)
+        }
         if (windows[window]?.isEmpty() == true) windows.remove(window)
+    }
+
+    private fun notifyLayout(entry: NavBackStackEntry) {
+        // Position changes restart settling; generic invalidation must not feed back into itself.
+        SCREEN_ROUTES.entries.firstOrNull { it.value == entry.destination.route }
+            ?.let { onLayoutChanged(it.key) }
     }
 
     override fun snapshot(window: Window, screenName: String, masks: MaskOptions): ReplayMaskGeometry? {
         val expectedRoute = SCREEN_ROUTES[screenName] ?: return null
         val decor = window.peekDecorView() ?: return null
-        if (ViewCompat.getRootWindowInsets(decor)?.isVisible(WindowInsetsCompat.Type.ime()) != false) return null
+        val insets = ViewCompat.getRootWindowInsets(decor) ?: return null
+        if (!decor.hasWindowFocus() || insets.isVisible(WindowInsetsCompat.Type.ime())) return null
         val width = decor.width
         val height = decor.height
         if (width <= 0 || height <= 0) return null
-        val labels = windows[window]?.values?.toList() ?: return null
-        if (labels.isEmpty()) return null
-        // NavHost retains outgoing compositions until a transition completes. Never use their
-        // holes for the incoming screen, even when their bounds happen to remain unchanged.
-        val entries = labels.map { it.entry }.distinctBy { it.id }
+        val regions = windows[window]?.values?.toList() ?: return null
+        val entries = regions.map { it.entry }.distinctBy { it.id }
         val entry = entries.singleOrNull() ?: return null
         if (entry.destination.route != expectedRoute || entry.lifecycle.currentState != Lifecycle.State.RESUMED) return null
-        val publicLabels = labels.map { it.rect }
         val full = ReplayMaskRect(0f, 0f, width.toFloat(), height.toFloat())
-        val rects = if (masks.maskAllText) listOf(full) else complement(full, publicLabels) ?: return null
+        val rects = maskRegions(full, regions.map { it.kind to it.rect }, masks)?.toMutableList() ?: return null
+        // Keep platform-owned bars private; the app's known navigation chrome remains visible.
+        val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+        if (bars.top > 0) rects.add(ReplayMaskRect(0f, 0f, width.toFloat(), bars.top.toFloat()))
+        if (bars.bottom > 0) rects.add(ReplayMaskRect(0f, (height - bars.bottom).toFloat(), width.toFloat(), height.toFloat()))
+        if (bars.left > 0) rects.add(ReplayMaskRect(0f, 0f, bars.left.toFloat(), height.toFloat()))
+        if (bars.right > 0) rects.add(ReplayMaskRect((width - bars.right).toFloat(), 0f, width.toFloat(), height.toFloat()))
         return ReplayMaskGeometry(width, height, epoch, rects)
     }
 
-    internal fun complement(full: ReplayMaskRect, publicLabels: List<ReplayMaskRect>): List<ReplayMaskRect>? {
-        var masked = listOf(full)
-        for (label in publicLabels) {
-            if (!listOf(label.left, label.top, label.right, label.bottom).all { it.isFinite() } ||
-                label.left > label.right || label.top > label.bottom) return null
-            // Compose returns Rect.Zero for labels clipped outside a scroll viewport. They open
-            // no hole; the surrounding content stays masked. Inverted/non-finite bounds reject.
-            if (label.left == label.right || label.top == label.bottom) continue
-            val next = ArrayList<ReplayMaskRect>()
-            for (region in masked) {
-                val left = maxOf(region.left, label.left)
-                val right = minOf(region.right, label.right)
-                val top = maxOf(region.top, label.top)
-                val bottom = minOf(region.bottom, label.bottom)
-                if (left >= right || top >= bottom) { next.add(region); continue }
-                if (region.top < top) next.add(ReplayMaskRect(region.left, region.top, region.right, top))
-                if (bottom < region.bottom) next.add(ReplayMaskRect(region.left, bottom, region.right, region.bottom))
-                if (region.left < left) next.add(ReplayMaskRect(region.left, top, left, bottom))
-                if (right < region.right) next.add(ReplayMaskRect(right, top, region.right, bottom))
-            }
-            masked = next
+    internal fun maskRegions(
+        full: ReplayMaskRect,
+        regions: List<Pair<ReplayRegionKind, ReplayMaskRect?>>,
+        masks: MaskOptions,
+    ): List<ReplayMaskRect>? {
+        // This integration declares inputs and explicit exclusions, not all text/media nodes.
+        // Unsupported stricter policies reject the capture rather than claim complete coverage.
+        if (masks.maskAllText || masks.blockAllMedia) return null
+        val screens = regions.filter { it.first == ReplayRegionKind.SCREEN }
+        if (screens.size != 1) return null
+        if (regions.any { (_, rect) -> rect == null || !rect.valid() }) return null
+        val screen = checkNotNull(screens.single().second)
+        if (screen.left >= screen.right || screen.top >= screen.bottom) return null
+        return regions.mapNotNull { (kind, bounds) ->
+            val rect = checkNotNull(bounds)
+            if (kind == ReplayRegionKind.ALWAYS || (kind == ReplayRegionKind.INPUT && masks.maskAllInputs)) {
+                // Zero-area clipped controls expose no pixels. Invalid bounds were rejected above.
+                val clipped = ReplayMaskRect(maxOf(full.left, rect.left), maxOf(full.top, rect.top),
+                    minOf(full.right, rect.right), minOf(full.bottom, rect.bottom))
+                clipped.takeIf { it.left < it.right && it.top < it.bottom }
+            } else null
         }
-        return masked
     }
 
-    private data class PublicLabel(val entry: NavBackStackEntry, val rect: ReplayMaskRect)
+    private fun ReplayMaskRect.valid(): Boolean =
+        listOf(left, top, right, bottom).all { it.isFinite() } && left <= right && top <= bottom
+
+    private data class Region(val entry: NavBackStackEntry, val kind: ReplayRegionKind, val rect: ReplayMaskRect?)
 
     private companion object {
-        /** Nav routes that expose replay capture (must match [ReplayJourney.screenChanged] labels). */
-        val SCREEN_ROUTES = mapOf(
-            "Login" to "login",
-            "Home" to "home",
-            "About" to "about",
-            "Debug" to "debug",
-        )
+        val SCREEN_ROUTES = mapOf("Login" to "login", "Home" to "home", "About" to "about", "Debug" to "debug")
     }
 }
 
-/** Use ONLY on a hard-coded public text label, never on a parent, input, image or dynamic text. */
-internal fun Modifier.replayPublicLabel(): Modifier = composed {
+internal enum class ReplayRegionKind { SCREEN, INPUT, ALWAYS }
+
+/** Apply once to a supported screen's root, after auditing every input on that screen. */
+internal fun Modifier.replayScreenSurface(): Modifier = replayRegion(ReplayRegionKind.SCREEN)
+
+/** Covers the whole input, including its value, cursor and any suggestion inside its bounds. */
+internal fun Modifier.replayInput(): Modifier = replayRegion(ReplayRegionKind.INPUT)
+
+internal fun Modifier.replayAlwaysMask(): Modifier = replayRegion(ReplayRegionKind.ALWAYS)
+
+internal fun Modifier.replayRegion(kind: ReplayRegionKind): Modifier = composed {
     if (ReplayJourney.recorder == null) return@composed Modifier
     val activity = LocalContext.current.replayActivity()
     val entry = LocalLifecycleOwner.current as? NavBackStackEntry
     val token = remember { Any() }
     val window = activity.window
-    DisposableEffect(window, token, entry) {
+    DisposableEffect(window, token, entry, kind) {
         val observer = LifecycleEventObserver { _, _ -> ReplayJourney.geometry.invalidate() }
-        entry?.lifecycle?.addObserver(observer)
+        if (entry != null) {
+            ReplayJourney.geometry.register(window, token, entry, kind)
+            entry.lifecycle.addObserver(observer)
+        }
         onDispose {
             entry?.lifecycle?.removeObserver(observer)
             ReplayJourney.geometry.remove(window, token)
@@ -119,7 +153,7 @@ internal fun Modifier.replayPublicLabel(): Modifier = composed {
     onGloballyPositioned { coordinates ->
         if (entry != null) {
             val r = coordinates.boundsInWindow()
-            ReplayJourney.geometry.update(window, token, entry, ReplayMaskRect(r.left, r.top, r.right, r.bottom))
+            ReplayJourney.geometry.update(window, token, ReplayMaskRect(r.left, r.top, r.right, r.bottom))
         }
     }
 }

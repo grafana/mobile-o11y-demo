@@ -17,6 +17,7 @@ import androidx.compose.ui.semantics.semantics
 val GrafanaNoCapture = SemanticsPropertyKey<Unit>("GrafanaNoCapture")
 
 fun Modifier.grafanaNoCapture(): Modifier = this
+    .replayAlwaysMask()
     .semantics { this[GrafanaNoCapture] = Unit }
     .then(GrafanaNoCaptureElement)
 

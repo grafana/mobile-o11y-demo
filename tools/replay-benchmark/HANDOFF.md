@@ -1,13 +1,18 @@
-# QuickPizza replay handoff
+# QuickPizza screenshot smoke (historical)
 
-Start with the short local smoke below. It exercises the actual Android app, its existing OTel
+For the multipart MP4 implementation and automatic demo triggers, use
+[Automatic captures](AUTOMATIC_CAPTURE.md). The walkthrough below records the earlier manual
+screenshot smoke and its historical test results; its upload format and publication notes do
+not describe the current integration branch.
+
+The earlier local smoke below exercises the actual Android app, its existing OTel
 session, the replay library, conservative masking and current Faro screenshot requests. It needs
 no Grafana credentials or new file-upload API. The receiver is a local test sink; this run does
 not prove Grafana storage, the mobile session panel or Narrator links.
 
 The corrected [five-minute format comparison](results/common-source/README.md) is ready to read.
-Keep screenshots for the hackathon while the new API is being investigated. Image reuse and
-video are experiments, not changes to the current upload contract.
+That comparison informed the format discussion. The current integration now uses multipart MP4
+uploads; these screenshot instructions and comparison results are retained for reference.
 
 ## Get the two codebases
 
@@ -16,9 +21,11 @@ Use this QuickPizza integration checkout and the replay library from
 revision is `da8ff66c8a2fa220fc8096cc91e8956acd003771` on `varanha/stage3-quickpizza-journey`.
 The library has not been published to Maven. The app resolves it with a Gradle composite build.
 
-The QuickPizza handoff changes are prepared locally on `varanha/stage3-replay-journey` and still
-need publication before a teammate can fetch them. Once shared, use the handoff commit identified
-in the sharing message; the library PR alone does not contain these app changes.
+The QuickPizza integration is shared through
+[PR #126](https://github.com/grafana/mobile-o11y-demo/pull/126). Use the screenshot-era app and
+library revisions together when reproducing this historical run. For current MP4 setup and
+results, follow [Automatic captures](AUTOMATIC_CAPTURE.md); the library PR alone does not contain
+the app integration.
 
 ## Run the smoke
 
@@ -72,21 +79,20 @@ again after its cleanup changes; both runs passed. Six Python tests passed, incl
 when adb disconnects or a local server does not stop. Python and viewer JavaScript syntax passed.
 The owned servers, reverse mapping and emulator were stopped after verification.
 
-A separate `:app:lintDebug` run still reports six `NewApi` errors in unchanged
+A separate `:app:lintDebug` run at that historical revision reported six `NewApi` errors in
 `NativeExitCrashReporter.kt` (lines 138–143 and 181), plus 41 warnings and two hints. The smoke
 script deliberately runs build, unit tests and its selected device test; it does not claim a
-passing full-app lint result. No suppression or baseline was added. The fair comparison report
+passing full-app lint result at that revision. The current app branch fixes those API annotations
+and passes lint with no errors. No suppression or baseline was added. The fair comparison report
 retains its original source hashes and results; it was not rerun for this handoff.
 
-## Integration sequence
+## Original integration sequence (completed locally)
 
-1. Yahima can review the library PR and run this smoke independently of the replacement API.
-2. Once she has a testable API, confirm its repo/commit, local run instructions, authentication,
-   one working file-plus-event upload/read example, and response/retry behavior.
-3. Keep the current upload flow working while adding the agreed transport. Preserve immutable
-   frame/session identity, bounded queue limits and stale-capture cancellation.
-4. Test real storage/readback and seeking in the existing mobile session panel. Include rotation,
-   background/stop in flight and session changes before calling the integration complete.
+The standalone smoke was followed by the multipart MP4 API integration, automatic state
+capture, and real storage/readback and Grafana playback checks. The current walkthrough records
+the verified results and the remaining CI dependency-access requirement. Session/lifecycle
+failure paths are covered by the library suite; the automatic emulator journey also covers
+rotation, background/resume and Stop. Narrator links and cloud deployment are not claimed.
 
 `ReplayJourneyTest` is a separate test requiring the real collector proxy's `/_test/receipts`,
 OTLP receipt tracking and shortened test-session lifetime. This mock receiver cannot run that

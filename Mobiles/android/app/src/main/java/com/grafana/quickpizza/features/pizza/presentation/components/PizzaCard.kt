@@ -34,6 +34,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.grafana.quickpizza.features.debug.grafanaNoCapture
 import com.grafana.quickpizza.features.pizza.models.PizzaRecommendation
 import com.grafana.quickpizza.ui.theme.OrangeAccent
 
@@ -64,6 +65,8 @@ fun PizzaCard(recommendation: PizzaRecommendation, modifier: Modifier = Modifier
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = pizza.name,
+                // The backend can echo the Custom name input into this title.
+                modifier = Modifier.grafanaNoCapture(),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
             )

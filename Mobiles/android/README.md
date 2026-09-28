@@ -2,6 +2,8 @@
 
 On this replay integration branch, use the [replay handoff](../../tools/replay-benchmark/HANDOFF.md)
 for the required local library checkout, test config and emulator smoke.
+The current MP4 demo uses [automatic captures](../../tools/replay-benchmark/AUTOMATIC_CAPTURE.md)
+after navigation, scrolling and registered state changes.
 
 A native Kotlin / Jetpack Compose app that demonstrates mobile observability
 using the [opentelemetry-android](https://github.com/open-telemetry/opentelemetry-android)

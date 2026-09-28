@@ -1,6 +1,12 @@
 package com.grafana.quickpizza.features.debug
 
 import android.app.Application
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.grafana.faro.replay.AndroidReplayRecorder
 import com.grafana.faro.replay.CaptureRequestResult
 import com.grafana.faro.replay.MaskOptions
@@ -10,19 +16,22 @@ import com.grafana.faro.replay.StartResult
 import com.grafana.quickpizza.BuildConfig
 import com.grafana.quickpizza.core.config.AppConfig
 import com.grafana.quickpizza.core.config.RuntimeConfig
+import com.grafana.quickpizza.core.config.replayEndpoint
 import com.grafana.quickpizza.core.o11y.OTelService
 import com.grafana.quickpizza.core.o11y.OtelLogger
 import io.opentelemetry.api.common.AttributeKey
 import io.opentelemetry.api.trace.StatusCode
 import io.opentelemetry.sdk.trace.ReadableSpan
-import java.net.URI
 
 /** Explicit debug journey using the app's one existing RUM SDK and the standalone recorder. */
 internal object ReplayJourney {
-    val geometry = ReplayJourneyGeometry()
+    val geometry = ReplayJourneyGeometry { name -> changed(name) }
     var recorder: AndroidReplayRecorder? = null
         private set
     private var telemetry: OTelService? = null
+    private var automatic: SettledReplayCapture? = null
+    var automaticActive by mutableStateOf(false)
+        private set
     var screen: String? = null
         private set
     var errorVisible = false
@@ -31,22 +40,39 @@ internal object ReplayJourney {
         private set
 
     fun install(application: Application, otel: OTelService, config: AppConfig, runtime: RuntimeConfig) {
-        if (!BuildConfig.DEBUG || config.otlpEndpoint.isBlank() || otel.openTelemetryRum == null) return
+        if (!BuildConfig.DEBUG || otel.openTelemetryRum == null) return
+        val endpoint = runtime.replayEndpoint() ?: return
         check(recorder == null) { "Replay is process-owned; install only once" }
-        val local = URI(config.otlpEndpoint).host in setOf("localhost", "127.0.0.1", "10.0.2.2")
         val headers = runtime.otlpAuthHeader?.let { mapOf("Authorization" to it) }.orEmpty()
         val bridge = otel.replaySession
         recorder = AndroidReplayRecorder.create(
             application, bridge, geometry,
             ReplayUploadConfig(
-                ingestEndpoint = config.otlpEndpoint,
+                ingestEndpoint = endpoint.ingestEndpoint,
                 appName = OTelService.SERVICE_NAME,
                 appVersion = config.appVersion,
                 headers = headers,
-                allowLoopbackHttp = local,
+                allowLoopbackHttp = endpoint.allowLoopbackHttp,
             ),
-            ReplayConfig(masks = MaskOptions(maskAllText = false), useMobileVideoClips = true),
+            ReplayConfig(masks = MaskOptions(maskAllText = false, maskAllInputs = true, blockAllMedia = false), useMobileVideoClips = true),
             epochMillis = { checkNotNull(bridge.epochMillis()) },
+        )
+        val handler = Handler(Looper.getMainLooper())
+        automatic = SettledReplayCapture(
+            recorder = checkNotNull(recorder),
+            nowMillis = SystemClock::elapsedRealtime,
+            schedule = { delay, action ->
+                val task = Runnable {
+                    action()
+                    automaticActive = automatic?.active == true
+                }
+                check(handler.postDelayed(task, delay))
+                AutoCaptureCancellation { handler.removeCallbacks(task) }
+            },
+            invalidateCapture = { name ->
+                geometry.invalidate()
+                recorder?.updateScreen(name)
+            },
         )
         telemetry = otel
     }
@@ -56,11 +82,41 @@ internal object ReplayJourney {
         screen = name
         geometry.invalidate()
         recorder?.updateScreen(name)
+        automatic?.screenChanged(name)
+    }
+
+    fun startAutomatic(): StartResult {
+        // Manual captures are a separate explicit run; do not inherit their nearly expired limit.
+        if (automatic?.active != true) recorder?.stop()
+        val result = automatic?.start() ?: StartResult.SDK_UNAVAILABLE
+        automaticActive = automatic?.active == true
+        return result
+    }
+
+    fun stop() {
+        automatic?.stop()
+        recorder?.stop()
+        automaticActive = false
+    }
+
+    fun foregroundChanged(foreground: Boolean) {
+        automatic?.foregroundChanged(foreground)
+        automaticActive = automatic?.active == true
+    }
+
+    fun changed(name: String) {
+        automatic?.changed(name)
+        automaticActive = automatic?.active == true
+    }
+
+    fun scrolling(name: String, moving: Boolean) {
+        automatic?.scrolling(name, moving)
+        automaticActive = automatic?.active == true
     }
 
     fun capture(name: String): CaptureRequestResult {
         val active = recorder ?: return CaptureRequestResult.SESSION_UNAVAILABLE
-        if (active.start() !in setOf(StartResult.STARTED, StartResult.ALREADY_STARTED)) {
+        if (!automaticActive && active.start() !in setOf(StartResult.STARTED, StartResult.ALREADY_STARTED)) {
             return CaptureRequestResult.SESSION_UNAVAILABLE
         }
         if (screen != name) return CaptureRequestResult.UNSUPPORTED_SCREEN

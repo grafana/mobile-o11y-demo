@@ -53,8 +53,10 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.grafana.quickpizza.features.debug.ReplayProbeCaptureButton
+import com.grafana.quickpizza.features.debug.replayScreenSurface
+import com.grafana.quickpizza.features.debug.replayInput
+import com.grafana.quickpizza.features.debug.ReplayScreenChanges
 import com.grafana.quickpizza.features.debug.grafanaNoCapture
-import com.grafana.quickpizza.features.debug.replayPublicLabel
 import com.grafana.quickpizza.ui.theme.OrangeAccent
 import com.grafana.quickpizza.ui.theme.WarmCream
 
@@ -67,8 +69,11 @@ fun LoginScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val focusManager = LocalFocusManager.current
+    val scroll = rememberScrollState()
+    ReplayScreenChanges("Login", scroll, state.isLoading, state.errorMessage != null)
 
     Scaffold(
+        modifier = Modifier.replayScreenSurface(),
         containerColor = WarmCream,
         topBar = {
             TopAppBar(
@@ -85,7 +90,7 @@ fun LoginScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scroll)
                 .padding(innerPadding)
                 .padding(horizontal = 24.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -120,14 +125,14 @@ fun LoginScreen(
 
             Text(
                 text = "Welcome to QuickPizza",
-                modifier = Modifier.replayPublicLabel(),
+                modifier = Modifier,
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Sign in to save your favorite pizzas",
-                modifier = Modifier.replayPublicLabel(),
+                modifier = Modifier,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -150,7 +155,7 @@ fun LoginScreen(
                         shape = RoundedCornerShape(12.dp),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                         keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().replayInput(),
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     OutlinedTextField(

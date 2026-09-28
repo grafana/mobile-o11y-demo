@@ -1,6 +1,8 @@
 package com.grafana.quickpizza.core.config
 
 import kotlinx.coroutines.runBlocking
+import java.net.URI
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -29,6 +31,25 @@ data class RuntimeConfig(
      */
     val diskBufferingEnabled: Boolean,
 )
+
+/** Validated replay destination from the same resolved configuration used by the OTel SDK. */
+internal class ReplayEndpoint(val ingestEndpoint: String, val allowLoopbackHttp: Boolean) {
+    override fun toString(): String = "ReplayEndpoint(ingestEndpoint=<redacted>)"
+}
+
+/** Optional replay must not crash startup when the configured telemetry URL is unsupported. */
+internal fun RuntimeConfig.replayEndpoint(): ReplayEndpoint? {
+    val uri = runCatching { URI(otlpEndpoint) }.getOrNull() ?: return null
+    val scheme = uri.scheme?.lowercase(Locale.ROOT)
+    val host = uri.host?.lowercase(Locale.ROOT)
+    val local = host in setOf("localhost", "127.0.0.1", "10.0.2.2")
+    if (uri.isOpaque || host.isNullOrBlank() || uri.userInfo != null || uri.fragment != null) return null
+    if (uri.port != -1 && uri.port !in 1..65535) return null
+    if (scheme != "https" && !(scheme == "http" && local)) return null
+    val path = uri.path?.lowercase(Locale.ROOT).orEmpty()
+    if (!path.contains("/otlp") && !path.contains("/collect")) return null
+    return ReplayEndpoint(otlpEndpoint, local)
+}
 
 /**
  * Resolves and holds the [RuntimeConfig] snapshot for the lifetime of the

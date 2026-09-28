@@ -38,7 +38,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.grafana.quickpizza.features.debug.ReplayProbeCaptureButton
-import com.grafana.quickpizza.features.debug.replayPublicLabel
+import com.grafana.quickpizza.features.debug.ReplayJourney
+import com.grafana.quickpizza.features.debug.replayScreenSurface
+import com.grafana.quickpizza.features.debug.ReplayScreenChanges
 import com.grafana.quickpizza.features.pizza.presentation.components.CustomizeSection
 import com.grafana.quickpizza.features.pizza.presentation.components.PizzaCard
 import com.grafana.quickpizza.features.pizza.presentation.components.RatingButtons
@@ -54,6 +56,10 @@ fun HomeScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scroll = rememberScrollState()
+    ReplayScreenChanges("Home", scroll, state.isLoading, state.errorMessage != null,
+        state.recommendation != null, state.ratingSubmitted, state.isAuthenticated,
+        state.quote.isNotEmpty(), state.availableTools.size, snackbarHostState.currentSnackbarData != null)
 
     LaunchedEffect(state.snackbarMessage) {
         state.snackbarMessage?.let {
@@ -63,6 +69,7 @@ fun HomeScreen(
     }
 
     Scaffold(
+        modifier = Modifier.replayScreenSurface(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = WarmCream,
         topBar = {
@@ -75,7 +82,7 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scroll)
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -114,14 +121,14 @@ fun HomeScreen(
             ) {
                 Text(
                     text = "Looking to break out of\nyour pizza routine?",
-                    modifier = Modifier.replayPublicLabel(),
+                    modifier = Modifier,
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
                 )
                 Text(
                     text = "QuickPizza has your back!",
-                    modifier = Modifier.replayPublicLabel(),
+                    modifier = Modifier,
                     style = MaterialTheme.typography.titleLarge,
                     color = OrangeAccent,
                     fontWeight = FontWeight.Bold,
@@ -145,6 +152,7 @@ fun HomeScreen(
                 onVegetarianChange = viewModel::updateVegetarian,
                 onCustomNameChange = viewModel::updateCustomName,
                 onToolToggle = viewModel::toggleExcludedTool,
+                onExpandedChange = { ReplayJourney.changed("Home") },
             )
 
             // Get pizza button
