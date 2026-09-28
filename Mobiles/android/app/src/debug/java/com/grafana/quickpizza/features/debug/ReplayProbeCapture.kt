@@ -7,7 +7,6 @@ import android.graphics.Bitmap
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.util.Base64
 import android.util.Log
 import android.view.PixelCopy
 import androidx.annotation.RequiresApi
@@ -27,7 +26,6 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import java.io.ByteArrayOutputStream
 import java.io.File
 import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
@@ -35,10 +33,10 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 
 private const val TAG = "ReplayProbe"
-private const val JPEG_OR_WEBP_QUALITY = 30
 
 /**
- * Debug-only probe. Writes a player array to the app files dir. Does not call the collector.
+ * Debug-only probe. Writes two short H.264 clips and the player event list.
+ * Does not call the collector.
  */
 @Composable
 fun ReplayProbeCaptureButton(screenName: String, modifier: Modifier = Modifier) {
@@ -81,12 +79,34 @@ object ReplayProbeCapture {
         if (Build.VERSION.SDK_INT < 26) {
             return "Capture needs Android 8 (API 26) or newer"
         }
+        val clipFile = try {
+            ReplayProbeJson.fileFor(screenName)
+        } catch (_: IllegalArgumentException) {
+            return "Capture only supports Login and Home"
+        }
         val maskRegions = ReplayProbeMasker.collect(activity)
         val bitmap = copyWindow(activity) ?: return "Could not capture the window"
         return try {
             withContext(Dispatchers.IO) {
                 ReplayProbeMasker.paint(bitmap, maskRegions)
-                val encoded = encode(bitmap)
+                val partial = File(activity.filesDir, "${ReplayProbeJson.CLIPS_DIR}/$clipFile.partial")
+                val encoded = try {
+                    ReplayProbeMp4.write(bitmap, partial)
+                } catch (error: Exception) {
+                    partial.delete()
+                    Log.w(TAG, "clip encode failed", error)
+                    return@withContext "Capture failed: clip must stay at or under 1 MiB"
+                }
+                val dest = File(activity.filesDir, "${ReplayProbeJson.CLIPS_DIR}/$clipFile")
+                if (!partial.renameTo(dest)) {
+                    partial.copyTo(dest, overwrite = true)
+                    partial.delete()
+                }
+                activity.getExternalFilesDir(null)?.let { dir ->
+                    val copy = File(dir, "${ReplayProbeJson.CLIPS_DIR}/$clipFile")
+                    copy.parentFile?.mkdirs()
+                    dest.copyTo(copy, overwrite = true)
+                }
                 val json = synchronized(this@ReplayProbeCapture) {
                     val existing = File(activity.filesDir, ReplayProbeJson.FILE_NAME)
                         .takeIf { it.isFile }
@@ -94,37 +114,33 @@ object ReplayProbeCapture {
                     val next = ReplayProbeJson.upsert(
                         existingJson = existing,
                         screenName = screenName,
-                        width = bitmap.width,
-                        height = bitmap.height,
-                        dataUri = encoded.dataUri,
+                        width = encoded.width,
+                        height = encoded.height,
                         timestamp = System.currentTimeMillis(),
                     )
                     writeAtomic(File(activity.filesDir, ReplayProbeJson.FILE_NAME), next)
+                    writeAtomic(
+                        File(activity.filesDir, ReplayProbeJson.PAYLOAD_FILE_NAME),
+                        ReplayProbeJson.payload(next),
+                    )
                     activity.getExternalFilesDir(null)?.let { dir ->
                         writeAtomic(File(dir, ReplayProbeJson.FILE_NAME), next)
+                        writeAtomic(File(dir, ReplayProbeJson.PAYLOAD_FILE_NAME), ReplayProbeJson.payload(next))
                     }
                     next
                 }
                 val frames = ReplayProbeJson.frameCount(json)
                 val pull =
-                    "adb exec-out run-as ${activity.packageName} cat files/${ReplayProbeJson.FILE_NAME} > /tmp/replay-probe-android.json"
+                    "mkdir -p /tmp/replay-probe/clips && " +
+                        "adb exec-out run-as ${activity.packageName} cat files/${ReplayProbeJson.FILE_NAME} > /tmp/replay-probe/replay-probe.json && " +
+                        "adb exec-out run-as ${activity.packageName} cat files/${ReplayProbeJson.CLIPS_DIR}/0001.mp4 > /tmp/replay-probe/clips/0001.mp4 && " +
+                        "adb exec-out run-as ${activity.packageName} cat files/${ReplayProbeJson.CLIPS_DIR}/0002.mp4 > /tmp/replay-probe/clips/0002.mp4"
                 Log.i(TAG, pull)
-                "Saved $screenName ($frames frames, masked). Pull: $pull"
+                "Saved $screenName as $clipFile (${encoded.bytes} bytes, $frames clips, masked). Pull: $pull"
             }
         } finally {
             bitmap.recycle()
         }
-    }
-
-    @RequiresApi(26)
-    private fun encode(bitmap: Bitmap): EncodedFrame {
-        val webp = Build.VERSION.SDK_INT >= 30
-        val format = if (webp) Bitmap.CompressFormat.WEBP_LOSSY else Bitmap.CompressFormat.JPEG
-        val mime = if (webp) "image/webp" else "image/jpeg"
-        val bytes = ByteArrayOutputStream()
-        bitmap.compress(format, JPEG_OR_WEBP_QUALITY, bytes)
-        val b64 = Base64.encodeToString(bytes.toByteArray(), Base64.NO_WRAP)
-        return EncodedFrame("data:$mime;base64,$b64")
     }
 
     @RequiresApi(26)
@@ -163,7 +179,6 @@ object ReplayProbeCapture {
         }
     }
 
-    private data class EncodedFrame(val dataUri: String)
 }
 
 private fun Context.findActivity(): Activity {
