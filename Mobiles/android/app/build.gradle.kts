@@ -149,6 +149,7 @@ dependencies {
     implementation(libs.opentelemetry.android.okhttp3.library)
     implementation(libs.opentelemetry.okhttp3)
     byteBuddy(libs.opentelemetry.android.okhttp3.agent)
+    implementation("com.grafana.faro:faro-android-replay:0.1.0-SNAPSHOT")
 
     // TODO(opentelemetry-android#764): remove with com.grafana.quickpizza.nativecrash package.
     // Protobuf tombstone decode for ApplicationExitInfo.traceInputStream (API 31+).
