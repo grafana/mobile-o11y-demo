@@ -86,10 +86,14 @@ print('Unknown')
 if [[ "$BOOT_STATE" != "Booted" ]]; then
     echo "==> Booting simulator '$DEVICE'..."
     xcrun simctl boot "$DEVICE" 2>/dev/null || true
+    # Resolve from the selected Xcode so a second installed Xcode's app isn't opened.
     # Xcode 27 replaces Simulator.app with DeviceHub.app, one level above Developer/.
-    open -a Simulator 2>/dev/null \
-        || open "$(xcode-select -p)/../Applications/DeviceHub.app" \
-        || true
+    XCODE_DEVELOPER_DIR="$(xcode-select -p)"
+    if [[ -d "$XCODE_DEVELOPER_DIR/Applications/Simulator.app" ]]; then
+        open "$XCODE_DEVELOPER_DIR/Applications/Simulator.app" || true
+    elif [[ -d "$XCODE_DEVELOPER_DIR/../Applications/DeviceHub.app" ]]; then
+        open "$XCODE_DEVELOPER_DIR/../Applications/DeviceHub.app" || true
+    fi
     sleep 2
 else
     echo "==> Simulator '$DEVICE' already booted."
