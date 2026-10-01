@@ -14,7 +14,8 @@ usage() {
     echo ""
     echo "Options:"
     echo "  --device <name>   Simulator device name (e.g. 'iPhone 17 Pro')"
-    echo "                    Defaults to first available iPhone simulator."
+    echo "                    Defaults to a booted iPhone simulator, else the newest available one."
+    echo "                    Only simulators that meet the app's deployment target are used."
     echo "  --no-logs         Exit after launch instead of streaming logs."
     echo ""
     echo "Examples:"
@@ -32,35 +33,64 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-auto_detect_device() {
+# Prints "<udid>\t<name>\t<state>" for a simulator whose iOS runtime is at least $2.
+# Prefers a booted match so an open simulator is reused.
+resolve_device() {
     xcrun simctl list devices available -j 2>/dev/null \
         | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-for runtime in sorted(data.get('devices', {}).keys(), reverse=True):
-    for d in data['devices'][runtime]:
-        if d.get('isAvailable') and 'iPhone' in d.get('name', ''):
-            print(d['name'])
-            sys.exit(0)
-sys.exit(1)
-"
+import json, re, sys
+wanted = sys.argv[1]
+min_ios = tuple(int(p) for p in sys.argv[2].split('.'))
+def ios_version(runtime):
+    m = re.search(r'\.iOS-(\d+)-(\d+)', runtime)
+    return tuple(map(int, m.groups())) if m else None
+runtimes = [
+    (v, devices)
+    for runtime, devices in json.load(sys.stdin).get('devices', {}).items()
+    if (v := ios_version(runtime)) and v >= min_ios
+]
+matches = [
+    d
+    for _, devices in sorted(runtimes, key=lambda r: r[0], reverse=True)
+    for d in devices
+    if d.get('isAvailable')
+    and (d.get('name') == wanted if wanted else 'iPhone' in d.get('name', ''))
+]
+if not matches:
+    sys.exit(1)
+d = next((d for d in matches if d.get('state') == 'Booted'), matches[0])
+print(d['udid'], d['name'], d.get('state', 'Unknown'), sep='\t')
+" "$1" "$2"
 }
 
-if [[ -z "$DEVICE" ]]; then
-    echo "==> Auto-detecting simulator..."
-    DEVICE=$(auto_detect_device) || { echo "ERROR: No available iPhone simulator found."; exit 1; }
+# -target is much faster than -scheme here.
+MIN_IOS=$(xcodebuild -project "$PROJECT_DIR/$PROJECT" -target "$SCHEME" -showBuildSettings 2>/dev/null \
+    | awk '/ IPHONEOS_DEPLOYMENT_TARGET = /{print $3}') || true
+if [[ -z "$MIN_IOS" ]]; then
+    echo "ERROR: Could not read IPHONEOS_DEPLOYMENT_TARGET for $SCHEME."
+    exit 1
 fi
-echo "==> Using simulator: $DEVICE"
+
+if [[ -z "$DEVICE" ]]; then
+    echo "==> Auto-detecting simulator (iOS $MIN_IOS+)..."
+fi
+RESOLVED=$(resolve_device "$DEVICE" "$MIN_IOS") || {
+    echo "ERROR: No available iOS $MIN_IOS+ simulator found${DEVICE:+ named '$DEVICE'}."
+    exit 1
+}
+IFS=$'\t' read -r UDID DEVICE BOOT_STATE <<< "$RESOLVED"
+echo "==> Using simulator: $DEVICE ($UDID)"
 
 echo "==> Building $SCHEME for simulator..."
 CONFIG_ARGS=()
 if [[ -n "${QUICKPIZZA_IOS_CONFIG_FILE:-}" ]]; then
     CONFIG_ARGS=(-xcconfig "$QUICKPIZZA_IOS_CONFIG_FILE")
 fi
-xcodebuild "${CONFIG_ARGS[@]}" \
+# bash 3.2 treats an empty "${arr[@]}" as unbound under set -u.
+xcodebuild ${CONFIG_ARGS[@]+"${CONFIG_ARGS[@]}"} \
     -project "$PROJECT_DIR/$PROJECT" \
     -scheme "$SCHEME" \
-    -destination "platform=iOS Simulator,name=$DEVICE" \
+    -destination "id=$UDID" \
     -derivedDataPath "$PROJECT_DIR/DerivedData" \
     build 2>&1 | tail -20
 
@@ -71,35 +101,27 @@ if [[ -z "$APP_PATH" ]]; then
 fi
 echo "==> Found app: $APP_PATH"
 
-BOOT_STATE=$(xcrun simctl list devices -j 2>/dev/null \
-    | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-for runtime, devices in data.get('devices', {}).items():
-    for d in devices:
-        if d.get('name') == '$DEVICE' and d.get('isAvailable'):
-            print(d.get('state', 'Unknown'))
-            sys.exit(0)
-print('Unknown')
-")
-
 if [[ "$BOOT_STATE" != "Booted" ]]; then
     echo "==> Booting simulator '$DEVICE'..."
-    xcrun simctl boot "$DEVICE" 2>/dev/null || true
+    xcrun simctl boot "$UDID" 2>/dev/null || true
+    # Resolve from the selected Xcode so a second installed Xcode's app isn't opened.
     # Xcode 27 replaces Simulator.app with DeviceHub.app, one level above Developer/.
-    open -a Simulator 2>/dev/null \
-        || open "$(xcode-select -p)/../Applications/DeviceHub.app" \
-        || true
+    XCODE_DEVELOPER_DIR="$(xcode-select -p)"
+    if [[ -d "$XCODE_DEVELOPER_DIR/Applications/Simulator.app" ]]; then
+        open "$XCODE_DEVELOPER_DIR/Applications/Simulator.app" --args -CurrentDeviceUDID "$UDID" || true
+    elif [[ -d "$XCODE_DEVELOPER_DIR/../Applications/DeviceHub.app" ]]; then
+        open "devices://device/open?id=$UDID" || true
+    fi
     sleep 2
 else
     echo "==> Simulator '$DEVICE' already booted."
 fi
 
 echo "==> Installing app..."
-xcrun simctl install booted "$APP_PATH"
+xcrun simctl install "$UDID" "$APP_PATH"
 
 echo "==> Launching app..."
-xcrun simctl launch booted "$BUNDLE_ID"
+xcrun simctl launch "$UDID" "$BUNDLE_ID"
 
 if [[ "$STREAM_LOGS" -eq 0 ]]; then
     exit 0
@@ -107,7 +129,7 @@ fi
 
 echo "==> Streaming logs (Ctrl+C to stop)..."
 echo "    (Showing logs from subsystem: $BUNDLE_ID)"
-xcrun simctl spawn booted log stream \
+xcrun simctl spawn "$UDID" log stream \
     --predicate "subsystem == \"$BUNDLE_ID\"" \
     --level debug \
     --style compact
