@@ -7,13 +7,15 @@ BUNDLE_ID="com.grafana.QuickPizzaIos"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 DEVICE=""
+STREAM_LOGS=1
 
 usage() {
-    echo "Usage: $0 [--device <simulator name>]"
+    echo "Usage: $0 [--device <simulator name>] [--no-logs]"
     echo ""
     echo "Options:"
     echo "  --device <name>   Simulator device name (e.g. 'iPhone 17 Pro')"
     echo "                    Defaults to first available iPhone simulator."
+    echo "  --no-logs         Exit after launch instead of streaming logs."
     echo ""
     echo "Examples:"
     echo "  $0"
@@ -24,6 +26,7 @@ usage() {
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --device) DEVICE="$2"; shift 2 ;;
+        --no-logs) STREAM_LOGS=0; shift ;;
         --help|-h) usage ;;
         *) echo "Unknown option: $1"; usage ;;
     esac
@@ -83,7 +86,10 @@ print('Unknown')
 if [[ "$BOOT_STATE" != "Booted" ]]; then
     echo "==> Booting simulator '$DEVICE'..."
     xcrun simctl boot "$DEVICE" 2>/dev/null || true
-    open -a Simulator
+    # Xcode 27 replaces Simulator.app with DeviceHub.app, one level above Developer/.
+    open -a Simulator 2>/dev/null \
+        || open "$(xcode-select -p)/../Applications/DeviceHub.app" \
+        || true
     sleep 2
 else
     echo "==> Simulator '$DEVICE' already booted."
@@ -94,6 +100,10 @@ xcrun simctl install booted "$APP_PATH"
 
 echo "==> Launching app..."
 xcrun simctl launch booted "$BUNDLE_ID"
+
+if [[ "$STREAM_LOGS" -eq 0 ]]; then
+    exit 0
+fi
 
 echo "==> Streaming logs (Ctrl+C to stop)..."
 echo "    (Showing logs from subsystem: $BUNDLE_ID)"
