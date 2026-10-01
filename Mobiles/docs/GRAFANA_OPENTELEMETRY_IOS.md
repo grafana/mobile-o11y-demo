@@ -27,13 +27,14 @@ require agreement before the package is extracted or published.
 The proposed name is **Grafana OpenTelemetry iOS**, with `GrafanaOtel.initialize(...)` as the
 startup entrypoint. The local directory name is not a published package identity.
 
-The spike uses `opentelemetry-swift` `2.5.2` with `opentelemetry-swift-core` `2.5.1`, required as
-`.upToNextMinor(from:)` — the same versions and the same operator the Frontend Observability app page
-gives customers, so the package and the product's own instructions cannot drift apart. `2.5.2` is a
-floor, not a preference: `requeueOnFailure` does not exist before it, and without that argument the
-disk-buffering path cannot be configured correctly. Minor releases are excluded because upstream has
-shipped breaking work in them; patches have been bug fixes only. The app's project requirement and
-its committed `Package.resolved` were both moved to match.
+The spike uses `opentelemetry-swift` `2.6.0` with `opentelemetry-swift-core` `2.6.0`, required as
+`.upToNextMinor(from:)` — the same operator the Frontend Observability app page gives customers. The
+app page names an older pair, so the versions are ahead of the product's own instructions until that
+page moves. `2.6.0` is a floor, not a preference: the package relies on `OtlpHttpLogExporter.export`
+returning the upload result, which lets disk buffering keep a failed log batch, and on
+`SessionLogRecordProcessor` forwarding `forceFlush` and `shutdown`. Minor releases are excluded
+because upstream has shipped breaking work in them; patches have been bug fixes only. The app's
+project requirement and its committed `Package.resolved` were both moved to match.
 
 The package declares **iOS only**, at iOS 13 — the floor `opentelemetry-swift` itself declares — and
 `swift-tools-version:6.0`, matching both upstream manifests. Scope and floor are separate decisions
@@ -59,12 +60,10 @@ available on macOS 12, and upstream annotates its own instrumentation
 unreachable. It is an upstream scoping decision. This package mirrors the guard rather than
 diverging from it, so the macOS gap in `swift test` is inherited, not chosen here.
 
-Both are declared with `.upToNextMinor(from:)` in the package manifest — `2.5.2` for
-`opentelemetry-swift` and `2.5.1` for `opentelemetry-swift-core`. Patches are accepted without a
-manifest change, the minor line is not: upstream has shipped breaking work in minor releases, so
-each new minor is something to test into rather than resolve into. The floor is not a preference
-either — `requeueOnFailure` does not exist before `2.5.2`, and without it the disk-buffering path
-cannot be configured correctly.
+Both are declared with `.upToNextMinor(from:)` in the package manifest, at `2.6.0`. Patches are
+accepted without a manifest change, the minor line is not: upstream has shipped breaking work in
+minor releases, so each new minor is something to test into rather than resolve into. The floor is
+not a preference either — see above for the two `2.6.0` behaviours the package relies on.
 
 ## Why this package exists
 
@@ -106,7 +105,7 @@ opting into automatic redirect protection for its delegate-less requests.
 
 No `MeterProvider` is registered. Faro OTLP ingest currently accepts logs and traces only, so
 metrics are left off rather than exported to a route that rejects them. This is an ingest
-constraint, not a Swift SDK limitation — `opentelemetry-swift-core` `2.5.1` does ship a metrics SDK.
+constraint, not a Swift SDK limitation — `opentelemetry-swift-core` `2.6.0` does ship a metrics SDK.
 
 ### Install order
 
@@ -240,11 +239,10 @@ process-wide providers:
   `session.id`, that the session processors captured the *configured* session manager rather than a
   lazily created default, that session lifecycle records are emitted, that the diagnostics handler
   is installed, that a second `initialize` returns the identical runtime, and that `forceFlush` and
-  `shutdown` reach the processors behind the session decorator.
+  `shutdown` reach the log processors through the session decorator.
 
-The last two were added after review: without them, collapsing the flush split or deleting the
-collector exclusion left the suite green. Both changes are now caught (4 and 2 failing tests
-respectively when reintroduced deliberately).
+The last two were added after review: without them, a broken log flush path or a deleted
+collector exclusion left the suite green. Both are now caught.
 
 ### Debug runtime result
 
@@ -315,10 +313,12 @@ batch kept the session it was recorded in rather than being re-stamped with the 
 The directory carried `com.apple.metadata:com_apple_backup_excludeItem`, so the backup exclusion the
 package sets is in force.
 
-One asymmetry showed up exactly as documented: only traces queued. Log records did not, because
-`OtlpHttpLogExporter.export` reports success before its response arrives, so the disk queue deletes
-them immediately. That is the reason logs keep `requeueOnFailure: true` while traces do not, and it
-is a live demonstration of the caveat rather than a defect in this package.
+On October 1, 2026, the same run was made for logs, with the same simulator and a local OTLP
+capture server. With the receiver down, six log exports to `/v1/logs` failed with
+connection refused, and the batch of 8 log records stayed in `logs/`. The app was killed, the
+receiver restored, and the app relaunched. All 8 records arrived about 6 seconds after relaunch,
+still carrying the first launch's `session.id`, while new records carried a new one. The queue was
+then empty. No log record or span arrived twice, which shows the disk queue is the only retry.
 
 ### Release runtime result
 
@@ -332,7 +332,7 @@ payload, and the resource carried the expected `os.*` and `device.*` attributes 
 because upstream's `DefaultResources` discovers its providers with `Mirror`, the one reflective
 path in the startup sequence. There is no `ServiceLoader` and no keep-rule equivalent to maintain.
 
-### Three defects this validation caught
+### Two defects this validation caught
 
 Each was found by running the app rather than by reading code, and each is recorded because it is
 the kind of thing a reference kit is supposed to get right once for everyone:
@@ -349,9 +349,6 @@ the kind of thing a reference kit is supposed to get right once for everyone:
   export disabled: the endpoint is required, and a rejected one means no SDK for that process — see
   [There is no install-without-exporting mode](#there-is-no-install-without-exporting-mode) for why
   that trade was taken and what it costs.
-- **Log flushing must bypass the session decorator.** `SessionLogRecordProcessor.forceFlush` and
-  `.shutdown` return `.success` without forwarding to their `nextProcessor`, so flushing through it
-  exports nothing. `GrafanaOtelRuntime` therefore retains the processors behind the decorator.
 
 ## Alignment with the iOS field guide
 
@@ -367,7 +364,7 @@ look arbitrary:
 | `semanticConvention: .stable` — new apps should not start on deprecated names | Fixed at `.stable`, with no way to configure it |
 | `deployment.environment.name` | Uses that key, not the older `deployment.environment` |
 | `service.name` should be removed so ingest uses the registered app identity | Always removed; there is no setting to put one back, and `resourceAttributes` is the escape hatch |
-| `requeueOnFailure: false` on the trace exporter under persistence, `true` for logs | Exactly that split, which is why `2.5.2` is the floor |
+| `requeueOnFailure: false` on the trace exporter under persistence, `true` for logs | Sets `false` for both. The log exporter returns `.failure` on a failed upload, so `true` under persistence sends a failed batch twice. The guide needs the same change |
 
 Nine other requirements the guide calls load-bearing were already satisfied: both session processors,
 the Faro session values, `SessionEventInstrumentation` after the logger provider, collector-host
@@ -493,16 +490,13 @@ its debug-only console span exporter, because the exporter reaches the SDK throu
 experimental options.
 
 A placeholder endpoint is not a substitute: an unreachable endpoint still creates exporters and
-queues failed telemetry (on disk for traces and, after the first attempt, in memory for logs).
+queues failed telemetry on disk for both signals.
 
 ### Disk buffering is on by default
 
-Its guarantee differs by signal. Trace batches are retried from disk, survive relaunch, and can be
-delivered after connectivity returns. Log batches are durable only until their first export attempt:
-the pinned HTTP log exporter reports success before the response arrives, so persistence removes the
-disk copy and a later network failure is requeued in memory only. Logs — including MetricKit
-diagnostics — therefore have a smaller pre-export termination window, not durable offline retry.
-Three decisions had to ship with buffering:
+Its guarantee is the same for both signals. Trace and log batches — including MetricKit
+diagnostics — are retried from disk, survive relaunch, and can be delivered after connectivity
+returns. Three decisions had to ship with buffering:
 
 - **A directory that survives and is not backed up.** A caches directory can be evicted under
   storage pressure, losing the queue. A durable directory is normally included in device backups,
@@ -511,9 +505,8 @@ Three decisions had to ship with buffering:
 - **A smaller export batch.** Persistence JSON-encodes a whole batch and then applies a 256 KiB
   cap, and an oversized write fails *silently*. `maxExportBatchSize` counts records, not bytes, so
   the package drops from 512 to 128 records whenever buffering is active.
-- **Retry ownership.** Traces get `requeueOnFailure: false` so the disk queue owns retry. Logs keep
-  `true`, but that retry is in-memory only after the persistence decorator removes the attempted
-  batch; it does not survive relaunch.
+- **Retry ownership.** Both exporters get `requeueOnFailure: false` under persistence, so the disk
+  queue owns retry and a failed batch is not also requeued in memory and sent twice.
 
 The cost is latency: records become readable after roughly 4.75 seconds and export on an adaptive
 1–20 second cycle. `.disabled` remains available for prompt delivery.
@@ -543,7 +536,8 @@ compared against the Swift they generate, and they agree on every substantive po
 left unset so ingest applies the registered app name, `semanticConvention: .stable`, the
 `createdRequest` rewrite of the recorded URL, the Faro session values, `SessionEventInstrumentation`
 after the logger provider, excluding the collector host from tracing, retaining the MetricKit and
-`URLSession` instances, no meter provider, and the `2.5.2` / `2.5.1` version pair.
+`URLSession` instances, and no meter provider. They differ on the version pair: the app page names
+`2.5.2` / `2.5.1`, and the package requires `2.6.0` for both.
 
 Three differences, each deliberate:
 
@@ -568,8 +562,8 @@ what a RUM product needs and `opentelemetry-swift` does not yet provide:
 | Assembled RUM agent | None; this package owns the assembly |
 | Lifecycle, screen-view and jank signals | Not available; app-owned |
 | Crash and hang capture | MetricKit diagnostics; [Apple documents immediate delivery on iOS 15+](https://developer.apple.com/documentation/metrickit), separately from daily metric reports |
-| Offline buffering | A contrib decorator enabled by default; trace retry from disk is runtime-validated, while logs are durable only until their first export attempt |
-| Export retry | Traces retry from disk on the persistence schedule; log failures are requeued in memory only |
+| Offline buffering | A contrib decorator enabled by default; trace and log retry from disk across a relaunch are runtime-validated |
+| Export retry | Traces and logs retry from disk on the persistence schedule, with no backoff |
 | Background and termination flush | None; the caller must call `forceFlush` |
 | Flushing the disk queue | Not reachable from a provider; the runtime holds the persistence exporters and drains them itself |
 | Stopping the disk queue | `DataExportWorker.cancelSynchronously()` is not on its protocol, so shutdown gates the workers through `exportCondition` instead of cancelling them |

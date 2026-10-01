@@ -194,7 +194,7 @@ public enum GrafanaOtel {
       diskBuffer: diskBuffer,
       experimental: experimental
     )
-    let logPipeline = try makeLogPipeline(
+    let logRecordProcessor = try makeLogPipeline(
       plan: plan,
       headers: headers,
       logsStorageURL: storage?.logs,
@@ -203,7 +203,7 @@ public enum GrafanaOtel {
     )
     let loggerProvider = LoggerProviderBuilder()
       .with(resource: plan.resource)
-      .with(processors: logPipeline.providerProcessors)
+      .with(processors: [logRecordProcessor])
       .build()
 
     // From here on nothing throws.
@@ -255,7 +255,7 @@ public enum GrafanaOtel {
     return GrafanaOtelRuntime(
       tracerProvider: tracerProvider,
       loggerProvider: loggerProvider,
-      flushableLogRecordProcessors: logPipeline.flushable,
+      flushableLogRecordProcessors: [logRecordProcessor],
       retainedInstrumentations: retained,
       diskBuffer: diskBuffer,
       redirectGuard: GrafanaOtelRedirectGuard(
@@ -349,17 +349,6 @@ public enum GrafanaOtel {
       .build()
   }
 
-  /// The log record processors, split by role.
-  ///
-  /// `providerProcessors` is what the `LoggerProvider` receives. `flushable` is what a caller must
-  /// hold to flush or shut log export down, because `SessionLogRecordProcessor.forceFlush` and
-  /// `.shutdown` return `.success` without forwarding to their `nextProcessor`: flushing through the
-  /// session decorator would silently do nothing.
-  struct LogPipeline {
-    let providerProcessors: [LogRecordProcessor]
-    let flushable: [LogRecordProcessor]
-  }
-
   /// Internal for the same reason as ``makeTracerProvider(plan:headers:tracesStorageURL:diskBuffer:experimental:)``.
   static func makeLogPipeline(
     plan: GrafanaOtelPlan,
@@ -367,17 +356,15 @@ public enum GrafanaOtel {
     logsStorageURL: URL?,
     diskBuffer: GrafanaOtelDiskBuffer,
     experimental: GrafanaOtelExperimentalOptions
-  ) throws -> LogPipeline {
+  ) throws -> LogRecordProcessor {
     var downstream: [LogRecordProcessor] = []
 
-    // `requeueOnFailure` deliberately stays at its default of `true`, even with persistence.
-    // `OtlpHttpLogExporter.export` reports success as soon as it hands the request to
-    // `URLSession`, before the response arrives, so the disk queue deletes the batch and a later
-    // network failure has nothing left to retry. The in-memory copy is weaker than disk, but it
-    // is better than none until upstream makes log export await its response.
+    // Same split as traces. The log exporter returns `.failure` on a failed upload, so the disk
+    // queue keeps the batch. An in-memory copy as well would send those records twice.
     var exporter: LogRecordExporter = OtlpHttpLogExporter(
       endpoint: plan.logsEndpoint,
-      envVarHeaders: headers
+      envVarHeaders: headers,
+      requeueOnFailure: logsStorageURL == nil
     )
     if let logsStorageURL {
       let queue = try wrapDiskBufferingError {
@@ -400,10 +387,8 @@ public enum GrafanaOtel {
 
     // One session processor in front of everything, so every downstream processor receives records
     // that already carry `session.id` and `session.previous_id`.
-    let multi = MultiLogRecordProcessor(logRecordProcessors: downstream)
-    return LogPipeline(
-      providerProcessors: [SessionLogRecordProcessor(nextProcessor: multi)],
-      flushable: [multi]
+    return SessionLogRecordProcessor(
+      nextProcessor: MultiLogRecordProcessor(logRecordProcessors: downstream)
     )
   }
 
