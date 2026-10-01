@@ -51,7 +51,7 @@ It is intended for two audiences:
 
 All four reach Grafana Cloud Frontend Observability through the Faro collector —
 the Faro apps post to `/collect/<appKey>`, the native apps post OTLP/HTTP to
-`/otlp/<appKey>` on development collectors. See [§ Where the data lives](#where-the-data-lives) for the
+`/otlp/<appKey>`. See [§ Where the data lives](#where-the-data-lives) for the
 datasources and the legacy OTLP gateway alternative.
 
 The native apps explicitly set `service.name` to `quickpizza-ios` /

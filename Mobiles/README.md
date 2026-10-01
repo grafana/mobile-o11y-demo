@@ -28,10 +28,8 @@ Two wire formats, one destination:
   `/otlp/<appKey>` endpoint, which translates OTLP to Faro on ingest.
 
 Both end up in the Grafana Cloud **Frontend Observability** plugin, one app per
-key. Two caveats, both covered in
-[Connect to Grafana Cloud](./docs/CONNECT_GRAFANA_CLOUD.md): the `/otlp/<appKey>`
-route runs on development collectors only for now, and the native apps have a
-legacy OTLP gateway path that the plugin cannot read.
+key. The native apps also have a legacy OTLP gateway path that the plugin
+cannot read. See [Connect to Grafana Cloud](./docs/CONNECT_GRAFANA_CLOUD.md).
 
 For a side-by-side of what each app actually emits, see
 [`docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](./docs/MOBILE_OBSERVABILITY_OVERVIEW.md).
