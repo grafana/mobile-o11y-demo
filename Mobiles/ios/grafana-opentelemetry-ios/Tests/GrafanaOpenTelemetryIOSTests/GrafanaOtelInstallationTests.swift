@@ -210,8 +210,8 @@ final class GrafanaOtelInstallationTests: XCTestCase {
     )
     XCTAssertIdentical(repeated, runtime)
 
-    // The runtime must flush through the processors BEHIND the session decorator. Flushing through
-    // the decorator itself silently exports nothing, which is the defect this split exists for.
+    // The runtime flushes through the session decorator, so this also guards that
+    // `SessionLogRecordProcessor` forwards both calls to the processors behind it.
     let flushesBefore = logs.forceFlushCount()
     runtime.forceFlush(timeout: 7)
     XCTAssertEqual(logs.forceFlushCount(), flushesBefore + 1)

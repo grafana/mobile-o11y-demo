@@ -21,10 +21,6 @@ public final class GrafanaOtelRuntime: @unchecked Sendable {
 
   /// `LoggerProviderSdk` exposes no flush or shutdown, so the log processors are retained here to
   /// make log delivery controllable before termination.
-  ///
-  /// These are deliberately the processors *behind* the session decorator.
-  /// `SessionLogRecordProcessor.forceFlush` and `.shutdown` return `.success` without forwarding to
-  /// their `nextProcessor`, so flushing through the decorator would export nothing.
   private let flushableLogRecordProcessors: [LogRecordProcessor]
   /// `MXMetricManager` holds its subscribers weakly, so the MetricKit instrumentation would be
   /// deallocated immediately without this. The `URLSession` instrumentation is retained by its own
@@ -69,16 +65,13 @@ public final class GrafanaOtelRuntime: @unchecked Sendable {
   /// Call this before deliberately terminating the process; batch processors otherwise drop
   /// whatever has not reached its scheduled export.
   ///
-  /// **This blocks the calling thread, so do not call it from the main thread.** The trace path
-  /// waits for its export operations to finish, and each OTLP batch can take up to the exporter's
-  /// 10-second transport timeout, so a stalled or blackholed collector blocks for
+  /// **This blocks the calling thread, so do not call it from the main thread.** The trace and log
+  /// paths both wait for their export operations to finish, and each OTLP batch can take up to the
+  /// exporter's 10-second transport timeout, so a stalled or blackholed collector blocks for
   /// `10s × pending batches`. `timeout` can only lower that per-batch ceiling, never raise it.
   ///
-  /// What this guarantees differs by signal. Spans are handed to a synchronous OTLP request, so a
-  /// completed call means the request finished — successfully or not. Log export is fire-and-forget
-  /// at the pinned upstream version: `OtlpHttpLogExporter.export` returns `.success` without
-  /// waiting, so for logs this only guarantees the records left the batch queue, not that they
-  /// were delivered.
+  /// Both signals are handed to a synchronous OTLP request, so a completed call means the request
+  /// finished — successfully or not.
   ///
   /// With disk buffering the disk queue is drained too, in a second step after the providers. The
   /// batch processors' own `forceFlush` only reaches `export`, which under persistence writes to
