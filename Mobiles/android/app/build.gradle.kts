@@ -17,6 +17,19 @@ plugins {
     id("com.grafana.faro.android-symbols") version "0.1.1"
 }
 
+// Replay's layout masker is audited against Compose 1.7.6. OTel 1.7.0's runtime
+// lifecycle-process dependency otherwise upgrades the Lifecycle family and Compose
+// to 2.11/1.11 while compilation still uses this app's older versions. OTel uses
+// only ProcessLifecycleOwner and LifecycleObserver APIs available in 2.8.7.
+configurations.configureEach {
+    resolutionStrategy.eachDependency {
+        if (requested.group == "androidx.lifecycle") {
+            useVersion(libs.versions.lifecycle.get())
+            because("Keep the replay demo on its tested Lifecycle and Compose versions")
+        }
+    }
+}
+
 // Remove config.json.example from res/raw before the resource merger runs.
 // Android resource file names must only contain [a-z0-9_], so dots are invalid.
 // The example template lives at the project root instead (config.json.example).
@@ -120,7 +133,7 @@ dependencies {
     implementation(libs.navigation.compose)
 
     // Compose
-    implementation(platform(libs.compose.bom))
+    implementation(enforcedPlatform(libs.compose.bom))
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.graphics)
     implementation(libs.compose.ui.tooling.preview)
@@ -149,6 +162,7 @@ dependencies {
     implementation(libs.opentelemetry.android.okhttp3.library)
     implementation(libs.opentelemetry.okhttp3)
     byteBuddy(libs.opentelemetry.android.okhttp3.agent)
+    implementation("com.grafana.faro:faro-android-replay:0.1.0-SNAPSHOT")
 
     // TODO(opentelemetry-android#764): remove with com.grafana.quickpizza.nativecrash package.
     // Protobuf tombstone decode for ApplicationExitInfo.traceInputStream (API 31+).
@@ -160,7 +174,7 @@ dependencies {
     androidTestImplementation(libs.test.runner)
     androidTestImplementation(libs.test.espresso.core)
     androidTestImplementation(libs.test.junit.ext)
-    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation(enforcedPlatform(libs.compose.bom))
     androidTestImplementation(libs.compose.ui.test.junit4)
     debugImplementation(libs.compose.ui.test.manifest)
 }
