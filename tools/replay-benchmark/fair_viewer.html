@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Replay format comparison · common lossless source</title>
+<style>
+body{font:15px system-ui;background:#111820;color:#edf2f5;max-width:1300px;margin:28px auto;padding:0 20px}h1{font-size:24px}h2{font-size:17px}p{line-height:1.5;color:#b9c7d1}select,button{padding:8px;font:inherit;margin:3px}input{width:100%}.players{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.surface{height:480px;background:#070a0d;display:flex;justify-content:center;align-items:center}img,video{max-height:100%;max-width:100%;object-fit:contain}#result{white-space:pre-wrap;font:12px ui-monospace}#status{padding:12px 0}label{margin-right:12px}
+</style>
+<h1>One masked source, independent encoders</h1>
+<p>Android 15 emulator · 1 capture per second · same 800px source and timestamps.<br>
+QuickPizza retains its conservative masking. The motion workload is a separate synthetic screen. This local viewer is not the Grafana session panel.</p>
+<label>Journey <select id="journey"><option value="idle-300">QuickPizza</option><option value="motion-300">Synthetic scroll and animation</option></select></label>
+<label>Screenshot <select id="image-format"><option>webp-25</option><option>webp-30</option><option selected>webp-60</option><option>webp-85</option><option>webp-lossless</option></select></label>
+<label>Video <select id="video-format"></select></label><br>
+<button id="play">Play</button><button id="verify">Verify all seeks</button><button id="verify-playback">Verify playback boundaries</button><button id="save">Save browser checks locally</button>
+<div id="status">Loading…</div><input type="range" id="seek" aria-label="Position in seconds" min="0" max="300" step=".01" value="0">
+<div class="players"><section><h2>Masked PNG reference</h2><div class="surface"><img id="reference" alt="Actual masked PNG source"></div></section><section><h2>WebP with exact reuse</h2><div class="surface"><img id="still" alt="Decoded WebP screenshot"></div></section><section><h2>H.264 MP4</h2><div class="surface"><video id="video" muted playsinline preload="none"></video></div></section></div>
+<p id="quality"></p><pre id="result"></pre>
+<script>
+const $=id=>document.getElementById(id),video=$('video');
+const variants=['vbr-25-g5-c5','vbr-75-g5-c5','vbr-200-g5-c5','vbr-500-g5-c5','cbr-25-g5-c5','cbr-75-g5-c5','cbr-200-g5-c5','cbr-500-g5-c5','vbr-75-g1-c5','vbr-75-g5-c15','vbr-75-g15-c15','vbr-75-g5-c30','vbr-75-g30-c30','cbr-25-g5-c15','cbr-25-g15-c15','cbr-25-g5-c30','cbr-25-g30-c30','cbr-75-g15-c15','cbr-75-g30-c30'].map(name=>'srgb-'+name);
+for(const name of variants){const option=document.createElement('option');option.value=option.textContent=name;$('video-format').append(option);} $('video-format').value='srgb-vbr-75-g5-c5';
+let source,images,clips,start,duration,root,at=0,playing=false,busy=false,last=0,currentFile='',seekResults=[],playbackResults=[];
+let presentedFrame=null;const frameWaiters=new Set();
+function observeFrame(now,metadata){presentedFrame={file:video.currentSrc,time:metadata.mediaTime};for(const check of frameWaiters)check();video.requestVideoFrameCallback(observeFrame);}video.requestVideoFrameCallback(observeFrame);
+function waitPresented(file,time){return new Promise((ok,bad)=>{const check=()=>{if(presentedFrame?.file===file&&Math.abs(presentedFrame.time-time)<.003){clearTimeout(timer);frameWaiters.delete(check);ok(presentedFrame.time);}};const timer=setTimeout(()=>{frameWaiters.delete(check);bad(Error('presented frame timeout'));},10000);frameWaiters.add(check);check();});}
+const json=url=>fetch(url,{cache:'no-store'}).then(r=>{if(!r.ok)throw Error(url);return r.json();});
+const once=(el,event)=>new Promise((ok,bad)=>{const fail=()=>{el.removeEventListener(event,done);bad(Error(event+' timeout'));};const timer=setTimeout(fail,10000);const done=()=>{clearTimeout(timer);ok();};el.addEventListener(event,done,{once:true});});
+function frameIndex(t){let i=0;while(i+1<source.frames.length&&source.frames[i+1].timestamp<=start+t*1000)i++;return i;}
+function clipIndex(t){let i=0;while(i+1<clips.length&&clips[i+1].start<=start+t*1000)i++;return i;}
+function pause(){playing=false;video.pause();$('play').textContent='Play';}
+function fail(error){pause();$('result').textContent=String(error);document.body.dataset.error=String(error);}
+let uiBusy=false;
+async function uiAction(action){
+ if(uiBusy)return;uiBusy=true;
+ const controls=[...document.querySelectorAll('button,select,input')];controls.forEach(el=>el.disabled=true);
+ try{pause();const deadline=performance.now()+11000;while(busy){if(performance.now()>deadline)throw Error('Viewer operation did not finish');await new Promise(ok=>setTimeout(ok,10));}await action();}
+ catch(error){fail(error);}finally{uiBusy=false;controls.forEach(el=>el.disabled=false);}
+}
+async function load(){
+ pause();root='fair-'+$('journey').value;currentFile='';delete document.body.dataset.error;
+ [source,images,{clips}]=await Promise.all([json(root+'/source.json'),json(root+'/'+$('image-format').value+'/result.json'),json(root+'/'+$('video-format').value+'/result.json')]);
+ start=source.frames[0].timestamp;duration=(source.end-start)/1000;$('seek').max=duration-.001;await show(.1,true);
+ const analysis=await json(root+'/analysis.json');const chosen=analysis.candidates.filter(r=>[images.candidate,$('video-format').value].includes(r.candidate));
+ $('quality').textContent=chosen.map(r=>r.candidate+': '+r.totalBytes.toLocaleString()+' bytes; visible-region PSNR '+r.quality.visiblePsnrDb.mean.toFixed(2)+' dB; block SSIM '+r.quality.visibleBlockSsim.mean.toFixed(4)).join(' | ');
+ document.body.dataset.ready='true';
+}
+async function show(t,force=false){
+ at=Math.max(.001,Math.min(duration-.002,t));const index=frameIndex(at),frame=source.frames[index],clip=clips[clipIndex(at)],file=root+'/'+$('video-format').value+'/'+clip.file;
+ $('seek').value=at;$('status').textContent=at.toFixed(2)+' / '+duration.toFixed(2)+' s · frame '+index+' · '+frame.screen+' · '+clip.file;
+ $('reference').src=root+'/'+frame.file;$('still').src=root+'/'+images.candidate+'/'+images.frames[index].file;
+ const imageReady=Promise.all([$('reference').decode(),$('still').decode()]);
+ const begun=performance.now();
+ if(file!==currentFile){video.pause();currentFile=file;video.src=file;const meta=once(video,'loadedmetadata');video.load();await meta;force=true;}
+ let presented=null;
+ const local=Math.max(.001,Math.min(video.duration-.002,(start+at*1000-clip.start)/1000));
+ if(force||Math.abs(video.currentTime-local)>.2){
+  const sought=once(video,'seeked');
+  video.currentTime=local;await sought;
+  // A seek within the same held frame need not repaint. Its last presented timestamp is valid.
+  presented=await waitPresented(new URL(file,location.href).href,(frame.timestamp-clip.start)/1000);
+ }
+ const videoReadyMs=performance.now()-begun;await imageReady;
+ if(playing)await video.play();else video.pause();
+ document.body.dataset.frame=String(index);
+ return {frame:index,clip:clipIndex(at),videoReadyMs,mediaTime:presented,expectedMediaTime:(frame.timestamp-clip.start)/1000,
+  currentTime:video.currentTime,requested:at,videoWidth:video.videoWidth};
+}
+async function verifySeeks(){
+ pause();busy=true;seekResults=[];
+ try{
+ for(const journey of ['idle-300','motion-300'])for(const variant of variants){
+  $('journey').value=journey;$('video-format').value=variant;await load();
+  for(const position of [.1,4.9,5.2,14.9,15.2,29.9,30.2,60.4,99.9,100.5,149.9,150.6,179.9,180.6,199.9,200.5,249.5,duration-.1,10.4,.2]){
+   const check=await show(position,true);check.journey=journey;check.candidate=variant;
+   check.pass=Math.abs(check.mediaTime-check.expectedMediaTime)<.003&&video.readyState>=2&&video.paused&&check.videoWidth===source.frames[check.frame].width;
+   seekResults.push(check);if(!check.pass)throw Error('Wrong presented frame '+JSON.stringify(check));
+  }
+  $('result').textContent=seekResults.length+' seeks passed; currently '+journey+' / '+variant;
+ }
+ document.body.dataset.seekResults=JSON.stringify(seekResults);$('result').textContent=seekResults.length+' seeks passed, with presented-frame timestamp checks.';
+ }finally{busy=false;}
+}
+$('verify').onclick=()=>uiAction(verifySeeks);
+$('verify-playback').onclick=()=>uiAction(async()=>{
+ pause();playbackResults=[];
+ try{
+ for(const journey of ['idle-300','motion-300'])for(const variant of ['srgb-vbr-75-g5-c5','srgb-cbr-25-g5-c5','srgb-cbr-25-g15-c15','srgb-cbr-25-g30-c30']){
+  $('journey').value=journey;$('video-format').value=variant;await load();
+  for(const position of [29.5,99.5,149.5,179.5,199.5]){
+   await show(position,true);last=performance.now();playing=true;await video.play();
+   await new Promise(ok=>setTimeout(ok,1800));pause();while(busy)await new Promise(ok=>setTimeout(ok,10));
+   const pass=at>position+1.2&&at<position+2.6&&!video.error&&video.readyState>=2;
+   playbackResults.push({journey,candidate:variant,start:position,actual:at,pass});if(!pass)throw Error('Playback failed '+JSON.stringify(playbackResults.at(-1)));
+  }
+  $('result').textContent=playbackResults.length+' playback boundaries passed';
+ }
+ document.body.dataset.playbackResults=JSON.stringify(playbackResults);$('result').textContent=playbackResults.length+' playback boundaries passed.';
+ }catch(e){fail(e);}
+});
+$('save').onclick=async()=>{try{const r=await fetch('/checks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({colorPipeline:'sRGB transfer / BT.709 matrix',userAgent:navigator.userAgent,seekResults,playbackResults})});if(!r.ok)throw Error('Save failed');$('result').textContent='Saved browser-checks.json locally.';}catch(e){fail(e);}};
+$('play').onclick=()=>{if(playing)pause();else{playing=true;last=performance.now();$('play').textContent='Pause';video.play().catch(fail);}};
+$('seek').onchange=()=>uiAction(async()=>{pause();await show(Number($('seek').value),true);});
+for(const id of ['journey','image-format','video-format'])$(id).onchange=()=>uiAction(load);
+async function tick(now){if(playing&&!busy){busy=true;try{const next=at+(now-last)/1000;last=now;if(next>=duration)pause();else await show(next);}catch(e){fail(e);}finally{busy=false;}}requestAnimationFrame(tick);}
+uiAction(async()=>{await load();requestAnimationFrame(tick);});
+</script></html>

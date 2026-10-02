@@ -51,6 +51,8 @@ fun DebugScreen(
     viewModel: DebugViewModel = hiltViewModel(),
 ) {
     val ui by viewModel.state.collectAsState()
+    val scroll = rememberScrollState()
+    ReplayScreenChanges("Debug", scroll, ui.settings, ui.restartBanner, ui.lastActionMessage != null)
 
     // Auto-clear the transient action message after 3s — same UX as the Flutter app.
     LaunchedEffect(ui.lastActionMessage) {
@@ -60,7 +62,7 @@ fun DebugScreen(
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().replayScreenSurface()) {
         TopAppBar(
             title = { Text("Debug") },
             actions = {
@@ -75,11 +77,13 @@ fun DebugScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scroll)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             RestartRequiredBanner(ui.restartBanner)
+
+            ReplayProbeCaptureButton(screenName = "Debug")
 
             ConfigEntryCard(onClick = onNavigateToConfig)
 

@@ -27,6 +27,7 @@ terraform.rc
 
 # dependencies
 node_modules
+/.ci/faro-android-replay/
 
 # production build
 .svelte-kit

@@ -10,6 +10,7 @@ Mobiles
 
 # Local credentials and repository metadata are not backend build inputs.
 .git
+.ci/faro-android-replay
 **/.env
 **/.env.*
 !**/.env.example
