@@ -23,20 +23,21 @@ let package = Package(
     )
   ],
   dependencies: [
-    // Pinned to the minor line, not the major, matching the requirement the Frontend Observability
+    // Pinned to the minor line, not the major, matching the operator the Frontend Observability
     // app page hands to customers. Upstream has shipped breaking work in minor releases — a
     // session-recording refactor, the `SessionConfig` API this package calls, and a Swift 6
     // toolchain requirement — while patches have been bug fixes only.
     //
-    // `2.5.2` is a floor rather than a preference: `requeueOnFailure` does not exist before it, and
-    // without that argument the disk-buffering path cannot be configured correctly.
+    // `2.6.0` is a floor rather than a preference: the package relies on
+    // `OtlpHttpLogExporter.export` returning the upload result, so disk buffering keeps a failed
+    // log batch, and on `SessionLogRecordProcessor` forwarding `forceFlush` and `shutdown`.
     .package(
       url: "https://github.com/open-telemetry/opentelemetry-swift.git",
-      .upToNextMinor(from: "2.5.2")
+      .upToNextMinor(from: "2.6.0")
     ),
     .package(
       url: "https://github.com/open-telemetry/opentelemetry-swift-core.git",
-      .upToNextMinor(from: "2.5.1")
+      .upToNextMinor(from: "2.6.0")
     )
   ],
   targets: [

@@ -19,13 +19,14 @@ already requires, so adopting it never narrows what an iOS app could otherwise t
 - **Toolchain** — `swift-tools-version:6.0`, the same as both upstream packages, so the package
   builds in **Swift 6 language mode** exactly as they do. That is stricter than a consumer still
   building in Swift 5 language mode, which is a property of the consumer, not of this package.
-- **Upstream versions** — `opentelemetry-swift` `2.5.2` and `opentelemetry-swift-core` `2.5.1`,
-  required as `.upToNextMinor(from:)`. That matches the requirement the Frontend Observability app
+- **Upstream versions** — `opentelemetry-swift` `2.6.0` and `opentelemetry-swift-core` `2.6.0`,
+  required as `.upToNextMinor(from:)`. That matches the operator the Frontend Observability app
   page gives customers: upstream has shipped breaking work in *minor* releases — a session-recording
   refactor, the `SessionConfig` API this package calls, and a Swift 6 toolchain requirement — while
-  patches have been bug fixes only. `2.5.2` is a floor rather than a preference: `requeueOnFailure`
-  does not exist before it, and without that argument disk buffering cannot be configured correctly
-  (see below).
+  patches have been bug fixes only. `2.6.0` is a floor rather than a preference: the package relies
+  on `OtlpHttpLogExporter.export` returning the upload result, which lets disk buffering keep a
+  failed log batch (see below), and on `SessionLogRecordProcessor` forwarding `forceFlush` and
+  `shutdown`.
 
 **iOS is the supported platform.** macOS appears in `platforms` for one reason only: upstream's
 exporter, resource, session and instrumentation products all require macOS 12, so without it the
@@ -112,7 +113,7 @@ own its `URLSession`s: `redirectGuard`.
 
 No `MeterProvider` is registered. Faro OTLP ingest currently accepts logs and traces only, so
 metrics are left off rather than exported to a route that rejects them. This is an ingest
-constraint, not a Swift SDK limitation: `opentelemetry-swift-core` `2.5.1` does ship a metrics SDK.
+constraint, not a Swift SDK limitation: `opentelemetry-swift-core` `2.6.0` does ship a metrics SDK.
 
 ### Install order
 
@@ -151,8 +152,7 @@ loudly:
 exporter: this package exists to export, and a half-installed telemetry stack that silently produces
 nothing is worse than an error at the call site. If your app can run without telemetry, decide that
 before calling `initialize` rather than passing a placeholder endpoint — an unreachable endpoint
-still creates exporters and queues failed telemetry (on disk for traces and, after the first
-attempt, in memory for logs).
+still creates exporters and queues failed telemetry on disk for both signals.
 
 There is no `serviceName` or `serviceNamespace` setting. Upstream's default resource always derives
 a `service.name` from the bundle name, and ingest maps that to the app-name column — backfilling the
@@ -224,16 +224,11 @@ after any `customizeURLSession` callback, so a caller cannot put the raw value b
 
 ### Disk buffering
 
-On by default, with different guarantees by signal. Span batches are retried from disk, survive
-relaunch, and can be delivered after connectivity returns. Log batches are persisted only until
-their first export attempt. The pinned `OtlpHttpLogExporter` reports success before the HTTP
-response arrives, so the persistence decorator removes the disk copy; if the request later fails,
-the exporter requeues those logs in memory only. Logs — including MetricKit diagnostics — therefore
-do not have durable offline retry after an attempt has started.
-
-The log queue still narrows the termination-loss window before that first attempt, while the record
-is waiting on disk. It must not be treated as the same offline-delivery guarantee as trace
-buffering.
+On by default, with the same guarantee for both signals. Span and log batches — including MetricKit
+diagnostics — are retried from disk, survive relaunch, and can be delivered after connectivity
+returns. Both exporters wait for the HTTP response and return `.failure` when the upload fails, so
+the persistence decorator keeps the failed batch. Both set `requeueOnFailure: false` under
+persistence, so the disk queue is the only retry and a batch is not sent twice.
 
 The default location is a package-owned directory under Application Support, so the system does not
 reclaim it under storage pressure, and the package sets `isExcludedFromBackupKey` on it. That flag
@@ -328,15 +323,13 @@ These are properties of the pinned upstream release, not of this package's confi
   from daily metric reports. The package exports available diagnostic payloads; it has no signal
   handler or independent crash replay and does not guarantee a report for a deliberate crash.
 - **No backoff and no reliable delivery signal.** The OTLP/HTTP exporters have no
-  `Retry-After` handling. Buffered traces retry from disk on the persistence schedule, while failed
-  log requests are requeued in an unbounded in-memory queue that dies with the process.
-  `OtlpHttpLogExporter.export` always reports success. A wrong ingest URL therefore looks identical
+  `Retry-After` handling. Buffered traces and logs retry from disk on the persistence schedule.
+  Failures reach the export result but not the app. A wrong ingest URL therefore looks identical
   to a working one from inside the app — only the diagnostics handler reveals a 404 or 401.
 - **Nothing flushes on background or termination.** Use `GrafanaOtelRuntime.forceFlush()` from your
-  own lifecycle hooks — but not on the main thread. It blocks on synchronous OTLP trace export, and
-  a stalled collector can hold the caller for the exporter's 10-second transport timeout per pending
-  batch. For logs it only guarantees the records left the batch queue: `OtlpHttpLogExporter.export`
-  reports success without waiting.
+  own lifecycle hooks — but not on the main thread. It blocks on synchronous OTLP trace and log
+  export, and a stalled collector can hold the caller for the exporter's 10-second transport timeout
+  per pending batch.
 - **A provider flush does not reach the disk queue**, which is why the runtime holds the
   persistence exporters and drains them itself as a second step. `BatchSpanProcessor.forceFlush`
   and `BatchLogRecordProcessor.forceFlush` reach the exporter's `export`, which under persistence
@@ -349,9 +342,8 @@ These are properties of the pinned upstream release, not of this package's confi
   after that, and the workers stay parked and idle for the rest of the process rather than being
   cancelled.
 - **`LoggerProviderSdk` has no flush or shutdown**, which is why the runtime retains the log
-  processors. It retains the ones *behind* the session decorator on purpose:
-  `SessionLogRecordProcessor.forceFlush` and `.shutdown` return `.success` without forwarding to
-  their `nextProcessor`, so flushing through the decorator would export nothing.
+  processor. It flushes and shuts down through the session decorator, which forwards both calls to
+  its `nextProcessor`.
 - **Session inactivity is signal-based, not interaction-based.** `SessionSpanProcessor.onStart`
   extends the session on every span, and automatic HTTP spans include background traffic, so the
   15-minute window means "15 minutes with no span and no log" rather than Faro's user-interaction
@@ -369,14 +361,11 @@ These are properties of the pinned upstream release, not of this package's confi
   `urlSession(_:task:didCompleteWithError:)` — one of the selectors `URLSessionInstrumentation`
   scans delegate classes for — so it is swizzled and the spans still end. A delegate of your own
   that implements none of those selectors would silently drop them.
-- **Disk buffering has asymmetric delivery guarantees.** The queue's flush and shutdown behaviour is
-  covered by tests against the real persistence exporters; retry from disk across an app relaunch is
-  runtime-validated only, with no automated test. Log persistence
-  cannot provide durable offline retry at the pinned upstream version:
-  `OtlpHttpLogExporter.export` reports success before the response arrives, so the persistence
-  decorator deletes the batch and a later failure is requeued in memory only. The package creates
-  both signal directories up front, keeps them out of device backups, shrinks export batches to stay
-  under the 256 KiB cap, and sets trace `requeueOnFailure: false` so the disk queue owns trace retry.
+- **Disk-buffer retry across relaunch is not covered by automated tests.** The queue's flush and
+  shutdown behaviour is covered by tests against the real persistence exporters. Retry from disk
+  across an app relaunch is runtime-validated for both signals, with no automated test. The package
+  creates both signal directories up front, keeps them out of device backups, shrinks export
+  batches to stay under the 256 KiB cap, and sets `requeueOnFailure: false` on both exporters so the disk queue owns retry.
 - **Buffering delays every signal.** Records become readable to the exporter after roughly
   4.75 seconds and then export on an adaptive 1–20 second cycle. Pass `.disabled` if you would
   rather have prompt delivery and accept losing whatever is queued at termination.
