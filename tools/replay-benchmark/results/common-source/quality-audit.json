@@ -1,0 +1,34 @@
+{
+  "scope": "Final color-corrected comparison, one Android 15 software-encoder emulator at 1 fps",
+  "finalCases": 48,
+  "sourceFrames": 600,
+  "decodedCandidateFrames": 14400,
+  "pairs": [
+    {
+      "journey": "idle-300",
+      "image": "webp-85",
+      "video": "srgb-vbr-75-g5-c5",
+      "verdict": "Comparable measured quality and sampled text readability; lossy artifacts differ."
+    },
+    {
+      "journey": "motion-300",
+      "image": "webp-60",
+      "video": "srgb-cbr-200-g5-c5",
+      "verdict": "Comparable measured quality and sampled text readability; video has more visible edge artifacts in some frames."
+    },
+    {
+      "journey": "motion-300",
+      "image": "webp-25",
+      "video": "srgb-cbr-25-g30-c30",
+      "verdict": "Reject equal-quality claim: visible ghosting and text smearing despite close average metrics."
+    }
+  ],
+  "visualEvidence": "Native-resolution decoded samples including frames 171 and 299, plus Chrome source/WebP/video comparison and color smoke check.",
+  "oldVideoCandidates": "Excluded from final comparison due to color metadata mismatch.",
+  "limitations": [
+    "Single emulator trials, not physical-device performance.",
+    "App PSS and CPU exclude codec service.",
+    "Modeled media plus manifests, not finalized API payloads.",
+    "Local viewer, not Grafana session-panel acceptance."
+  ]
+}

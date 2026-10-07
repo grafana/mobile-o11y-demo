@@ -40,6 +40,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.grafana.quickpizza.features.debug.ReplayScreenChanges
+import com.grafana.quickpizza.features.debug.replayScreenSurface
+import com.grafana.quickpizza.features.debug.ReplayProbeCaptureButton
 import com.grafana.quickpizza.ui.components.QuickPizzaTopBar
 
 private data class LinkItem(val label: String, val subtitle: String, val url: String, val icon: ImageVector, val iconColor: Color)
@@ -65,6 +68,8 @@ fun AboutScreen(
     viewModel: AboutViewModel = hiltViewModel(),
 ) {
     val isAuthenticated by viewModel.isAuthenticated.collectAsState()
+    val scroll = rememberScrollState()
+    ReplayScreenChanges("About", scroll, isAuthenticated)
     val context = LocalContext.current
     val appVersion = remember {
         runCatching {
@@ -72,7 +77,7 @@ fun AboutScreen(
         }.getOrDefault("unknown")
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().replayScreenSurface()) {
         QuickPizzaTopBar(
             isAuthenticated = isAuthenticated,
             onAvatarClick = { if (isAuthenticated) onNavigateToProfile() else onNavigateToLogin() },
@@ -81,10 +86,12 @@ fun AboutScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scroll)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            ReplayProbeCaptureButton(screenName = "About")
+
             // Header
             Column(
                 modifier = Modifier.fillMaxWidth(),
