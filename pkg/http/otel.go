@@ -306,6 +306,9 @@ func (t *OTelInstaller) Install(r chi.Router, serviceComponent string, extraOpts
 	})
 	r.Use(OTelRouteLabeler)
 	r.Use(LogTraceID)
+	if recordBodies() {
+		r.Use(bodyEvents)
+	}
 
 	// Mark as installed after successful installation
 	t.installed = true

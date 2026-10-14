@@ -283,6 +283,7 @@ jobs:
           # Use dev Alloy config for grafana-dev.net stack
           ALLOY_FILE_NAME: cloud-dev.alloy
           QUICKPIZZA_IMAGE: quickpizza-mobile-local:ci
+          QUICKPIZZA_OTEL_RECORD_BODIES: "true"
         run: |
           echo "Starting QuickPizza backend (Grafana Cloud microservices + dev Alloy override)..."
           bash Mobiles/telemetry/backend-compose.sh up -d
@@ -721,6 +722,7 @@ jobs:
           QUICKPIZZA_TIMEOUT=10s \
           QUICKPIZZA_OTLP_ENDPOINT="${QUICKPIZZA_OTLP_ENDPOINT:?Forwarding endpoint missing}" \
           QUICKPIZZA_OTEL_SERVICE_NAME=quickpizza-ios-ci-backend \
+          QUICKPIZZA_OTEL_RECORD_BODIES=true \
           OTEL_RESOURCE_ATTRIBUTES="deployment.environment=${DEPLOYMENT_ENVIRONMENT},service.version=quickpizza-local" \
           ./bin/quickpizza > backend-ios.log 2>&1 &
           echo "$!" > backend-ios.pid
