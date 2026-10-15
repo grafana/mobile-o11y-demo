@@ -49,7 +49,8 @@ enum GrafanaOtelSetup {
   static func makePlan(
     configuration: GrafanaOtelConfiguration,
     baseResource: Resource,
-    environmentHeaders: [(String, String)]?
+    environmentHeaders: [(String, String)]?,
+    sessionSampler: any SessionSampler = AlwaysOnSessionSampler()
   ) -> GrafanaOtelPlan {
     GrafanaOtelPlan(
       resource: makeResource(configuration: configuration, baseResource: baseResource),
@@ -62,7 +63,8 @@ enum GrafanaOtelSetup {
       sessionConfig: SessionConfig(
         sessionTimeout: configuration.sessionInactivityTimeout,
         maxLifetime: configuration.sessionMaxLifetime,
-        restorePersistedSession: configuration.restorePersistedSession
+        restorePersistedSession: configuration.restorePersistedSession,
+        sampler: sessionSampler
       ),
       firstPartyHosts: Set(configuration.firstPartyHosts.map { $0.lowercased() })
     )

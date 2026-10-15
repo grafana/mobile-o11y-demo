@@ -21,10 +21,13 @@ import URLSessionInstrumentation
 /// request URL stays sanitised. Additional processors are additive rather than replacing the
 /// Grafana ones.
 public struct GrafanaOtelExperimentalOptions {
-  /// Extra span processors, appended after the Grafana session and export processors.
+  /// Makes one persisted decision per session, shared by trace and log integrations.
+  /// Defaults to recording every session. Metrics require recording-site filtering separately.
+  public var sessionSampler: any SessionSampler
+  /// Extra span processors, appended after the export processor. The sampler supplies attribution.
   public var additionalSpanProcessors: [SpanProcessor]
-  /// Extra log record processors. These sit behind the Grafana session processor, so they receive
-  /// records that already carry `session.id`.
+  /// Extra log record processors. These sit behind the session filter, including saved decisions
+  /// for historical records. Unknown historical decisions are preserved rather than resampled.
   public var additionalLogRecordProcessors: [LogRecordProcessor]
   /// Adjust the upstream `URLSession` instrumentation before it is installed.
   public var customizeURLSession: ((inout URLSessionInstrumentationConfiguration) -> Void)?
@@ -58,13 +61,15 @@ public struct GrafanaOtelExperimentalOptions {
     additionalLogRecordProcessors: [LogRecordProcessor] = [],
     customizeURLSession: ((inout URLSessionInstrumentationConfiguration) -> Void)? = nil,
     automaticRedirectProtection: Bool = false,
-    diagnosticsHandler: (@Sendable (String) -> Void)? = nil
+    diagnosticsHandler: (@Sendable (String) -> Void)? = nil,
+    sessionSampler: any SessionSampler = AlwaysOnSessionSampler()
   ) {
     self.additionalSpanProcessors = additionalSpanProcessors
     self.additionalLogRecordProcessors = additionalLogRecordProcessors
     self.customizeURLSession = customizeURLSession
     self.automaticRedirectProtection = automaticRedirectProtection
     self.diagnosticsHandler = diagnosticsHandler
+    self.sessionSampler = sessionSampler
   }
 }
 
@@ -149,10 +154,8 @@ public enum GrafanaOtel {
   /// The install order is load-bearing and is the main thing this package owns.
   ///
   /// 1. A diagnostics handler first, so problems in the remaining steps are observable.
-  /// 2. The session manager, because the session span and log processors resolve
-  ///    `SessionManagerProvider.getInstance()` in their initializers — and that call *lazily
-  ///    creates* a default 30-minute manager if nothing has registered one, which a later
-  ///    `register` does not repair.
+  /// 2. The session manager, passed explicitly to both signal pipelines and registered for
+  ///    application access and lifecycle instrumentation. Both signals use the same instance.
   /// 3. Everything that can fail: storage directories, exporters and both pipelines. None of the
   ///    remaining steps throw, so a failure here never leaves a globally registered provider
   ///    behind.
@@ -174,13 +177,13 @@ public enum GrafanaOtel {
     let plan = GrafanaOtelSetup.makePlan(
       configuration: configuration,
       baseResource: baseResource,
-      environmentHeaders: GrafanaOtelSetup.environmentHeaders()
+      environmentHeaders: GrafanaOtelSetup.environmentHeaders(),
+      sessionSampler: experimental.sessionSampler
     )
     let headers = plan.exportHeaders.map { ($0.name, $0.value) }
 
-    SessionManagerProvider.register(
-      sessionManager: SessionManager(configuration: plan.sessionConfig)
-    )
+    let sessionManager = SessionManager(configuration: plan.sessionConfig)
+    SessionManagerProvider.register(sessionManager: sessionManager)
 
     // Prepare both storage directories up front so a disk-buffering failure cannot happen between
     // the two pipelines and leave one of them registered.
@@ -192,14 +195,16 @@ public enum GrafanaOtel {
       headers: headers,
       tracesStorageURL: storage?.traces,
       diskBuffer: diskBuffer,
-      experimental: experimental
+      experimental: experimental,
+      sessionManager: sessionManager
     )
     let logRecordProcessor = try makeLogPipeline(
       plan: plan,
       headers: headers,
       logsStorageURL: storage?.logs,
       diskBuffer: diskBuffer,
-      experimental: experimental
+      experimental: experimental,
+      sessionManager: sessionManager
     )
     let loggerProvider = LoggerProviderBuilder()
       .with(resource: plan.resource)
@@ -313,9 +318,10 @@ public enum GrafanaOtel {
     headers: [(String, String)],
     tracesStorageURL: URL?,
     diskBuffer: GrafanaOtelDiskBuffer,
-    experimental: GrafanaOtelExperimentalOptions
+    experimental: GrafanaOtelExperimentalOptions,
+    sessionManager: SessionManager = SessionManagerProvider.getInstance()
   ) throws -> TracerProviderSdk {
-    var processors: [SpanProcessor] = [SessionSpanProcessor()]
+    var processors: [SpanProcessor] = []
 
     // With persistence the disk queue owns the retry, so the HTTP exporter must not also keep an
     // in-memory copy of a failed batch. Without persistence that copy is the only retry there is.
@@ -345,6 +351,7 @@ public enum GrafanaOtel {
 
     return TracerProviderBuilder()
       .with(resource: plan.resource)
+      .with(sampler: SessionTraceSampler(sessionManager: sessionManager))
       .add(spanProcessors: processors)
       .build()
   }
@@ -355,7 +362,8 @@ public enum GrafanaOtel {
     headers: [(String, String)],
     logsStorageURL: URL?,
     diskBuffer: GrafanaOtelDiskBuffer,
-    experimental: GrafanaOtelExperimentalOptions
+    experimental: GrafanaOtelExperimentalOptions,
+    sessionManager: SessionManager = SessionManagerProvider.getInstance()
   ) throws -> LogRecordProcessor {
     var downstream: [LogRecordProcessor] = []
 
@@ -385,10 +393,10 @@ public enum GrafanaOtel {
     )
     downstream.append(contentsOf: experimental.additionalLogRecordProcessors)
 
-    // One session processor in front of everything, so every downstream processor receives records
-    // that already carry `session.id` and `session.previous_id`.
-    return SessionLogRecordProcessor(
-      nextProcessor: MultiLogRecordProcessor(logRecordProcessors: downstream)
+    // Filter before every exporter and disk queue. Replay never consults the current session.
+    return SessionSamplingLogRecordProcessor(
+      nextProcessor: MultiLogRecordProcessor(logRecordProcessors: downstream),
+      sessionManager: sessionManager
     )
   }
 

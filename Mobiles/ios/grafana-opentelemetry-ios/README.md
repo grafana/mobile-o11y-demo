@@ -1,12 +1,17 @@
 # Grafana OpenTelemetry iOS
 
+**Local session-validation candidate:** this branch pins merged Swift #1218 at
+`ce0b249467c3d28f6340e6e26ff12ee20a8bfe8a`. It is not a released dependency or evidence
+that #99/#57 can close. See [the validation notes](../session-validation/README.md).
+The session-aligned runtime validation disables MetricKit; its default global providers cannot identify
+the original session of delayed diagnostics. The linked notes describe the supported boundary.
+
 This local Swift package is the Grafana OpenTelemetry iOS composition spike. It is not published
 and is not yet a supported SDK. QuickPizza consumes it as a local package reference while the
 separate repository and release setup are agreed.
 
 The package owns Grafana-oriented startup defaults and delegates all SDK behaviour to
-[`opentelemetry-swift`](https://github.com/open-telemetry/opentelemetry-swift) and
-[`opentelemetry-swift-core`](https://github.com/open-telemetry/opentelemetry-swift-core). It returns
+the consolidated [`opentelemetry-swift`](https://github.com/open-telemetry/opentelemetry-swift). It returns
 the upstream providers, so application instrumentation continues to use standard OpenTelemetry APIs.
 
 ## Requirements
@@ -14,19 +19,12 @@ the upstream providers, so application instrumentation continues to use standard
 This package supports **iOS only**, and imposes no requirement of its own beyond what upstream
 already requires, so adopting it never narrows what an iOS app could otherwise target.
 
-- **Platform** — iOS 13, the floor declared by `opentelemetry-swift`, the binding upstream
-  dependency. (`opentelemetry-swift-core` goes lower, to iOS 12, but the higher of the two binds.)
-- **Toolchain** — `swift-tools-version:6.0`, the same as both upstream packages, so the package
+- **Platform** — iOS 15, the floor declared by the pinned `opentelemetry-swift` revision.
+- **Toolchain** — `swift-tools-version:6.2`, the same as the pinned upstream package, so the package
   builds in **Swift 6 language mode** exactly as they do. That is stricter than a consumer still
   building in Swift 5 language mode, which is a property of the consumer, not of this package.
-- **Upstream versions** — `opentelemetry-swift` `2.6.0` and `opentelemetry-swift-core` `2.6.0`,
-  required as `.upToNextMinor(from:)`. That matches the operator the Frontend Observability app
-  page gives customers: upstream has shipped breaking work in *minor* releases — a session-recording
-  refactor, the `SessionConfig` API this package calls, and a Swift 6 toolchain requirement — while
-  patches have been bug fixes only. `2.6.0` is a floor rather than a preference: the package relies
-  on `OtlpHttpLogExporter.export` returning the upload result, which lets disk buffering keep a
-  failed log batch (see below), and on `SessionLogRecordProcessor` forwarding `forceFlush` and
-  `shutdown`.
+- **Upstream version** — the exact #1218 commit above, including consolidated API/SDK products.
+  Repeat release validation before replacing this pin with a published SDK version.
 
 **iOS is the supported platform.** macOS appears in `platforms` for one reason only: upstream's
 exporter, resource, session and instrumentation products all require macOS 12, so without it the
@@ -49,7 +47,7 @@ visionOS 1.0, *)` — an annotation the `!os(macOS)` term makes unreachable. So 
 an upstream scoping choice, not a platform limitation. watchOS needs no term because MetricKit is
 absent from that SDK entirely.
 
-Verified on Xcode 26.6 with Swift 6.3.3, on the macOS host and against an iOS 26.5 simulator.
+Current branch validation uses Xcode 27 and an iOS 27 simulator; see the linked notes for scope.
 
 ```swift
 let runtime = try GrafanaOtel.initialize(
@@ -121,10 +119,9 @@ The order in `GrafanaOtel.install` is load-bearing, and getting it wrong fails s
 loudly:
 
 1. The diagnostics handler, so problems in the later steps are observable at all.
-2. The session manager. `SessionSpanProcessor()` and `SessionLogRecordProcessor(nextProcessor:)`
-   resolve `SessionManagerProvider.getInstance()` in their initializers, and that call *lazily
-   creates* a default manager (30-minute timeout) if nothing has registered one. A later
-   `register` does not fix a processor that already captured the default.
+2. The session manager, passed explicitly to `SessionTraceSampler` and
+   `SessionSamplingLogRecordProcessor`. Do not also install `SessionSpanProcessor`: another lookup
+   could replace the sampled session snapshot across a reset.
 3. The tracer provider, before any instrumentation is constructed.
 4. The logger provider, before `SessionEventInstrumentation.install()`.
 5. The instrumentations last. `URLSessionInstrumentationConfiguration.init` and

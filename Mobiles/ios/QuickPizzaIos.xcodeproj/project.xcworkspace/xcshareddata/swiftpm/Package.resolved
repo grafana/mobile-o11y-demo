@@ -1,5 +1,5 @@
 {
-  "originHash" : "89342bb4ad2deab5aa73cc468d8f1315713b1a97266e8e8e88e1af7f78c19f57",
+  "originHash" : "999863c0b5fbe11a59c4efacd7d22f6612f2063bb289e2522318bc3dc17cdba5",
   "pins" : [
     {
       "identity" : "grpc-swift",
@@ -11,21 +11,20 @@
       }
     },
     {
-      "identity" : "opentelemetry-swift",
+      "identity" : "kscrash",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/open-telemetry/opentelemetry-swift.git",
+      "location" : "https://github.com/kstenerud/KSCrash.git",
       "state" : {
-        "revision" : "9f350e65e1ae4555da5a0c215b2f1883dbffd2ef",
+        "revision" : "3f77f379c2db001e0c261c2a51b7e2b115d31f91",
         "version" : "2.6.0"
       }
     },
     {
-      "identity" : "opentelemetry-swift-core",
+      "identity" : "opentelemetry-swift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/open-telemetry/opentelemetry-swift-core.git",
+      "location" : "https://github.com/open-telemetry/opentelemetry-swift",
       "state" : {
-        "revision" : "c6fcee77cfc21ba400366f12475217c7b6e1d605",
-        "version" : "2.6.0"
+        "revision" : "ce0b249467c3d28f6340e6e26ff12ee20a8bfe8a"
       }
     },
     {
@@ -105,8 +104,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-distributed-tracing.git",
       "state" : {
-        "revision" : "dc4030184203ffafbb2ec614352487235d747fe0",
-        "version" : "1.4.1"
+        "revision" : "3d6a296e8fc61f5c3a22ba23b6c786cefdb2ebb9",
+        "version" : "1.7.1"
       }
     },
     {
@@ -150,8 +149,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-nio.git",
       "state" : {
-        "revision" : "a931f2c1de8dd49381ce3bf2e279d033f68d8865",
-        "version" : "2.102.0"
+        "revision" : "6db9d9abd92ad7399b8a564cafbb87d3507245fa",
+        "version" : "2.104.0"
       }
     },
     {
@@ -206,15 +205,6 @@
       "state" : {
         "revision" : "55d7a1cc5666b85c13464aea1c4b4a90feccb4c8",
         "version" : "1.38.1"
-      }
-    },
-    {
-      "identity" : "swift-service-context",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-service-context.git",
-      "state" : {
-        "revision" : "d0997351b0c7779017f88e7a93bc30a1878d7f29",
-        "version" : "1.3.0"
       }
     },
     {
