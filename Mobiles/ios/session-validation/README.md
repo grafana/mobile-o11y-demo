@@ -121,8 +121,39 @@ are extension-safe.
 `concurrentWritersUnsupported` without mutating storage. Two live managers must never write the same
 suite/namespace. Read-only inspection or separate namespaces does not coordinate a shared session.
 
-The new namespace test uses two managers in one test process, verifies independent reset/restore chains
-and shared-writer rejection. It is **not** signed-extension or simultaneous cross-process evidence.
+The package namespace unit test uses two managers in one test process. The separate `app-group/`
+harness runs a UIKit host and a real share extension, using only the pinned upstream `Sessions` product.
+It requires `containerURL(forSecurityApplicationGroupIdentifier:)` to succeed in both processes; it
+does not substitute a temporary directory when App Group access fails.
+
+Each test has an isolated run ID, reused across three app launches and extension activations. Within
+that run, stable `app` and `extension` namespace suffixes keep the two session chains independent.
+The test coordinates overlapping reset loops, restores the saved decisions under the opposite sampler,
+then disables restoration to check cold-start linking and new decisions. JSON attachments capture the
+process IDs, shared container paths, session snapshots, sampler counts and overlapping time intervals.
+It also checks `.shared` rejection without modifying each namespace's stored record. This does not
+provide support or coordination for two writers sharing one session namespace.
+
+### App Group verification on October 16, 2026
+
+Environment: Xcode 27.0 (27A266a), iPhone 18 Pro Simulator, iOS 27.0 (24A434), arm64.
+
+- Debug and optimized Release each passed the end-to-end UI test: three host launches and three
+  actual share-extension activations. The captured process IDs were distinct across all six launches
+  in each configuration, and both roles reported the same App Group container.
+- Each role completed 50 resets in both the sampled and unsampled phases, with overlapping reset
+  loops. Restore retained the exact ID, previous link and sampled decision with zero sampler calls;
+  a subsequent non-restoring startup linked its own previous session and chose the unsampled decision.
+- A negative control temporarily used the same namespace for both roles. The test rejected the
+  resulting cross-linked chain. Separate namespaces were restored before the final Debug/Release runs.
+- The Release host and extension also compiled for `generic/platform=iOS` with signing disabled.
+  This is a device-target build only, not installation or physical-device execution.
+- Swift formatting and Ruby syntax checks passed. No SDK/package implementation changed in this step;
+  the October 15 package/telemetry suites were not rerun for this harness-only addition.
+
+Logs and exported JSON test attachments are in ignored `run-evidence-20261016-app-group/`.
+Simulator builds used local ad-hoc signing, not Apple-issued provisioning. Physical-device signing,
+App Group provisioning and runtime access remain unverified.
 
 ## MetricKit boundary
 
@@ -140,8 +171,9 @@ session sampling, and validate that route separately. Exact crash-session correl
 
 1. Run a **signed app plus actual extension** with provisioned App Group entitlements. Verify the intended
    suite is accessible in both processes, independent namespace chains survive alternating/overlapping
-   writes and relaunch, and shared-writer mode is rejected. This machine has **zero valid signing identities**;
-   simulator namespace tests do not satisfy this item.
+   writes and relaunch, and shared-writer mode is rejected. A development signing identity is now
+   available locally, but no physical device or matching local provisioning profiles were available
+   during the October 16 check. Simulator ad-hoc signing does not satisfy this device requirement.
 2. Review/adopt the narrow Grafana integration and its iOS 15 / Swift tools 6.2 boundary with the package
    owner. Keep package extraction/release (#150) separate; do not silently modify its PR.
 3. Reconcile #99, #57's gap matrix and the Mobile O11y guides with this evidence and the explicit MetricKit,
@@ -152,6 +184,46 @@ power-loss durability or released-package installation were tested here. #57 sti
 work; passing this candidate alone does not complete the cross-platform epic.
 
 ## Reproduction
+
+### App Group host and extension
+
+From `session-validation/app-group`, with Ruby plus `xcodeproj` 1.27.0 and a dedicated iOS simulator:
+
+```sh
+ruby create-project.rb
+xcodebuild -project Generated/Session99Groups.xcodeproj -scheme Session99Groups \
+  -configuration Debug -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
+  -derivedDataPath /tmp/session99-groups \
+  -resultBundlePath /tmp/session99-groups-debug.xcresult \
+  -disableAutomaticPackageResolution -onlyUsePackageVersionsFromResolvedFile \
+  -parallel-testing-enabled NO -collect-test-diagnostics never CODE_SIGN_IDENTITY=- test
+```
+
+Repeat with `Release` and a different result-bundle path. Do **not** set `CODE_SIGNING_ALLOWED=NO`
+for simulator execution: the App Group must be declared to the simulator. The generated project uses
+local ad-hoc signing, without an Apple account or provisioning request. The host/extension target iOS 15;
+the UI-test runner targets iOS 17 because of the current XCTest framework's minimum deployment target.
+The test does not export telemetry, submit forms or contact a collector. Use a disposable test simulator:
+each run leaves isolated test namespaces and evidence files in its test App Group container.
+
+For a later physical-device run, generate with the approved `SESSION99_BUNDLE_PREFIX` and
+`SESSION99_APP_GROUP`, then configure development signing for the app, share extension and test runner.
+The generator does not register those identifiers, create profiles or enable automatic provisioning.
+Both app and extension must be provisioned for the same App Group. See Apple's
+[App Groups setup](https://developer.apple.com/documentation/xcode/configuring-app-groups).
+Keep one test running at a time. A simulator pass is not proof of device provisioning or App Group access.
+
+Unsigned device-target compilation, without installing or contacting the provisioning service:
+
+```sh
+xcodebuild -project Generated/Session99Groups.xcodeproj -scheme Session99Groups \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /tmp/session99-groups \
+  -disableAutomaticPackageResolution -onlyUsePackageVersionsFromResolvedFile \
+  CODE_SIGNING_ALLOWED=NO build
+```
+
+### Package and telemetry integration
 
 From `Mobiles/ios/grafana-opentelemetry-ios`:
 
