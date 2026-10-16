@@ -146,7 +146,6 @@
 			packageReferences = (
 				62F0A1012F5A000100C0FFEE /* XCLocalSwiftPackageReference "grafana-opentelemetry-ios" */,
 				62EFEF422F36082D00E72D9F /* XCRemoteSwiftPackageReference "opentelemetry-swift" */,
-				62EFEF4C2F360BAE00E72D9F /* XCRemoteSwiftPackageReference "opentelemetry-swift-core" */,
 				62ECE0332F43D6AE00611CB0 /* XCRemoteSwiftPackageReference "SwiftiePod" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -438,16 +437,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/open-telemetry/opentelemetry-swift";
 			requirement = {
-				kind = upToNextMinorVersion;
-				minimumVersion = 2.6.0;
-			};
-		};
-		62EFEF4C2F360BAE00E72D9F /* XCRemoteSwiftPackageReference "opentelemetry-swift-core" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/open-telemetry/opentelemetry-swift-core.git";
-			requirement = {
-				kind = upToNextMinorVersion;
-				minimumVersion = 2.6.0;
+				kind = revision;
+				revision = ce0b249467c3d28f6340e6e26ff12ee20a8bfe8a;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -489,17 +480,17 @@
 		};
 		62EFEF4D2F360BAE00E72D9F /* OpenTelemetryApi */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 62EFEF4C2F360BAE00E72D9F /* XCRemoteSwiftPackageReference "opentelemetry-swift-core" */;
+			package = 62EFEF422F36082D00E72D9F /* XCRemoteSwiftPackageReference "opentelemetry-swift" */;
 			productName = OpenTelemetryApi;
 		};
 		62EFEF4F2F360BAE00E72D9F /* OpenTelemetrySdk */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 62EFEF4C2F360BAE00E72D9F /* XCRemoteSwiftPackageReference "opentelemetry-swift-core" */;
+			package = 62EFEF422F36082D00E72D9F /* XCRemoteSwiftPackageReference "opentelemetry-swift" */;
 			productName = OpenTelemetrySdk;
 		};
 		62EFEF512F360BAE00E72D9F /* StdoutExporter */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 62EFEF4C2F360BAE00E72D9F /* XCRemoteSwiftPackageReference "opentelemetry-swift-core" */;
+			package = 62EFEF422F36082D00E72D9F /* XCRemoteSwiftPackageReference "opentelemetry-swift" */;
 			productName = StdoutExporter;
 		};
 		62F0A1022F5A000100C0FFEE /* GrafanaOpenTelemetryIOS */ = {

@@ -1,0 +1,4 @@
+.build/
+run-*/
+Session99Probe.xcodeproj/
+app-group/Generated/

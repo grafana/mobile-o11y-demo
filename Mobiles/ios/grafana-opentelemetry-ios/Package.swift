@@ -1,4 +1,4 @@
-// swift-tools-version:6.0
+// swift-tools-version:6.2
 
 import PackageDescription
 
@@ -13,7 +13,7 @@ let package = Package(
   // upstream also supports tvOS, watchOS and visionOS, but this package is not built or tested for
   // them.
   platforms: [
-    .iOS(.v13),
+    .iOS(.v15),
     .macOS(.v12)
   ],
   products: [
@@ -23,29 +23,19 @@ let package = Package(
     )
   ],
   dependencies: [
-    // Pinned to the minor line, not the major, matching the operator the Frontend Observability
-    // app page hands to customers. Upstream has shipped breaking work in minor releases — a
-    // session-recording refactor, the `SessionConfig` API this package calls, and a Swift 6
-    // toolchain requirement — while patches have been bug fixes only.
-    //
-    // `2.6.0` is a floor rather than a preference: the package relies on
-    // `OtlpHttpLogExporter.export` returning the upload result, so disk buffering keeps a failed
-    // log batch, and on `SessionLogRecordProcessor` forwarding `forceFlush` and `shutdown`.
+    // Local #99 validation pin: merged #1218, not a released SDK dependency.
+    // Core products now live in the consolidated Swift repository.
     .package(
       url: "https://github.com/open-telemetry/opentelemetry-swift.git",
-      .upToNextMinor(from: "2.6.0")
-    ),
-    .package(
-      url: "https://github.com/open-telemetry/opentelemetry-swift-core.git",
-      .upToNextMinor(from: "2.6.0")
+      revision: "ce0b249467c3d28f6340e6e26ff12ee20a8bfe8a"
     )
   ],
   targets: [
     .target(
       name: "GrafanaOpenTelemetryIOS",
       dependencies: [
-        .product(name: "OpenTelemetryApi", package: "opentelemetry-swift-core"),
-        .product(name: "OpenTelemetrySdk", package: "opentelemetry-swift-core"),
+        .product(name: "OpenTelemetryApi", package: "opentelemetry-swift"),
+        .product(name: "OpenTelemetrySdk", package: "opentelemetry-swift"),
         .product(name: "OpenTelemetryProtocolExporterHTTP", package: "opentelemetry-swift"),
         .product(name: "PersistenceExporter", package: "opentelemetry-swift"),
         .product(name: "ResourceExtension", package: "opentelemetry-swift"),
@@ -58,7 +48,7 @@ let package = Package(
       name: "GrafanaOpenTelemetryIOSTests",
       dependencies: [
         "GrafanaOpenTelemetryIOS",
-        .product(name: "OpenTelemetrySdk", package: "opentelemetry-swift-core"),
+        .product(name: "OpenTelemetrySdk", package: "opentelemetry-swift"),
         // The disk-buffering behaviour this package works around is only observable against the
         // real persistence exporters, so they are exercised over a temporary directory.
         .product(name: "PersistenceExporter", package: "opentelemetry-swift"),

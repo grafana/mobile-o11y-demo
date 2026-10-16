@@ -35,7 +35,7 @@ public enum GrafanaOtelDiskBuffering: Sendable, Equatable {
 
   /// Application Support is not guaranteed to resolve, so this falls back to the temporary
   /// directory rather than making buffering unavailable. `appendingPathComponent` is used instead
-  /// of the iOS 16 `appending(path:)` because this package supports iOS 13.
+  /// of the iOS 16 `appending(path:)` because this candidate still supports iOS 15.
   static let defaultStorageURL: URL = {
     let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
       ?? FileManager.default.temporaryDirectory
