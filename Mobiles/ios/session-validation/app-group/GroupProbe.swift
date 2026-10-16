@@ -69,8 +69,8 @@ final class GroupProbe {
     try JSONDecoder().decode(type, from: Data(contentsOf: directory.appendingPathComponent(name)))
   }
 
-  func awaitFile(_ name: String) throws {
-    let deadline = ProcessInfo.processInfo.systemUptime + 20
+  func awaitFile(_ name: String, timeout: TimeInterval = 20) throws {
+    let deadline = ProcessInfo.processInfo.systemUptime + timeout
     while !FileManager.default.fileExists(atPath: directory.appendingPathComponent(name).path) {
       guard ProcessInfo.processInfo.systemUptime < deadline else { throw ProbeFailure.timeout }
       Thread.sleep(forTimeInterval: 0.02)
@@ -84,7 +84,8 @@ final class GroupProbe {
       try write(request.run, name: "extension-ready.json")
       try awaitFile("start.json")
     } else {
-      try awaitFile("extension-ready.json")
+      // Allow bounded share-sheet discovery/reopening after a fresh installation.
+      try awaitFile("extension-ready.json", timeout: 90)
       guard try read(String.self, name: "extension-ready.json") == request.run else { throw ProbeFailure.badHandshake }
       try write(ProcessInfo.processInfo.systemUptime + 0.3, name: "start.json")
     }

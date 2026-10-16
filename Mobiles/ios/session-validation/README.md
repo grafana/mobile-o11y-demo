@@ -134,7 +134,7 @@ process IDs, shared container paths, session snapshots, sampler counts and overl
 It also checks `.shared` rejection without modifying each namespace's stored record. This does not
 provide support or coordination for two writers sharing one session namespace.
 
-### App Group verification on October 16, 2026
+### Original App Group simulator verification on October 16, 2026
 
 Environment: Xcode 27.0 (27A266a), iPhone 18 Pro Simulator, iOS 27.0 (24A434), arm64.
 
@@ -152,8 +152,54 @@ Environment: Xcode 27.0 (27A266a), iPhone 18 Pro Simulator, iOS 27.0 (24A434), a
   the October 15 package/telemetry suites were not rerun for this harness-only addition.
 
 Logs and exported JSON test attachments are in ignored `run-evidence-20261016-app-group/`.
-Simulator builds used local ad-hoc signing, not Apple-issued provisioning. Physical-device signing,
-App Group provisioning and runtime access remain unverified.
+Simulator builds used local ad-hoc signing, not Apple-issued provisioning. The independent device
+verification below covers development signing and provisioned App Group access.
+
+### Ben's independent verification on October 16, 2026
+
+[Ben's results](https://github.com/grafana/mobile-o11y-demo/pull/135#issuecomment-6219021189)
+are for commit `8fada4bc33fe1514aef70979589c33130ac21eae`, before the share-sheet discovery fixes.
+Environment: Xcode 27.1 (27A9275), iOS 27.0 simulator (24A434), and a physical iPhone 16 Pro / iOS 27.0.1.
+
+- The signed host and actual share extension passed in **Debug and Release on the iPhone**. Both used
+  Apple Development signing for Raintank and the same provisioned App Group, `group.com.grafana.session99groups`.
+- Each configuration used six distinct processes: three host and three extension launches. Both roles
+  accessed the same shared container and completed 50 overlapping resets in the sampled/unsampled phases.
+  Restore retained the ID, previous link and decision without sampling again; cold start linked the
+  previous session and chose `notSampled`. Shared-writer mode was rejected on every launch.
+- He also reported 104 macOS and 104 simulator package tests, ten focused TSan tests, matching README
+  coverage, Debug/Release simulator App Group tests, and unsigned device-target compilation passing.
+- The UIKit probe passed eight launches per configuration on the simulator, and the macOS subset passed
+  six. His local backend verifier found 37 logs/events, 25 spans and seven sessions; all eight negative
+  mutations were rejected.
+
+The first device attempt failed during share-sheet discovery after installation. A retry without
+reinstallation passed; Ben also added the extension to Favorites. His results do **not** validate the
+later retry/scroll fix or discovery without Favorites on a phone.
+
+**Separate backend evidence:** Ben used an October 7 Faro checkout and Alloy 1.17.0, not the original
+`ae334608c7c5352006626c4ac746cb5b9a937269` fixture with Alloy 1.16.1. His GitHub report does not include
+the collector commit hash. The verifier was unchanged, with local Loki/Tempo ports forwarded to
+13100/13200. Do not combine these into one backend/version claim. Neither run used hosted ingestion.
+
+### Discovery follow-up verification on October 16, 2026
+
+Environment: Xcode 27.0 (27A266a), iPhone 18 Pro Simulator / iOS 27.0 (24A434), arm64.
+
+- Both UI tests passed in Debug and optimized Release, without whole-test retries. Release started
+  from a fresh installation of the test app. The regression forces the first discovery attempt to
+  reopen and uses an overflowing share row and the full Apps list, without changing Favorites.
+- Each configuration produced 12 distinct host/extension PIDs across the two tests. Reopening retained
+  one host manager: fresh starts still had no previous ID, reset phases sampled 51 times per role,
+  and restores retained the saved snapshot with zero sampler calls. All shared-writer checks passed.
+- All 104 macOS package tests passed again. The unsigned generic iOS Release build and Xcode Analyze
+  completed, and Swift formatting, Ruby syntax and whitespace checks passed.
+- No package implementation or dependency changed. The full simulator package suite, TSan and backend
+  telemetry probe were not rerun for this harness-only fix; their earlier evidence remains dated above.
+  There was no local physical device available to repeat Ben's signed-device test on this revision.
+
+Commands follow the reproduction section below, with `build analyze` for the unsigned device target.
+Logs and exported JSON attachments are retained in ignored `run-evidence-20261016-share-discovery/`.
 
 ## MetricKit boundary
 
@@ -169,19 +215,18 @@ session sampling, and validate that route separately. Exact crash-session correl
 
 ## Remaining before closing #99
 
-1. Run a **signed app plus actual extension** with provisioned App Group entitlements. Verify the intended
-   suite is accessible in both processes, independent namespace chains survive alternating/overlapping
-   writes and relaunch, and shared-writer mode is rejected. A development signing identity is now
-   available locally, but no physical device or matching local provisioning profiles were available
-   during the October 16 check. Simulator ad-hoc signing does not satisfy this device requirement.
-2. Review/adopt the narrow Grafana integration and its iOS 15 / Swift tools 6.2 boundary with the package
+The signed App Group requirement has device evidence from Ben at `8fada4bc`, as recorded above.
+
+1. Review/adopt the narrow Grafana integration and its iOS 15 / Swift tools 6.2 boundary with the package
    owner. Keep package extraction/release (#150) separate; do not silently modify its PR.
-3. Reconcile #99, #57's gap matrix and the Mobile O11y guides with this evidence and the explicit MetricKit,
+2. Reconcile #99, #57's gap matrix and the Mobile O11y guides with this evidence and the explicit MetricKit,
    metric and extension limitations. Shared issues/docs have **not** been changed in this task.
 
-No physical devices, minimum-iOS runtime, full 15-minute/four-hour waits, hosted ingestion, product UI,
-power-loss durability or released-package installation were tested here. #57 still has separate Android
-work; passing this candidate alone does not complete the cross-platform epic.
+The full telemetry probe still has no physical-device run: `run.mjs` uses `simctl` and loopback services.
+Minimum-iOS runtime, full 15-minute/four-hour waits, MetricKit attribution, hosted ingestion, product UI,
+power-loss durability and released-package installation remain unverified. The updated discovery path
+also needs a phone rerun without Favorites; Ben's previous pass is not evidence for that change.
+#57 still has separate Android work; passing this candidate alone does not complete the cross-platform epic.
 
 ## Reproduction
 
@@ -206,12 +251,56 @@ the UI-test runner targets iOS 17 because of the current XCTest framework's mini
 The test does not export telemetry, submit forms or contact a collector. Use a disposable test simulator:
 each run leaves isolated test namespaces and evidence files in its test App Group container.
 
-For a later physical-device run, generate with the approved `SESSION99_BUNDLE_PREFIX` and
-`SESSION99_APP_GROUP`, then configure development signing for the app, share extension and test runner.
-The generator does not register those identifiers, create profiles or enable automatic provisioning.
-Both app and extension must be provisioned for the same App Group. See Apple's
-[App Groups setup](https://developer.apple.com/documentation/xcode/configuring-app-groups).
-Keep one test running at a time. A simulator pass is not proof of device provisioning or App Group access.
+The UI test retries discovery for up to three sheet presentations within a 45-second discovery budget.
+It scrolls the app row to reveal an off-screen extension or More cell and reopens the sheet if necessary.
+Reopening reuses the request and host manager; it does not restart the session assertions. The host allows
+90 seconds for the extension-ready handshake, while subsequent handshakes retain the 20-second timeout.
+Discovery failures retain a screenshot and accessibility hierarchy. Use English system labels for this
+UI harness. Do not use blanket test retries to hide a session or entitlement assertion failure.
+
+The second UI test deliberately fills the real share row, asserts More is off-screen, and ignores the
+first match to exercise the discovery retry. It closes the Apps list and sheet, reopens them, and selects
+the extension through More. The same reset/restore/cold-start assertions detect an accidental extra
+session manager or sampling call during reopening; OS registration delay itself is not simulated.
+
+#### Physical-device signing and App Group provisioning
+
+1. Use approved, unique test identifiers. From `app-group`, generate the project with
+   `SESSION99_BUNDLE_PREFIX=<approved-bundle-id> SESSION99_APP_GROUP=<approved-group-id> ruby create-project.rb`.
+   Configure signing **after** generation: rerunning the generator overwrites the generated project.
+2. In the Apple Developer portal, select the Raintank team and register or locate the approved App Group
+   under **Certificates, Identifiers & Profiles > Identifiers > App Groups**. Its identifier must exactly
+   match `SESSION99_APP_GROUP`. Ask a team admin if your role cannot register it. See Apple's
+   [registration steps](https://developer.apple.com/help/account/identifiers/register-an-app-group/).
+3. Register or locate both App IDs: `<approved-bundle-id>` (host) and
+   `<approved-bundle-id>.Session99Share` (extension). Enable App Groups and assign the same group to both.
+   Merely enabling the capability is not enough if the selected groups list is empty.
+4. Open `Generated/Session99Groups.xcodeproj` in Xcode. Under **Signing & Capabilities**, select the team
+   and development signing for the host, extension and UI-test runner. For **both host and extension**,
+   add App Groups if needed and check the approved group. Confirm it is selected for Debug and Release.
+   See Apple's [Xcode setup](https://developer.apple.com/documentation/xcode/configuring-app-groups).
+5. Connect, trust and unlock the test device, enable Developer Mode if prompted, and select it in Xcode.
+   Let Xcode refresh development profiles after assigning the group. Resolve signing errors before
+   testing; both profiles and signed entitlements must include the same App Group. The runner needs
+   development signing, but it does not need the App Group capability.
+
+The generator does not register identifiers or provision profiles. `xcodebuild -allowProvisioningUpdates`
+is not a substitute for assigning the App Group: Ben found that it registered App IDs with the capability
+but left their group selections empty. After completing setup, run:
+
+```sh
+xcodebuild -project Generated/Session99Groups.xcodeproj -scheme Session99Groups \
+  -configuration Debug -destination "platform=iOS,id=$DEVICE_ID" \
+  -resultBundlePath /tmp/session99-groups-device-debug.xcresult \
+  -disableAutomaticPackageResolution -onlyUsePackageVersionsFromResolvedFile \
+  -parallel-testing-enabled NO -collect-test-diagnostics never \
+  CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM="$TEAM_ID" test
+```
+
+Repeat with `Release` and a new result-bundle path. Keep one test running at a time. Record the tested
+commit, device/OS, signing identities, matching entitlements and JSON result attachments. For discovery
+validation, leave the extension out of Favorites and use a fresh installation of this disposable test app.
+A simulator pass is not proof of device provisioning or App Group access.
 
 Unsigned device-target compilation, without installing or contacting the provisioning service:
 
