@@ -95,6 +95,7 @@ Comprehensive observability built-in:
 - `QUICKPIZZA_ENABLE_ALL_SERVICES` - Enable all services (default: true)
 - `QUICKPIZZA_LOG_LEVEL` - Set logging level (default: info)
 - `QUICKPIZZA_OTLP_ENDPOINT` - OpenTelemetry collector endpoint
+- `QUICKPIZZA_OTEL_RECORD_BODIES` - Adds redacted HTTP request/response bodies to server spans as `http.request.body` / `http.response.body` events (default: off)
 - `QUICKPIZZA_PYROSCOPE_ENDPOINT` - Pyroscope server for profiling
 - `QUICKPIZZA_DB` - Database connection string
 
