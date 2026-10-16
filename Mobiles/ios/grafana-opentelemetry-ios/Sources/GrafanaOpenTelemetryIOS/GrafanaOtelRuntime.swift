@@ -33,8 +33,8 @@ public final class GrafanaOtelRuntime: @unchecked Sendable {
   /// Install on a `URLSession`, or pass per task, to stop trace context following a redirect off
   /// the configured first-party hosts.
   ///
-  /// Needed only where the package cannot supply that delegate itself — a session of your own that
-  /// already has a delegate, or iOS 13 and 14. For delegate-less sessions, prefer
+  /// Needed where the package cannot supply that delegate itself — for example, a session of your
+  /// own that already has a delegate. For delegate-less sessions, prefer
   /// ``GrafanaOtelExperimentalOptions/automaticRedirectProtection``, which needs nothing installed.
   ///
   /// See ``GrafanaOtelRedirectGuard`` for placement, and for why it also ends up owning span

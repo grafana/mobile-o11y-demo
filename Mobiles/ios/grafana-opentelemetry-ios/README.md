@@ -16,8 +16,9 @@ the upstream providers, so application instrumentation continues to use standard
 
 ## Requirements
 
-This package supports **iOS only**, and imposes no requirement of its own beyond what upstream
-already requires, so adopting it never narrows what an iOS app could otherwise target.
+This package supports **iOS only** and matches the requirements of the pinned upstream revision.
+This validation candidate raises the earlier spike's iOS 13 / Swift tools 6.0 minimums; it does not
+change the separately extracted package.
 
 - **Platform** — iOS 15, the floor declared by the pinned `opentelemetry-swift` revision.
 - **Toolchain** — `swift-tools-version:6.2`, the same as the pinned upstream package, so the package
@@ -111,7 +112,7 @@ own its `URLSession`s: `redirectGuard`.
 
 No `MeterProvider` is registered. Faro OTLP ingest currently accepts logs and traces only, so
 metrics are left off rather than exported to a route that rejects them. This is an ingest
-constraint, not a Swift SDK limitation: `opentelemetry-swift-core` `2.6.0` does ship a metrics SDK.
+constraint, not a Swift SDK limitation: the pinned `opentelemetry-swift` includes the metrics SDK.
 
 ### Install order
 
@@ -278,13 +279,13 @@ redirects keeps ownership, and a rename is reported through `diagnosticsHandler`
 demo uses this.
 
 **`GrafanaOtelRuntime.redirectGuard` is the delegate to install when the flag cannot reach you** —
-a session of your own with a delegate, or iOS 13 and 14. As a session delegate:
+for example, a session of your own with a delegate. As a session delegate:
 
 ```swift
 URLSession(configuration: .default, delegate: runtime.redirectGuard, delegateQueue: nil)
 ```
 
-or per task, on iOS 15 and later, where `URLSessionTask.delegate` exists:
+or per task using `URLSessionTask.delegate`, available throughout this candidate's iOS 15+ range:
 
 ```swift
 let (data, response) = try await URLSession.shared.data(
@@ -305,13 +306,12 @@ context and the trace stays connected.
 | Delegate-less sessions | covered | covered |
 | Sessions with a delegate of your own | not covered | covered |
 | iOS 15 and later | covered | covered, per task or per session |
-| iOS 13 and 14 | not covered — upstream installs no delegate there | covered as a *session* delegate only; `URLSessionTask.delegate` is iOS 15+ |
 | Survives an upstream rename of internal classes | no; reported through `diagnosticsHandler` | yes |
 | Needs app code | one line at startup | a delegate on each session |
 
 ## Known limitations
 
-These are properties of the pinned upstream release, not of this package's configuration:
+These are properties of the pinned upstream revision, not of this package's configuration:
 
 - **No lifecycle or screen-view instrumentation.** Nothing upstream emits app-start, foreground,
   background, `screen.view` or jank signals, so they stay app-owned and hand-written.

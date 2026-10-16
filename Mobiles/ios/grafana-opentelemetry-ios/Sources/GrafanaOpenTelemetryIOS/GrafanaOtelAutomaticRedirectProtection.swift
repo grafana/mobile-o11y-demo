@@ -17,7 +17,6 @@ import ObjectiveC
 ///
 /// - Tasks or sessions with a delegate of the application's own — upstream installs nothing there,
 ///   so there is no class of ours in the chain. Those need ``GrafanaOtelRuntime/redirectGuard``.
-/// - iOS 13 and 14, where upstream assigns no delegate at all.
 /// - A future upstream release that renames or removes these classes. The lookup then finds
 ///   nothing and reports it through the diagnostics handler rather than failing silently.
 enum GrafanaOtelAutomaticRedirectProtection {

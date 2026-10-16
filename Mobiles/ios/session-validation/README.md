@@ -201,6 +201,30 @@ Environment: Xcode 27.0 (27A266a), iPhone 18 Pro Simulator / iOS 27.0 (24A434), 
 Commands follow the reproduction section below, with `build analyze` for the unsigned device target.
 Logs and exported JSON attachments are retained in ignored `run-evidence-20261016-share-discovery/`.
 
+### Compatibility follow-up verification on October 16, 2026
+
+The probe manifest now declares Swift tools 6.2, matching its dependency. The package README and
+source comments no longer describe iOS 13/14 support for this candidate. No session implementation,
+project-generator logic or process-termination logic changed.
+
+- Regenerated the Xcode probe with `xcodeproj` 1.27.0. Debug and Release built with fresh DerivedData
+  on Xcode 27.0; the local package product resolved without an explicit product-level package reference.
+- The iPhone 18 Pro Simulator / iOS 27.0 probe passed eight launches in each configuration. Each run
+  captured 25 logs/events and 25 spans at local Alloy, including offline SIGKILL/replay and no duplicate replay.
+- Before each SIGKILL, host `ps` and simulator `launchctl` identified the same running probe PID.
+  The existing host kill command terminated that simulator process; it is not a separate guest PID.
+- The macOS probe built with the updated manifest and passed its six-launch subset. All 104 macOS
+  package tests passed with coverage enabled. Ruby/Node syntax and whitespace checks passed.
+- SwiftFormat reported the same 44 pre-existing findings in the four comment-only Swift files;
+  no formatting findings were added. No unrelated reformatting was applied.
+
+These runs used Swift 6.4, Node 24 and the existing local Alloy 1.16.1, not the minimum Swift 6.2 compiler.
+They did not rerun the App Group UI tests, physical device, TSan, iOS package suite or Faro/backend checks.
+Evidence: `run-92e1cea1-038d-47fe-bdd7-033d415ad176/` (Debug),
+`run-d8abe2eb-ab69-4e2b-884a-be8049f24b9a/` (Release),
+`run-fb0cf651-2b45-4dba-a33e-52ba4cdbd4d4/` (macOS), and
+`run-evidence-20261016-compatibility/` (build/test logs and the PID observer).
+
 ## MetricKit boundary
 
 The runtime probe explicitly sets `instrumentation: .init(metricKitDiagnostics: false)`.
