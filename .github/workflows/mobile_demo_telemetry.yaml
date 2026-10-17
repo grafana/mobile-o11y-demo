@@ -96,6 +96,7 @@ jobs:
       id-token: write
       contents: read
     env:
+      FARO_REPLAY_DIR: ${{ github.workspace }}/.ci/faro-android-replay
       RUN_HANDLED_EXCEPTION_DIAGNOSTICS: ${{ needs.resolve-diagnostics-cadence.outputs.run_handled_exception }}
       RUN_CRASH_DIAGNOSTICS: ${{ needs.resolve-diagnostics-cadence.outputs.run_crash }}
 
@@ -110,6 +111,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          persist-credentials: false
+
+      - name: Get read-only replay checkout token
+        id: replay-token
+        uses: grafana/shared-workflows/actions/create-github-app-token@5bbb526b1728ca57fbe1750c4c27ab6ab06171c2 # create-github-app-token/v1.0.0
+        with:
+          github_app: app-o11y-kwl-ci
+          permission_set: replay-read
+
+      - name: Checkout replay library
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: grafana/hackathon-18-faro-android-replay
+          ref: f657f93c56ef95a6c553b1b915f6c31d967380fa
+          token: ${{ steps.replay-token.outputs.token }}
+          path: .ci/faro-android-replay
           persist-credentials: false
 
       - name: Start dual-stack forwarding

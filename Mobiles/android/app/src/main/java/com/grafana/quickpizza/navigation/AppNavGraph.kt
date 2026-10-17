@@ -1,6 +1,11 @@
 package com.grafana.quickpizza.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -9,6 +14,7 @@ import com.grafana.quickpizza.features.about.AboutScreen
 import com.grafana.quickpizza.features.auth.presentation.LoginScreen
 import com.grafana.quickpizza.features.debug.ConfigScreen
 import com.grafana.quickpizza.features.debug.DebugScreen
+import com.grafana.quickpizza.features.debug.ReplayJourney
 import com.grafana.quickpizza.features.pizza.presentation.HomeScreen
 import com.grafana.quickpizza.features.profile.presentation.ProfileScreen
 
@@ -26,7 +32,16 @@ fun AppNavGraph(
     navController: NavHostController,
     modifier: Modifier = Modifier,
 ) {
-    NavHost(navController = navController, startDestination = Screen.Home.route, modifier = modifier) {
+    // Crossfading two screens is unsafe for a screenshot allow-list. Only the opt-in replay
+    // journey disables it; normal navigation keeps the pinned NavHost defaults.
+    val replayEnabled = ReplayJourney.recorder != null
+    NavHost(
+        navController = navController, startDestination = Screen.Home.route, modifier = modifier,
+        enterTransition = { if (replayEnabled) EnterTransition.None else fadeIn(tween(700)) },
+        exitTransition = { if (replayEnabled) ExitTransition.None else fadeOut(tween(700)) },
+        popEnterTransition = { if (replayEnabled) EnterTransition.None else fadeIn(tween(700)) },
+        popExitTransition = { if (replayEnabled) ExitTransition.None else fadeOut(tween(700)) },
+    ) {
         composable(Screen.Home.route) {
             HomeScreen(
                 onNavigateToLogin = { navController.navigate(Screen.Login.route) },

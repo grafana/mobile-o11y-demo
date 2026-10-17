@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.grafana.quickpizza.features.debug.replayInput
 import com.grafana.quickpizza.features.pizza.models.Restrictions
 import com.grafana.quickpizza.ui.theme.OrangeAccent
 
@@ -52,6 +53,7 @@ fun CustomizeSection(
     onCustomNameChange: (String) -> Unit,
     onToolToggle: (String) -> Unit,
     modifier: Modifier = Modifier,
+    onExpandedChange: () -> Unit = {},
 ) {
     var isExpanded by remember { mutableStateOf(false) }
 
@@ -64,7 +66,7 @@ fun CustomizeSection(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { isExpanded = !isExpanded }
+                    .clickable { isExpanded = !isExpanded; onExpandedChange() }
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -114,7 +116,7 @@ fun CustomizeSection(
                             label = { Text("Max Calories") },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).replayInput(),
                         )
                         OutlinedTextField(
                             value = restrictions.minNumberOfToppings.toString(),
@@ -122,7 +124,7 @@ fun CustomizeSection(
                             label = { Text("Min Toppings") },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).replayInput(),
                         )
                         OutlinedTextField(
                             value = restrictions.maxNumberOfToppings.toString(),
@@ -130,7 +132,7 @@ fun CustomizeSection(
                             label = { Text("Max Toppings") },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).replayInput(),
                         )
                     }
 
@@ -170,7 +172,7 @@ fun CustomizeSection(
                         onValueChange = onCustomNameChange,
                         label = { Text("Custom name (optional)") },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().replayInput(),
                     )
 
                     // Excluded tools
