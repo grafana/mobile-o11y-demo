@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import io.opentelemetry.api.common.AttributeKey
 import io.opentelemetry.api.common.Attributes
 import io.opentelemetry.api.logs.Severity
@@ -115,6 +116,7 @@ object NativeExitCrashReporter {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
     private fun emitNativeCrash(
         loggerProvider: SdkLoggerProvider,
         tracerProvider: SdkTracerProvider?,
@@ -177,6 +179,7 @@ object NativeExitCrashReporter {
         return exit.ifEmpty { cached }
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
     private fun buildFallbackCrashMessage(exitInfo: ApplicationExitInfo): String {
         val status = exitInfo.status
         return "CRASH_NATIVE: Application crash (Native), status: $status"

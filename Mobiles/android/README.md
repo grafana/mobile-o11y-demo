@@ -22,6 +22,33 @@ platform emits, dashboards) see
 
 ---
 
+## Replay library checkout
+
+This branch installs the Android replay library through a Gradle composite build.
+The library is still in the private
+[`grafana/hackathon-18-faro-android-replay`](https://github.com/grafana/hackathon-18-faro-android-replay)
+repository, so repository access and a local checkout are required for Gradle sync
+and builds. Use the revision pinned by this branch's
+[Android build workflow](../../.github/workflows/mobile_demo_telemetry_build.yaml)
+so the app and library interfaces match.
+
+```bash
+# From the mobile-o11y-demo repository root; clone the sibling checkout once.
+git clone git@github.com:grafana/hackathon-18-faro-android-replay.git \
+  ../hackathon-18-faro-android-replay
+export FARO_REPLAY_DIR="$(cd ../hackathon-18-faro-android-replay && pwd)"
+replay_ref="$(awk '/repository: grafana\/hackathon-18-faro-android-replay/ { getline; if ($1 == "ref:") print $2 }' .github/workflows/mobile_demo_telemetry_build.yaml)"
+git -C "$FARO_REPLAY_DIR" checkout "$replay_ref"
+```
+
+Keep `FARO_REPLAY_DIR` set when running the commands below. Alternatively, pass
+`-PfaroReplayDir=/absolute/path/to/hackathon-18-faro-android-replay` to Gradle.
+For Android Studio, add `faroReplayDir=/absolute/path/to/the/checkout` to your local
+`~/.gradle/gradle.properties` before syncing; do not commit your machine's path.
+During stacked development, use the matching replay integration revision if it
+has not yet replaced the workflow pin. The library's Compose layout support is
+version-specific; this app uses its tested Compose 1.7.6 dependency graph.
+
 ## Quickstart
 
 ```bash
