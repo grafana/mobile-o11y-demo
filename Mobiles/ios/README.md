@@ -40,10 +40,12 @@ cd mobile-o11y-demo
 ### Step 2 — Start the QuickPizza backend
 
 ```bash
+# From the repo root
+docker build -t quickpizza-mobile-local:development .
 docker run --rm -d \
   --name quickpizza \
   -p 3333:3333 \
-  ghcr.io/grafana/quickpizza-mobile-local:latest
+  quickpizza-mobile-local:development
 ```
 
 Verify it's up:

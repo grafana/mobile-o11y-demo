@@ -35,21 +35,22 @@ You should see ✓ for Xcode.
 
 ## Open iOS Simulator
 
-**Option 1: Using Command Line**
+Xcode 27 replaces `Simulator.app` with **DeviceHub** (`Xcode.app/Contents/Applications/DeviceHub.app`), so `open -a Simulator` no longer works there. The helper below opens whichever one the selected Xcode ships.
+
+**Option 1: Using Command Line** (from the repository root)
 ```bash
-open -a Simulator
+Mobiles/scripts/open-simulator.sh
 ```
 
 **Option 2: Using Xcode**
 - Open Xcode
-- Go to **Xcode > Open Developer Tool > Simulator**
+- Go to **Xcode > Open Developer Tool > Simulator** (DeviceHub on Xcode 27)
 
 **Option 3: Boot Specific Simulator**
 ```bash
 xcrun simctl list devices available
 # Replace the placeholder with a simulator UDID from the list.
-xcrun simctl boot "<simulator-udid>"
-open -a Simulator
+Mobiles/scripts/open-simulator.sh "<simulator-udid>"
 ```
 
 ---

@@ -181,7 +181,8 @@ After fixing storage:
 cd Mobiles/react-native
 
 # Make sure backend is running
-docker run --rm -d -p 3333:3333 ghcr.io/grafana/quickpizza-mobile-local:latest
+# Build once from the repo root: docker build -t quickpizza-mobile-local:development .
+docker run --rm -d -p 3333:3333 quickpizza-mobile-local:development
 
 # Start Metro
 yarn start

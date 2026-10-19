@@ -33,9 +33,10 @@ cp config.json.example \
    app/src/main/res/raw/config.json
 # edit OTLP_ENDPOINT, OTLP_INSTANCE_ID, OTLP_API_KEY, BASE_URL
 
-# 2. Start the QuickPizza backend
+# 2. Build and start the QuickPizza backend (from the repo root)
+(cd ../.. && docker build -t quickpizza-mobile-local:development .)
 docker run --rm -d --name quickpizza -p 3333:3333 \
-  ghcr.io/grafana/quickpizza-mobile-local:latest
+  quickpizza-mobile-local:development
 
 # 3. Build and install on a running emulator
 ./gradlew installDebug
