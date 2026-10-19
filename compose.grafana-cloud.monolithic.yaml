@@ -21,6 +21,8 @@ services:
       # must be set with an .env file
       GRAFANA_CLOUD_TOKEN: "${GRAFANA_CLOUD_TOKEN}"
       GRAFANA_CLOUD_STACK: "${GRAFANA_CLOUD_STACK}"
+      # Optional: override the OTLP gateway URL derived from the stack region.
+      GRAFANA_CLOUD_OTLP_ENDPOINT: "${GRAFANA_CLOUD_OTLP_ENDPOINT:-}"
       DEPLOYMENT_ENVIRONMENT: ${DEPLOYMENT_ENVIRONMENT:-development}
       # Use empty string to disable.
       DB_O11Y_CONNECTION: "${DB_O11Y_CONNECTION-postgres://db-o11y:db-o11y-password@quickpizza-db:5432/quickpizza_db?sslmode=disable}"
