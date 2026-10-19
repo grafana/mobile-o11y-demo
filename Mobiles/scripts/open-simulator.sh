@@ -13,6 +13,11 @@ set -euo pipefail
 UDID="${1:-}"
 
 if [[ -n "$UDID" ]]; then
+    if ! xcrun simctl list devices | grep -q "($UDID)"; then
+        echo "Unknown simulator UDID: $UDID (see: xcrun simctl list devices available)" >&2
+        exit 1
+    fi
+    # Booting an already-booted device fails; that's fine.
     xcrun simctl boot "$UDID" 2>/dev/null || true
 fi
 

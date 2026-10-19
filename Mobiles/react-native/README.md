@@ -89,7 +89,7 @@ Edit **`sourcemaps.config.json`** (gitignored, like `config.json`):
 | --- | --- |
 | `appName` | Must match `app.name` in `initializeFaro` (`src/bootstrap.ts`). |
 | `endpoint`, `appId`, `stackId` | **Frontend Observability → your app → Settings → Source maps** (not the Faro collector URL). |
-| `apiKey` | Grafana Cloud access policy token with `sourcemaps:read`, `sourcemaps:write`, and `sourcemaps:delete` (optional if you use env only). Without these scopes the API returns `401 invalid scope requested`. |
+| `apiKey` | Grafana Cloud access policy token with the `sourcemaps:write` scope (add `sourcemaps:read` and `sourcemaps:delete` to list or remove uploaded maps; optional if you use env only). Without the scope the API returns `401 invalid scope requested`. |
 
 **Bundle id (release):** not in `sourcemaps.config.json`. **Android** resolves `applicationId@versionCode@versionName` from the Faro Gradle plugin (`android/app/build/faro/bundle-id-release.txt`). **iOS** sets `FARO_BUNDLE_ID` in the shell or `ios/.xcode.env` before `yarn ios --mode Release`.
 
@@ -248,7 +248,7 @@ The script prints a per-map summary (`APP=… DEP=… OTH=… NONE=…`) plus a 
 
 After a PASS, confirm that the upload and telemetry use the same bundle ID, then verify the resulting frames in Frontend Observability.
 
-An uploaded map applies to errors that arrive after the upload. The collector caches stack trace lookups for up to about 30 minutes, so an error that was first seen before the upload can keep showing raw bundle offsets for that long. Verify with an error the build has not sent before, for example **Debug → Unhandled exception**.
+An uploaded map applies to errors that arrive after the upload. The collector caches stack trace lookups, so an error that was first seen before the upload can keep showing raw bundle offsets for a while (up to about 30 minutes in our demo runs). Verify with an error the build has not sent before, for example **Debug → Unhandled exception**.
 
 ## Running the app
 
@@ -271,7 +271,7 @@ docker compose -f compose.grafana-cloud.microservices.yaml up -d
 
 Alloy derives the OTLP gateway URL from the stack's region. If your stack's gateway differs, set `GRAFANA_CLOUD_OTLP_ENDPOINT` to the URL shown on the stack's **OpenTelemetry** tile.
 
-**Option C – Telemetry helper:** to send backend telemetry to one or two stacks without editing `.env`, use [`Mobiles/telemetry`](../telemetry/README.md) (see [dual-stack telemetry](../README.md#optional-dual-stack-telemetry)).
+**Option C – Telemetry helper:** to send backend and app telemetry to two stacks, use [`Mobiles/telemetry`](../telemetry/README.md) (see [dual-stack telemetry](../README.md#optional-dual-stack-telemetry)). It needs both a primary and a secondary stack, and it also rewrites the build configuration of all four apps.
 
 **Database / seed issues:** remove the Postgres data volume for the stack you actually started, then bring it up again so migrations and seed re-run:
 
@@ -279,7 +279,7 @@ Alloy derives the OTLP gateway URL from the stack's region. If your stack's gate
 - **Monolithic (Docker Compose):** `docker compose -f compose.grafana-cloud.monolithic.yaml down -v`, then `up -d` with that file again (or `compose.grafana-local-stack.monolithic.yaml` if you use the local stack).
 - **Monolithic (`docker run`, Option A):** there is no Compose volume; stop the container and run the `docker run` line again (the default image typically uses an in-memory DB per container).
 
-After changing backend code, rebuild the image (`docker build -t quickpizza-mobile-local:development .`) before `up` again.
+After changing backend code, rebuild the image (`docker build -t quickpizza-mobile-local:development "$(git rev-parse --show-toplevel)"`) before `up` again.
 
 ### Run the app
 

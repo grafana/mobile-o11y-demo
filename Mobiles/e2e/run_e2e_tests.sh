@@ -340,7 +340,7 @@ sys.exit(1)
 ' 2>/dev/null) || true
 
     if [ -z "$booted_udid" ]; then
-        print_error "No booted iOS simulator found. Boot one first, e.g.: Mobiles/scripts/open-simulator.sh <simulator-udid>"
+        print_error "No booted iOS simulator found. Boot one first: list UDIDs with 'xcrun simctl list devices available', then run $MOBILES_ROOT/scripts/open-simulator.sh <simulator-udid>"
     fi
     print_step "Booted simulator UDID: $booted_udid"
 
