@@ -29,7 +29,7 @@ PORT = 3333
 // Grafana Cloud OTLP gateway (legacy) — needs both credentials below. Keeps the
 // data as raw OTel, so the app does NOT appear in Frontend Observability; query
 // Tempo/Loki or the Mobile OTel RUM dashboard instead.
-//   https:/$()/otlp-gateway-<clusterSlug>.grafana.net/otlp
+//   https:/$()/otlp-gateway-<regionSlug>.grafana.net/otlp
 //
 // Local collector: http:/$()/localhost:4318
 OTLP_ENDPOINT =

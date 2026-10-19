@@ -254,10 +254,10 @@ An uploaded map applies to errors that arrive after the upload. The collector ca
 
 ### Start the QuickPizza backend
 
-**Option A – Monolithic (simple):** build the mobile image from the `mobile-o11y-demo` root, then run it:
+**Option A – Monolithic (simple):** build the mobile image from this checkout, then run it:
 
 ```bash
-docker build -t quickpizza-mobile-local:development .
+docker build -t quickpizza-mobile-local:development "$(git rev-parse --show-toplevel)"
 docker run --rm -it -p 3333:3333 quickpizza-mobile-local:development
 ```
 
@@ -337,7 +337,7 @@ End-to-end tests use [Arbigent](https://github.com/takahirom/arbigent) (AI-power
 1. **Start the QuickPizza backend** (in one terminal):
 
    ```bash
-   docker build -t quickpizza-mobile-local:development .  # from the mobile-o11y-demo root
+   docker build -t quickpizza-mobile-local:development "$(git rev-parse --show-toplevel)"
    docker run --rm -it -p 3333:3333 quickpizza-mobile-local:development
    ```
 

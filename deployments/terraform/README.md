@@ -22,6 +22,7 @@ Edit `terraform.tfvars` and set your Grafana Cloud credentials:
 
 - `grafana_cloud_stack`: Your Grafana Cloud stack name (e.g., "mystack")
 - `grafana_cloud_token`: Your [Grafana Cloud  Access Policy Token](https://grafana.com/docs/grafana-cloud/account-management/authentication-and-permissions/access-policies/) that includes the following scopes for the selected Grafana Cloud Stack: `stacks:read`, `metrics:write`, `logs:write`, `traces:write`, and `profiles:write`.
+- `grafana_cloud_otlp_endpoint` (optional): OTLP gateway URL. When unset, Alloy derives it from the stack region.
 
 
 See also `variables.tf` for all available configuration options you can setup in `terraform.tfvars`
