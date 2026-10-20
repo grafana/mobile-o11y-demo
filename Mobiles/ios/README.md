@@ -40,10 +40,12 @@ cd mobile-o11y-demo
 ### Step 2 — Start the QuickPizza backend
 
 ```bash
+# From the repo root
+docker build -t quickpizza-mobile-local:development .
 docker run --rm -d \
   --name quickpizza \
   -p 3333:3333 \
-  ghcr.io/grafana/quickpizza-mobile-local:latest
+  quickpizza-mobile-local:development
 ```
 
 Verify it's up:
@@ -168,7 +170,7 @@ The data appears under the `QuickPizza_iOS` app in **Frontend Observability**
 after the export queue drains; allow tens of seconds with default disk buffering.
 
 A legacy option: send to the Grafana Cloud OTLP gateway instead. Set
-`OTLP_ENDPOINT` to `https:/$()/otlp-gateway-<clusterSlug>.grafana.net/otlp` and
+`OTLP_ENDPOINT` to `https:/$()/otlp-gateway-<regionSlug>.grafana.net/otlp` and
 fill in `OTLP_INSTANCE_ID` and `OTLP_API_KEY`; the app then computes
 `Authorization: Basic base64(instanceId:apiKey)` at runtime. That path keeps the
 data as raw OTel, so the app does **not** appear in Frontend Observability —

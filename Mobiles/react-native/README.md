@@ -18,6 +18,7 @@ A React Native mobile application that replicates the QuickPizza web and Flutter
 - Node.js >= 24.5
 - Yarn 4.14+ via Corepack
 - React Native development environment ([setup guide](https://reactnative.dev/docs/environment-setup))
+- JDK 17 for Android builds (same as CI). Recent Android Studio versions bundle JDK 25, which this project's Gradle 8.13 rejects with `Unsupported class file major version 69`; set `JAVA_HOME` to a JDK 17.
 - QuickPizza backend running (default: `http://localhost:3333`)
 
 ## Setup
@@ -88,7 +89,7 @@ Edit **`sourcemaps.config.json`** (gitignored, like `config.json`):
 | --- | --- |
 | `appName` | Must match `app.name` in `initializeFaro` (`src/bootstrap.ts`). |
 | `endpoint`, `appId`, `stackId` | **Frontend Observability → your app → Settings → Source maps** (not the Faro collector URL). |
-| `apiKey` | Bearer token for the source map API (optional if you use env only). |
+| `apiKey` | Grafana Cloud access policy token with the `sourcemaps:write` scope (add `sourcemaps:read` and `sourcemaps:delete` to list or remove uploaded maps; optional if you use env only). Without the scope the API returns `401 invalid scope requested`. |
 
 **Bundle id (release):** not in `sourcemaps.config.json`. **Android** resolves `applicationId@versionCode@versionName` from the Faro Gradle plugin (`android/app/build/faro/bundle-id-release.txt`). **iOS** sets `FARO_BUNDLE_ID` in the shell or `ios/.xcode.env` before `yarn ios --mode Release`.
 
@@ -134,6 +135,7 @@ Run everything from **`Mobiles/react-native/`**.
 **Useful toggles**
 
 - Skip upload while iterating: `FARO_SKIP_SOURCEMAP_UPLOAD=1 yarn android --mode=release`.
+- On Android a failed upload (for example a token without the `sourcemaps:*` scopes) fails the release build. On iOS the upload phase only logs a warning. Skip the upload and re-upload manually (below) if you need the build anyway.
 - Re-upload the same composed map manually (read bundle id from Gradle output):
 
   ```bash
@@ -246,23 +248,30 @@ The script prints a per-map summary (`APP=… DEP=… OTH=… NONE=…`) plus a 
 
 After a PASS, confirm that the upload and telemetry use the same bundle ID, then verify the resulting frames in Frontend Observability.
 
+An uploaded map applies to errors that arrive after the upload. The collector caches stack trace lookups, so an error that was first seen before the upload can keep showing raw bundle offsets for a while (up to about 30 minutes in our demo runs). Verify with an error the build has not sent before, for example **Debug → Unhandled exception**.
+
 ## Running the app
 
 ### Start the QuickPizza backend
 
-**Option A – Monolithic (simple):**
+**Option A – Monolithic (simple):** build the mobile image from this checkout, then run it:
 
 ```bash
-docker run --rm -it -p 3333:3333 ghcr.io/grafana/quickpizza-mobile-local:latest
+docker build -t quickpizza-mobile-local:development "$(git rev-parse --show-toplevel)"
+docker run --rm -it -p 3333:3333 quickpizza-mobile-local:development
 ```
 
 **Option B – Microservices with Grafana Cloud observability** (from the `mobile-o11y-demo` root):
 
-Create a `.env` file with `GRAFANA_CLOUD_STACK`, `GRAFANA_CLOUD_TOKEN`, and `QUICKPIZZA_IMAGE=ghcr.io/grafana/quickpizza-mobile-local:latest`, then:
+Build the image as in Option A, create a `.env` file with `GRAFANA_CLOUD_STACK`, `GRAFANA_CLOUD_TOKEN`, and `QUICKPIZZA_IMAGE=quickpizza-mobile-local:development`, then:
 
 ```bash
 docker compose -f compose.grafana-cloud.microservices.yaml up -d
 ```
+
+Alloy derives the OTLP gateway URL from the stack's region. If your stack's gateway differs, set `GRAFANA_CLOUD_OTLP_ENDPOINT` to the URL shown on the stack's **OpenTelemetry** tile.
+
+**Option C – Telemetry helper:** to send backend and app telemetry to two stacks, use [`Mobiles/telemetry`](../telemetry/README.md) (see [dual-stack telemetry](../README.md#optional-dual-stack-telemetry)). It needs both a primary and a secondary stack, and it also rewrites the build configuration of all four apps.
 
 **Database / seed issues:** remove the Postgres data volume for the stack you actually started, then bring it up again so migrations and seed re-run:
 
@@ -270,7 +279,7 @@ docker compose -f compose.grafana-cloud.microservices.yaml up -d
 - **Monolithic (Docker Compose):** `docker compose -f compose.grafana-cloud.monolithic.yaml down -v`, then `up -d` with that file again (or `compose.grafana-local-stack.monolithic.yaml` if you use the local stack).
 - **Monolithic (`docker run`, Option A):** there is no Compose volume; stop the container and run the `docker run` line again (the default image typically uses an in-memory DB per container).
 
-If you build QuickPizza from this repo, run `make docker-build` and set `QUICKPIZZA_IMAGE` to the resulting image before `up` again.
+After changing backend code, rebuild the image (`docker build -t quickpizza-mobile-local:development "$(git rev-parse --show-toplevel)"`) before `up` again.
 
 ### Run the app
 
@@ -319,7 +328,7 @@ End-to-end tests use [Arbigent](https://github.com/takahirom/arbigent) (AI-power
 ### Prerequisites
 
 - Android emulator running with the app installed
-- QuickPizza backend running (e.g. `docker run --rm -it -p 3333:3333 ghcr.io/grafana/quickpizza-mobile-local:latest`)
+- QuickPizza backend running (see [Start the QuickPizza backend](#start-the-quickpizza-backend))
 - `OPENAI_API_KEY` environment variable set (Arbigent uses OpenAI for AI-driven test execution)
 - `adb`, `unzip`, and either `wget` or `curl` installed
 
@@ -328,7 +337,8 @@ End-to-end tests use [Arbigent](https://github.com/takahirom/arbigent) (AI-power
 1. **Start the QuickPizza backend** (in one terminal):
 
    ```bash
-   docker run --rm -it -p 3333:3333 ghcr.io/grafana/quickpizza-mobile-local:latest
+   docker build -t quickpizza-mobile-local:development "$(git rev-parse --show-toplevel)"
+   docker run --rm -it -p 3333:3333 quickpizza-mobile-local:development
    ```
 
 2. **Build and run the app on an Android emulator** (in another terminal):

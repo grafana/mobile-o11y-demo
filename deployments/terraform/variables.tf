@@ -10,6 +10,12 @@ variable "grafana_cloud_token" {
   type        = string
 }
 
+variable "grafana_cloud_otlp_endpoint" {
+  description = "Optional OTLP gateway URL. Empty derives it from the stack region."
+  type        = string
+  default     = ""
+}
+
 variable "quickpizza_conf_faro_url" {
   default     = null
   description = "The URL for the Faro configuration."

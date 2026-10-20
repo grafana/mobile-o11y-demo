@@ -28,6 +28,7 @@ A Flutter mobile application that replicates the QuickPizza web application func
 
 - Flutter SDK with Dart `>=3.12.0 <4.0.0`, as required by the dependencies in [`pubspec.lock`](pubspec.lock). The app's own constraint is `^3.10.1` in [`pubspec.yaml`](pubspec.yaml); the locked dependencies require a newer SDK. Check both versions with `flutter --version`.
 - QuickPizza backend running (default: `http://localhost:3333`)
+- JDK 17 for Android builds (same as CI). Recent Android Studio versions bundle JDK 25, which this project's Gradle 8.14 rejects with `Unsupported class file major version 69`. Point Flutter at a JDK 17 with `flutter config --jdk-dir <path-to-jdk-17>`.
 
 ### Platform-Specific Setup
 

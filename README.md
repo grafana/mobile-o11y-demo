@@ -264,6 +264,8 @@ Then, create an `.env` file with the following environment variables and the val
 GRAFANA_CLOUD_STACK=
 # Your Grafana Cloud Access Policy Token
 GRAFANA_CLOUD_TOKEN=
+# Optional: OTLP gateway URL. Leave unset to derive it from the stack region.
+# GRAFANA_CLOUD_OTLP_ENDPOINT=
 ```
 
 Finally, execute the Docker Compose command using the `compose.grafana-cloud.microservices.yaml` file, just as in the local setup:

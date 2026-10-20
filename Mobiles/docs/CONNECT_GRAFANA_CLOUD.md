@@ -144,14 +144,15 @@ not appear in the plugin at all. The
 To use it, point the apps at the Grafana Cloud OTLP gateway:
 
 ```
-https://otlp-gateway-<clusterSlug>.grafana.net/otlp
+https://otlp-gateway-<regionSlug>.grafana.net/otlp
 ```
 
 This path authenticates with an **instance ID + access token**:
 
 1. Go to your Grafana Cloud org page (`https://grafana.com/orgs/<your-org>`).
-2. Open the stack — the **cluster slug** and **numeric Instance ID** are listed
-   on its details page.
+2. Open the stack's **OpenTelemetry** tile — it shows the exact gateway URL and
+   the **numeric Instance ID**. The gateway is named after the stack's region
+   (`regionSlug`), which can differ from its cluster (`clusterSlug`).
 3. Generate an **Access Policy token** with scopes `metrics:write`,
    `logs:write`, `traces:write` (the native apps need logs + traces; metrics is
    harmless to include).

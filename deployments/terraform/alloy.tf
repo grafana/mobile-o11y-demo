@@ -50,8 +50,9 @@ resource "kubernetes_secret_v1" "alloy_credentials" {
     namespace = kubernetes_namespace_v1.quickpizza.id
   }
   data = {
-    GRAFANA_CLOUD_STACK = var.grafana_cloud_stack
-    GRAFANA_CLOUD_TOKEN = var.grafana_cloud_token
+    GRAFANA_CLOUD_STACK         = var.grafana_cloud_stack
+    GRAFANA_CLOUD_TOKEN         = var.grafana_cloud_token
+    GRAFANA_CLOUD_OTLP_ENDPOINT = var.grafana_cloud_otlp_endpoint
   }
   type = "Opaque"
 }
