@@ -12,6 +12,8 @@ x-quickpizza-env-common: &quickpizza-env-common
   # the timeout instead of producing a slow-but-successful response).
   QUICKPIZZA_TIMEOUT: "10s"
   OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=${DEPLOYMENT_ENVIRONMENT:-development},service.version=quickpizza-local"
+  # Adds redacted request/response bodies to server spans as events.
+  QUICKPIZZA_OTEL_RECORD_BODIES: "${QUICKPIZZA_OTEL_RECORD_BODIES:-false}"
 
 name: quickpizza
 services:
