@@ -1536,12 +1536,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@grafana/faro-react-native-tracing@npm:2.0.1":
-  version: 2.0.1
-  resolution: "@grafana/faro-react-native-tracing@npm:2.0.1"
+"@grafana/faro-react-native-tracing@npm:2.0.2":
+  version: 2.0.2
+  resolution: "@grafana/faro-react-native-tracing@npm:2.0.2"
   dependencies:
     "@grafana/faro-core": "npm:^2.8.2"
-    "@grafana/faro-react-native": "npm:^1.4.1"
+    "@grafana/faro-react-native": "npm:^1.4.2"
     "@opentelemetry/api": "npm:^1.9.0"
     "@opentelemetry/core": "npm:^2.9.0"
     "@opentelemetry/instrumentation": "npm:^0.220.0"
@@ -1554,17 +1554,17 @@ __metadata:
     "@opentelemetry/semantic-conventions": "npm:^1.43.0"
   peerDependencies:
     react-native: ">=0.70.0"
-  checksum: 10c0/9d1e4299f596635358d0941a11347ee4e4e12f2cdf67bb46f425143f7c92e62acd897a677806e399a9071442711d1516e24f5932eac2ca935787069766821310
+  checksum: 10c0/6818cb11b186efe996f4c9875156c45bff9f20dfe3266f4cb41710bc69da4464a2a1d1bda2d43ab4af7981b0ed1efdc95755f30f2757f0434a6044191c8ed620
   languageName: node
   linkType: hard
 
-"@grafana/faro-react-native@npm:1.4.1":
-  version: 1.4.1
-  resolution: "@grafana/faro-react-native@npm:1.4.1"
+"@grafana/faro-react-native@npm:1.4.2":
+  version: 1.4.2
+  resolution: "@grafana/faro-react-native@npm:1.4.2"
   dependencies:
     "@grafana/faro-core": "npm:^2.8.2"
     "@react-native-async-storage/async-storage": "npm:^1.21.0"
-    react-native-device-info: "npm:^11.1.0"
+    react-native-device-info: "npm:^15.0.2"
   peerDependencies:
     "@react-navigation/native": ">=6.0.0"
     react: ">=18.0.0"
@@ -1575,7 +1575,7 @@ __metadata:
       optional: true
     react-native-mmkv:
       optional: true
-  checksum: 10c0/80685d9b43726940a34d4a60db9ceafeda57f0b35e0bee256b5955fa168f887d0069280f9cbf83a4115382b9833c10ee53535c20be2e5254dc8adee48550e504
+  checksum: 10c0/90db622c8461412359540b0227ee3701c26d3155f43dfbb30beb47e62f34f56435e78c7f415943e96eb07ab4e5a1d81b3f30e3b237a51842f7c17757a40dc714
   languageName: node
   linkType: hard
 
@@ -3189,8 +3189,8 @@ __metadata:
     "@babel/runtime": "npm:^7.25.0"
     "@grafana/faro-cli": "npm:0.11.0"
     "@grafana/faro-metro-plugin": "npm:0.3.0"
-    "@grafana/faro-react-native": "npm:1.4.1"
-    "@grafana/faro-react-native-tracing": "npm:2.0.1"
+    "@grafana/faro-react-native": "npm:1.4.2"
+    "@grafana/faro-react-native-tracing": "npm:2.0.2"
     "@react-native-async-storage/async-storage": "npm:^1.21.0"
     "@react-native-community/cli": "npm:20.2.0"
     "@react-native-community/cli-platform-android": "npm:20.2.0"
@@ -3214,7 +3214,7 @@ __metadata:
     prettier: "npm:2.8.8"
     react: "npm:19.2.3"
     react-native: "npm:0.84.1"
-    react-native-device-info: "npm:^11.1.0"
+    react-native-device-info: "npm:^15.0.2"
     react-native-safe-area-context: "npm:^5.5.2"
     react-native-screens: "npm:^4.6.0"
     react-test-renderer: "npm:19.2.3"
@@ -8018,12 +8018,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-native-device-info@npm:^11.1.0":
-  version: 11.1.0
-  resolution: "react-native-device-info@npm:11.1.0"
+"react-native-device-info@npm:^15.0.2":
+  version: 15.0.2
+  resolution: "react-native-device-info@npm:15.0.2"
   peerDependencies:
     react-native: "*"
-  checksum: 10c0/424eb512a35264699d0f1c2f9dce2b0ca10247fbe263af37eda5563d9eb5fb333ea513c90aa58444b67d7364ac03d9a0d9cf913a0054e78ec0f2dfff22033ab0
+  checksum: 10c0/c4a1d9ae049f42f0aa3c5aba539a9826d2400cb15a6d17815824204e4e842fbc15c80afec7387acd07e02f80a1fa49aaef1d4d6e96bc9ec53c42ba63046e8ce1
   languageName: node
   linkType: hard
 
