@@ -110,6 +110,7 @@ faro {
 }
 
 dependencies {
+    implementation("com.grafana.faro:faro-android-replay:0.1.0-SNAPSHOT")
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 
     // AndroidX

@@ -2,6 +2,11 @@ package com.grafana.quickpizza.core.o11y
 
 import android.app.Application
 import android.util.Log
+import com.grafana.opentelemetry.android.ExperimentalGrafanaOtelApi
+import com.grafana.quickpizza.BuildConfig
+import com.grafana.quickpizza.features.debug.ReplaySessionBridge
+import java.net.URI
+import java.time.Duration
 import com.grafana.opentelemetry.android.GrafanaOtel
 import com.grafana.opentelemetry.android.GrafanaOtelConfiguration
 import com.grafana.quickpizza.core.config.AppConfig
@@ -24,6 +29,7 @@ class OTelService @Inject constructor(
 ) {
     @Volatile
     private var rum: OpenTelemetryRum? = null
+    internal val replaySession = ReplaySessionBridge()
 
     val openTelemetry: OpenTelemetry
         get() = rum?.openTelemetry ?: OpenTelemetry.noop()
@@ -39,6 +45,7 @@ class OTelService @Inject constructor(
         get() = rum
 
     @Synchronized
+    @OptIn(ExperimentalGrafanaOtelApi::class)
     fun initialize() {
         if (rum != null) {
             Log.i(TAG, "OTelService already initialized; keeping the existing process runtime")
@@ -48,11 +55,18 @@ class OTelService @Inject constructor(
         val snapshot = runtimeConfig.current
         val endpoint = snapshot.otlpEndpoint
         val authHeader = snapshot.otlpAuthHeader
-        val diskBufferingEnabled = snapshot.diskBufferingEnabled
+        val localReplayTest = BuildConfig.DEBUG &&
+            runCatching { URI(endpoint).host in setOf("localhost", "127.0.0.1", "10.0.2.2") }.getOrDefault(false) &&
+            appConfig.replayTestSessionLifetimeSeconds in 5..120
+        val diskBufferingEnabled = snapshot.diskBufferingEnabled && !localReplayTest
 
         if (endpoint.isEmpty()) {
             Log.w(TAG, "OTLP endpoint not configured — running with noop telemetry")
             return
+        }
+
+        if (diskBufferingEnabled) {
+            ensureOtelDiskBufferCacheDirs(application)
         }
 
         rum = runCatching {
@@ -72,11 +86,15 @@ class OTelService @Inject constructor(
                     // Pin the pre-1.5.0 convention names (device.crash, screen.name, ...) until
                     // the existing consumer accepts the latest experimental conventions.
                     useLatestExperimentalSemanticConventions = false,
+                    // Only the explicitly configured local debug journey shortens SDK lifetime.
+                    sessionMaxLifetime = if (localReplayTest)
+                        Duration.ofSeconds(appConfig.replayTestSessionLifetimeSeconds) else Duration.ofHours(4),
                 ),
-            )
+            ) { session { observers(replaySession) } }
         }.onFailure { Log.e(TAG, "OTelService initialization failed", it) }.getOrNull()
 
         if (rum != null) {
+            replaySession.attach(checkNotNull(rum))
             sdkLoggerProvider?.let { loggerProvider ->
                 // TODO(opentelemetry-android#764): Remove NativeExitCrashReporter once OTel Android
                 // replays REASON_CRASH_NATIVE via ApplicationExitInfo in CrashReporter instrumentation.
@@ -117,6 +135,13 @@ class OTelService @Inject constructor(
         openTelemetry.getTracer(instrumentationScope)
 
     fun getLoggerProvider() = openTelemetry.logsBridge
+
+    private fun ensureOtelDiskBufferCacheDirs(application: Application) {
+        val signalsRoot = application.cacheDir.resolve("opentelemetry/signals")
+        for (subdir in listOf("logs", "spans", "metrics")) {
+            signalsRoot.resolve(subdir).mkdirs()
+        }
+    }
 
     companion object {
         private const val TAG = "OTelService"

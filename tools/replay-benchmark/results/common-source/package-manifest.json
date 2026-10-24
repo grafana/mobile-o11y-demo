@@ -1,0 +1,101 @@
+{
+  "scope": "Evidence packaging only; no benchmark rerun. Calendar labels removed; README links and provenance paths use portable names.",
+  "crossChecks": {
+    "compactRowsComparedWithFullAnalysis": 48,
+    "browserSeekChecks": 760,
+    "browserPlaybackBoundaryChecks": 40,
+    "browserFailedChecks": 0
+  },
+  "files": {
+    "README.md": {
+      "sha256": "10ff40fdd0e5728b87356663f1cf516afb610dccb9f5543d67d4834d6df3f963",
+      "bytes": 11190,
+      "sourceArtifact": null,
+      "unchangedCopy": false
+    },
+    "browser-checks.json": {
+      "sha256": "670fece6d4e138b782413a888964cb610f1c6ef311c7db259aca4d4068ef6201",
+      "bytes": 243034,
+      "sourceArtifact": "browser-checks.json",
+      "unchangedCopy": true
+    },
+    "browser-summary.json": {
+      "sha256": "47115c5f06aedd7cfe86b98162a6047d22c7aec11355404e86d8ab65fa77f289",
+      "bytes": 890,
+      "sourceArtifact": "browser-summary.json",
+      "unchangedCopy": true
+    },
+    "compact-results.json": {
+      "sha256": "69c2ee0de3e1c13b209e3b131389ed32bc26740619ecf645269274df80aa84d3",
+      "bytes": 29220,
+      "sourceArtifact": "compact-results.json",
+      "unchangedCopy": true
+    },
+    "provenance.json": {
+      "sha256": "8ca9c92d5b50850e65a207d3b826922961d17648ed72d4ad2f39b58d6c79a160",
+      "bytes": 3577,
+      "sourceArtifact": null,
+      "unchangedCopy": false
+    },
+    "quality-audit.json": {
+      "sha256": "432dd9e3491a526c8662598c5286ba97adeaaeb95b58da3b53201658ddf06da8",
+      "bytes": 1357,
+      "sourceArtifact": "quality-audit.json",
+      "unchangedCopy": true
+    },
+    "samples/idle-source-0.png": {
+      "sha256": "e82f162aa7892be06fb84ba33f5d1ebb5ac4934a0c674f5f25350d0e97a3afcd",
+      "bytes": 11901,
+      "sourceArtifact": "fair-idle-300/inspection/source-0.png",
+      "unchangedCopy": true
+    },
+    "samples/idle-video-vbr-75-5s-0.png": {
+      "sha256": "e152c8797d401e8874425a9f2b4e087f39c8757370f34a10faec834188010695",
+      "bytes": 35857,
+      "sourceArtifact": "fair-idle-300/inspection/srgb-vbr-75-g5-c5-0.png",
+      "unchangedCopy": true
+    },
+    "samples/idle-webp-85-0.png": {
+      "sha256": "25a66fe8e521a7f689f19bbad2d05f82faf7d2d834be1ad9135bd01a8153c04b",
+      "bytes": 41715,
+      "sourceArtifact": "fair-idle-300/inspection/webp-85-0.png",
+      "unchangedCopy": true
+    },
+    "samples/motion-source-299.png": {
+      "sha256": "2c061840e94a511243c09861e042e2d2b62a642a3be0e076f661410b6ec0d7a0",
+      "bytes": 27225,
+      "sourceArtifact": "fair-motion-300/inspection/source-299.png",
+      "unchangedCopy": true
+    },
+    "samples/motion-video-cbr-200-5s-299.png": {
+      "sha256": "7fbc532b4bd3949d01f33e04d12d9fadeab700cc7367d4a86945ad43f2f3938e",
+      "bytes": 135283,
+      "sourceArtifact": "fair-motion-300/inspection/srgb-cbr-200-g5-c5-299.png",
+      "unchangedCopy": true
+    },
+    "samples/motion-video-cbr-25-30s-299.png": {
+      "sha256": "03a9c45b2784dd81bb1ae375a0100606f3ceac324aad4a458e45fd28c3de54f8",
+      "bytes": 164854,
+      "sourceArtifact": "fair-motion-300/inspection/srgb-cbr-25-g30-c30-299.png",
+      "unchangedCopy": true
+    },
+    "samples/motion-webp-25-299.png": {
+      "sha256": "13e73a969429193667c131baf21fac343dcb1c809b3dd359654393a6615773e9",
+      "bytes": 173553,
+      "sourceArtifact": "fair-motion-300/inspection/webp-25-299.png",
+      "unchangedCopy": true
+    },
+    "samples/motion-webp-60-299.png": {
+      "sha256": "0f5019340457c7e3b5c1e5be4dca9f354b9b6c631b24f8f315007394081f8c92",
+      "bytes": 135856,
+      "sourceArtifact": "fair-motion-300/inspection/webp-60-299.png",
+      "unchangedCopy": true
+    },
+    "validation.json": {
+      "sha256": "94612a06737b44d13f019b01a361a93d328a450d48f24693f5a41ce8977608f5",
+      "bytes": 1811,
+      "sourceArtifact": "validation.json",
+      "unchangedCopy": true
+    }
+  }
+}

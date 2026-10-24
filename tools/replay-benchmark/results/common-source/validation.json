@@ -1,0 +1,59 @@
+{
+  "finalSourceRuns": 2,
+  "sourceFrames": 600,
+  "finalNativeEncoderTrials": 48,
+  "diagnosticLegacyVideoTrials": 38,
+  "finalCandidateFramesDecoded": 14400,
+  "originalMaskPixelsVerified": true,
+  "sourceAndIdentityAndPtsAndHoldVerified": true,
+  "appJvmTests": 29,
+  "appJvmFailures": 0,
+  "analyzerTests": 4,
+  "analyzerFailures": 0,
+  "appAndTestApkBuild": "passed",
+  "lint": "6 pre-existing NewApi errors in unchanged NativeExitCrashReporter.kt; 41 warnings, 2 hints",
+  "canvasTypeScriptErrors": 0,
+  "viewerJavaScriptSyntax": "passed",
+  "pythonSyntax": "passed",
+  "remoteMutations": [],
+  "runtimeLibraryChanges": false,
+  "sourceBase": "259d36a7167c8e19f074dbb349ca1789df8a60d6",
+  "libraryHead": "bebac1490e6948e4a95b58b7426a0724d8f5e5f4",
+  "browserSummary": {
+    "seekChecks": 760,
+    "playbackBoundaryChecks": 40,
+    "failed": 0,
+    "colorPipeline": "sRGB transfer / BT.709 matrix",
+    "byClipSeconds": {
+      "5": {
+        "checks": 360,
+        "medianMs": 16.40000009536743,
+        "p95Ms": 17.799999952316284,
+        "maxMs": 36.89999997615814
+      },
+      "15": {
+        "checks": 200,
+        "medianMs": 15.950000047683716,
+        "p95Ms": 17.404999977350233,
+        "maxMs": 25
+      },
+      "30": {
+        "checks": 200,
+        "medianMs": 15.150000035762787,
+        "p95Ms": 17.899999976158142,
+        "maxMs": 23
+      }
+    },
+    "manualUiRegression": {
+      "actions": [
+        "change journey",
+        "change video format",
+        "immediately seek to end"
+      ],
+      "result": "Correct final frame 299, updated candidate readout, no timeout. Controls serialize operations."
+    },
+    "viewerSha256": "7514a307875aa475f61532ae678dc19b18947698b8de732a7ea69e15851b03ee"
+  },
+  "ownedTestServicesStopped": true,
+  "testedAndroidHashesStillMatch": true
+}

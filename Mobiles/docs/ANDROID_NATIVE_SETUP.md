@@ -20,6 +20,9 @@ Setup guide for the native Android QuickPizza app (`Mobiles/android/`).
   networking policy does not apply the per-host cleartext exceptions used by
   the local HTTP backend
 - A running QuickPizza backend (see root README)
+- On the replay integration branch, access to the private replay library and a
+  [local library checkout](../android/README.md#replay-library-checkout). Complete
+  that setup before Android Studio sync or any Gradle command.
 
 ---
 
