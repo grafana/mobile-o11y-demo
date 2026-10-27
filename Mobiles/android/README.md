@@ -1,136 +1,169 @@
 # QuickPizza Android Demo App
 
-A native Kotlin / Jetpack Compose app that demonstrates mobile observability
-using the [opentelemetry-android](https://github.com/open-telemetry/opentelemetry-android)
-RUM agent. It connects to the QuickPizza backend and exports traces and
-logs over OTLP/HTTP to Grafana Cloud.
+A native Kotlin / Jetpack Compose app that exports traces and logs over OTLP/HTTP with the
+[opentelemetry-android](https://github.com/open-telemetry/opentelemetry-android) RUM agent. For the
+other three apps and the backend, start at [`../README.md`](../README.md).
 
-> **New here?** Start at [`../README.md`](../README.md) for the overview of all
-> four apps, the backend, and how to get a demo running. This page covers the
-> native Android app specifically.
+## Prerequisites
 
-For setup details (Android Studio, SDK, emulator, physical devices) see
-[../docs/ANDROID_NATIVE_SETUP.md](../docs/ANDROID_NATIVE_SETUP.md).
+- [Android Studio](https://developer.android.com/studio) recent enough to open an AGP 9.1 project
+  (see the [AGP / Studio compatibility table](https://developer.android.com/build/releases/gradle-plugin#android_gradle_plugin_and_android_studio_compatibility)).
+  Older releases such as Hedgehog cannot open it.
+- JDK 17 or newer to run Gradle (AGP 9.1 and Gradle 9.3 both require it). Android Studio's bundled
+  JDK works. For command-line builds, point `JAVA_HOME` at it if your system JDK is older.
+- Android SDK platform 37 (`compileSdk`). Devices need API 23 or newer (`minSdk`).
+- A running QuickPizza backend, started as described in [`../README.md`](../README.md).
 
-For the cross-platform observability overview (Faro vs OTel, what each
-platform emits, dashboards) see
-[../docs/MOBILE_OBSERVABILITY_OVERVIEW.md](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md).
+SDK versions are pinned in [`gradle/libs.versions.toml`](gradle/libs.versions.toml).
 
-> **Not the same as the Flutter Android app.** The Flutter implementation
-> lives at [../flutter/](../flutter/). This directory is the **native**
-> Kotlin/Compose app.
-
----
-
-## Quickstart
+## Configure
 
 ```bash
-# Run from the repository root
 cd Mobiles/android
+cp config.json.example app/src/main/res/raw/config.json
+```
 
-# 1. Configure
-cp config.json.example \
-   app/src/main/res/raw/config.json
-# edit OTLP_ENDPOINT, OTLP_INSTANCE_ID, OTLP_API_KEY, BASE_URL
+`config.json` is gitignored. To send to Frontend Observability, set `OTLP_ENDPOINT` to your Faro
+collector's OTLP route and leave the credentials empty:
 
-# 2. Build and start the QuickPizza backend (from the repo root)
-(cd ../.. && docker build -t quickpizza-mobile-local:development .)
-docker run --rm -d --name quickpizza -p 3333:3333 \
-  quickpizza-mobile-local:development
+```json
+{ "OTLP_ENDPOINT": "https://faro-collector-<region>.grafana.net/otlp/<appKey>" }
+```
 
-# 3. Build and install on a running emulator
+Telemetry then appears in Frontend Observability under the app you registered for the key
+(`QuickPizza_Android` on the demo stack). How to find the URL, and
+the legacy OTLP gateway alternative, are in
+[Connect to Grafana Cloud](../docs/CONNECT_GRAFANA_CLOUD.md#opentelemetry-apps-ios-native-android-native).
+
+### Configuration reference
+
+| Field | Description |
+| --- | --- |
+| `OTLP_ENDPOINT` | OTLP/HTTP base URL, without `/v1/traces` or `/v1/logs`. Empty disables export. |
+| `OTLP_INSTANCE_ID` | Numeric OTLP gateway instance ID. Legacy gateway only; leave empty for Faro. |
+| `OTLP_API_KEY` | Grafana Cloud access token, combined with the instance ID into `Authorization: Basic`. Legacy gateway only. |
+| `BASE_URL` | QuickPizza backend URL. Empty resolves to `http://10.0.2.2:3333` on emulators. For devices, see [Run on a physical device](#run-on-a-physical-device). |
+
+All four fields can be overridden from **Debug → Config** without a rebuild. Overrides persist and
+apply after you restart the app.
+
+> [!WARNING]
+> If `QUICKPIZZA_ANDROID_CONFIG_FILE` is set, or `Mobiles/telemetry/.runtime/active/android.json`
+> exists (left by the [dual-stack setup](../telemetry/README.md)), the build packages that file
+> instead of `res/raw/config.json`, and your edits are ignored. The environment variable wins over
+> the runtime file.
+
+Precedence: **Debug → Config** override > that alternate file > `res/raw/config.json`. Overrides
+survive `installDebug`; clear the app data to reset them.
+
+## Run on an emulator
+
+In Android Studio: **File → Open → `Mobiles/android/`**, create a virtual device in
+**Tools → Device Manager** (Pixel 6, API 35 works well), then **Run**.
+
+From the command line, with an emulator running:
+
+```bash
+cd Mobiles/android
 ./gradlew installDebug
 adb shell am start -n com.grafana.quickpizza.android/com.grafana.quickpizza.MainActivity
 ```
 
-Or open the project in Android Studio (`File → Open → Mobiles/android/`)
-and hit **Run ▶**.
+## Run on a physical device
 
-Runtime overrides for backend URL, OTLP endpoint, and credentials can be
-set from the in-app **Debug → Config** screen without rebuilding. They
-persist to `SharedPreferences` and apply on the next launch.
+1. Enable **Developer Options** and **USB debugging** on the device, connect it over USB and accept
+   the prompt.
+2. On API 24 or newer, forward the backend port and use the device loopback URL:
 
----
+   ```bash
+   adb reverse tcp:3333 tcp:3333
+   ```
 
-## Release build and Android symbols
+   Set `BASE_URL` to `http://127.0.0.1:3333`.
+3. Run from Android Studio or with `./gradlew installDebug`.
 
-Release builds enable R8 (`isMinifyEnabled = true`) and emit native debug
-symbols (`ndk.debugSymbolLevel = FULL`). The **`com.grafana.faro.android-symbols`** Gradle plugin
-(`app/build.gradle.kts`) uploads symbolication artifacts automatically after
-`assembleRelease`, `bundleRelease`, or **`installRelease`** — no manual
-`faro-cli` step is required.
+The app allows cleartext HTTP only to `localhost`, `127.0.0.1` and `10.0.2.2`
+(`app/src/main/res/xml/network_security_config.xml`), so an HTTP URL to a LAN IP is blocked. Use an
+HTTPS backend for remote hosts. API 23 ignores the per-host exceptions, so it needs HTTPS even for
+loopback.
 
-This demo locks the plugin classpath (`app/buildscript-gradle.lockfile`). After
-you bump the plugin version, refresh lockfiles or Gradle will fail with a
-dependency-lock mismatch:
+## Android-specific Debug tab extras
 
-```bash
-cd Mobiles/android
-./gradlew :app:dependencies --write-locks
-```
+The shared Debug tab is described in
+[MOBILE_OBSERVABILITY_OVERVIEW.md](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md#the-shared-debug-screen).
+Android adds:
 
-| Artifact       | Path (under `app/build/outputs/`)                       |
-| -------------- | ------------------------------------------------------- |
-| R8 mapping     | `mapping/release/mapping.txt`                           |
-| Native symbols | `native-debug-symbols/release/native-debug-symbols.zip` |
+- **Disable disk buffering** (OpenTelemetry SDK section). Buffering is on by default: about 30-45 s
+  end-to-end latency, but signals survive offline periods. Turn it off for live demos (about 1-6 s),
+  then restart the app.
+- **ANR**: blocks the main thread for 10 s; the agent reports `device.anr`.
+- **Crash (RuntimeException)** and **Crash (NPE)**: the agent's `CrashReporter` writes
+  `device.crash` and flushes before the process dies. With buffering on, it ships on the next launch.
+- **NDK crash (SIGSEGV)**: on API 30 and newer, the app-owned `NativeExitCrashReporter` replays the
+  native exit as `device.crash` after relaunch.
 
+## Observability
 
-### How release builds link to readable crash reports
+Startup lives in `app/src/main/java/com/grafana/quickpizza/core/o11y/OTelService.kt`, which calls
+`GrafanaOtel.initialize` from the local
+[Grafana OpenTelemetry Android library](grafana-opentelemetry-android/README.md). The signal and
+attribute inventory is in
+[MOBILE_OBSERVABILITY_OVERVIEW.md](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md#android-native-opentelemetry-android).
 
-Each shipped Android release gets a **release id** — a short label that
-combines the app package name, build number, and version string. For this
-demo that id is **`com.grafana.quickpizza.android@1@1.0.0`**.
+### How telemetry is wired
 
-Think of it in three steps:
+Kotlin paths are under `app/src/main/java/com/grafana/quickpizza/`.
 
-1. **At build time** (your CI or laptop, not on users’ phones), the Gradle plugin uploads debug files for that release to Grafana — the files that turn obfuscated crash output back into real class and file names.
-2. **At runtime**, the installed app only sends lightweight error reports. Each report includes the same release id so Grafana knows *which* build produced the crash.
-3. **In Grafana**, Frontend Observability uses that id to find the files uploaded in step 1 and show a **readable stack trace** instead of scrambled names like `a5.r0`.
+1. `QuickPizzaApp.onCreate` (`@HiltAndroidApp`) resolves `RuntimeConfigHolder.current`, then calls
+   `OTelService.initialize()`. With an empty `OTLP_ENDPOINT` it returns and the app runs with
+   `OpenTelemetry.noop()`.
+2. `OTelService` passes the `faro.app.bundleId` resource attribute to `GrafanaOtel.initialize`
+   (see [Release build and symbols](#release-build-and-symbols)).
+3. After init, `OTelService` starts `NativeExitCrashReporter` on a background thread to replay
+   native crashes. It reaches the SDK providers by reflection, so keep the `unobfuscate` rules in
+   `app/proguard-rules.pro`.
+4. `di/AppModule.kt` wraps the OkHttp client:
 
-The release id is saved locally as
-`Mobiles/android/app/build/faro/bundle-id-release.txt` so
-build tooling and uploads stay in sync. Engineers: the app emits this id as
-`faro.app.bundleId` at runtime; `service.version` remains the human-readable
-version (`1.0.0`) for dashboards.
+   ```kotlin
+   import io.opentelemetry.instrumentation.okhttp.v3_0.OkHttpTelemetry
 
-> **Also in this repo — the React Native demo** ([../react-native/](../react-native/)):
-> same three-step flow, but a **distinct** release id
-> (`com.grafana.quickpizza.rn@1@1.0.0`). This native app uses
-> `com.grafana.quickpizza.android@1@1.0.0`. The difference is *what* gets
-> uploaded at build time. React Native is JavaScript *and* native Android, so
-> that pipeline uploads debug files for **both** layers under the RN id.
-> **This app** is native Kotlin only, so it uploads debug files for the
-> **Android/native** layer alone. Details:
-> [../react-native/README.md](../react-native/README.md).
+   OkHttpTelemetry.create(otelService.openTelemetry).createCallFactory(buildBaseOkHttpClient())
+   ```
 
-### Configure upload credentials
+   `app/build.gradle.kts` also applies the Byte Buddy plugin with the upstream `okhttp3-agent`.
+5. `MainActivity` attaches Compose navigation, which emits `app.navigation.complete` log events:
 
-Set these in the shell or CI (never hardcode the API key in Gradle):
+   ```kotlin
+   import io.opentelemetry.instrumentation.compose.navigation.withOpenTelemetry
 
+   otelService.openTelemetryRum?.let { navController.withOpenTelemetry(it) }
+   ```
 
-| Variable                  | Source in Grafana                                                             |
-| ------------------------- | ----------------------------------------------------------------------------- |
+Other points specific to this app:
+
+- Sessions use a 15-minute background inactivity timeout and a 4-hour maximum lifetime.
+- The app does not set `deployment.environment.name`, so environment filters do not match it.
+
+## Release build and symbols
+
+Release builds use R8 and `ndk.debugSymbolLevel = FULL`. The `com.grafana.faro.android-symbols`
+Gradle plugin, wired in `app/build.gradle.kts`, uploads `mapping.txt` and
+`native-debug-symbols.zip` after `assembleRelease`, `bundleRelease` or `installRelease`.
+
+Each release is identified by `applicationId@versionCode@versionName`, by default
+`com.grafana.quickpizza.android@1@1.0.0` (`versionName` comes from the `quickpizzaDemoVersionName`
+Gradle property). The id is written to `app/build/faro/bundle-id-release.txt`, uploaded with the
+symbols and sent at runtime as the `faro.app.bundleId` resource attribute.
+
+The upload reads its credentials from the environment. If any is missing, the upload warns and is
+skipped, and the build still succeeds. Set `faro { enabled = false }` to turn uploads off.
+
+| Variable | Source in Grafana |
+| --- | --- |
 | `FARO_SOURCEMAP_ENDPOINT` | Frontend Observability → your app → **Settings → Source maps** (API base URL) |
-| `FARO_SOURCEMAP_APP_ID`   | App id                                                                        |
-| `FARO_SOURCEMAP_STACK_ID` | Stack id                                                                      |
-| `FARO_SOURCEMAP_API_KEY`  | Upload token                                                                  |
-
-
-```kotlin
-// app/build.gradle.kts (already wired)
-faro {
-    endpoint.set(System.getenv("FARO_SOURCEMAP_ENDPOINT"))
-    appId.set(System.getenv("FARO_SOURCEMAP_APP_ID"))
-    stackId.set(System.getenv("FARO_SOURCEMAP_STACK_ID"))
-    apiKey.set(System.getenv("FARO_SOURCEMAP_API_KEY"))
-}
-```
-
-If any variable is missing, `faroUploadSymbolsRelease` **warns and skips** — the
-build still succeeds (useful for local debug builds without upload access). Set
-`faro { enabled = false }` to disable uploads entirely.
-
-### Build and upload
+| `FARO_SOURCEMAP_APP_ID` | App id |
+| `FARO_SOURCEMAP_STACK_ID` | Stack id |
+| `FARO_SOURCEMAP_API_KEY` | Upload token |
 
 ```bash
 cd Mobiles/android
@@ -138,185 +171,44 @@ export FARO_SOURCEMAP_ENDPOINT="https://<your-stack>.grafana.net/api/v1"
 export FARO_SOURCEMAP_APP_ID="<app-id>"
 export FARO_SOURCEMAP_STACK_ID="<stack-id>"
 export FARO_SOURCEMAP_API_KEY="<token>"
-
-./gradlew assembleRelease   # or installRelease to push to a device
+./gradlew installRelease
 ```
 
-**What runs on release:** `faroWriteBundleIdRelease` → build →
-`faroUploadSymbolsRelease` (in-JVM upload to
-`POST …/app/{appId}/symbols/android/{bundleId}`). Look for `[Faro]` lines in
-Gradle output.
+To verify, look for `[Faro]` lines in the Gradle output, open the app, tap
+**Debug → Crash (RuntimeException)** and relaunch. The crash in Frontend Observability should show
+real Kotlin file names, not obfuscated ones like `a5.r0`.
 
-Confirm artifacts from the **same** build:
+### Dependency lockfiles
+
+Every project locks its configurations, including the plugin classpath. After bumping a plugin or
+dependency, refresh the lockfiles or Gradle fails with a lock mismatch:
 
 ```bash
-ls -l app/build/faro/bundle-id-release.txt
-ls -l app/build/outputs/mapping/release/mapping.txt
-ls -l app/build/outputs/native-debug-symbols/release/native-debug-symbols.zip
+cd Mobiles/android
+./gradlew --write-locks :app:dependencies :grafana-opentelemetry-android:dependencies
 ```
-
-Manual retry outside Gradle (optional): `faro-cli android upload` with the same
-`FARO_SOURCEMAP_*` env vars and `--application-id` / `--version-code` /
-`--version-name` matching `bundle-id-release.txt` (see
-[faro-cli android upload](https://github.com/grafana/faro-javascript-bundler-plugins/tree/main/packages/faro-cli)).
-
-**Verify in Grafana:** install the release build (`./gradlew installRelease`),
-open the app, trigger **Debug → Crash (RuntimeException)**, relaunch, and check
-Frontend Observability — the crash should show real Kotlin file names, not
-scrambled labels like `a5.r0`.
-
----
-
-## Features
-
-The user-facing screens (Home, Login, Profile, About, Debug) are aligned
-with the other QuickPizza mobile apps. See
-[../FEATURES.md](../FEATURES.md) for the shared feature spec.
-
-The **Debug** tab exposes:
-
-- Runtime config overrides (backend URL, OTLP endpoint, instance ID, API key).
-- Backend error/latency injection toggles
-  (`x-error-record-recommendation`, `x-delay-record-recommendation`,
-  `x-error-get-ingredients`, `x-delay-get-ingredients`).
-- Client-side fault simulation (`useV2PizzaSchema`,
-  `skipAuthDepInTools`).
-- An **OTel SDK section** with a `Disable disk buffering` toggle —
-  default-on disk buffering means ~30–45 s end-to-end latency in exchange
-  for offline resilience; turning it off gives ~1–6 s latency for
-  live demos at the cost of dropping signals if the network is down.
-- **Quick signals** — buttons to send a debug log, an error log, and a custom event (`debug.test_event`).
-- **Handled exception** — emits an OTel exception log via `logger.exception(...)`.
-- **ANR card** — blocks the main thread for 10 s to exercise the OTel agent's `device.anr` reporting. The system may show a Wait/Close dialog.
-- **Crash card** — `RuntimeException` and simulated `NullPointerException`
-  variants. The OTel-Android `CrashReporter` emits `device.crash` and the
-  SDK force-flushes logs, traces and metrics before the process dies; with
-  disk buffering on (the default) the record is written to disk and
-  shipped on the next app launch.
-- **NDK crash card** — triggers a real `SIGSEGV`. On Android 11 / API 30 and
-  later, app-owned `NativeExitCrashReporter` replays available native-exit traces
-  as `device.crash` after relaunch; this is separate from the upstream managed
-  exception handler.
-
----
-
-## Observability
-
-The app uses [opentelemetry-android](https://github.com/open-telemetry/opentelemetry-android)
-and exports via OTLP/HTTP. The version is pinned in
-[`gradle/libs.versions.toml`](gradle/libs.versions.toml). Init lives in
-`app/src/main/java/com/grafana/quickpizza/core/o11y/OTelService.kt`.
-
-
-| Signal    | Examples                                                                                                                                                                                                                                                            |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Spans** | `GET` (auto OkHttp), `AppStart` / `Paused` / `Stopped` (auto lifecycle), `pizza.get_recommendation` / `auth.login` / `pizza.rate` (manual)                                                                                                                          |
-| **Logs**  | `screen.view` (auto), `app.navigation.complete` (Compose navigation, after explicit setup), `app.jank` (auto, slow rendering), `session.start` (auto), `rum.sdk.init.`* (auto SDK self-telemetry), `exception` (manual `logger.exception`), `device.crash` (auto, next launch), `device.anr` (auto, runtime), `debug.test_event` (manual) |
-
-
-Core resource attributes: `service.name=quickpizza-android`,
-`service.namespace=quickpizza`, `service.version`. The app does not set
-`deployment.environment.name` or the legacy `deployment.environment`, so
-environment filters do not match it (the iOS app
-does). The device, network, navigation, and session attributes are inventoried in
-[`MOBILE_OBSERVABILITY_OVERVIEW.md § Android native`](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md#android-native-opentelemetry-android).
-
-`OTelService` delegates startup to the local Grafana OpenTelemetry Android library, which uses
-`OpenTelemetryRumInitializer` to wire up:
-
-- Lifecycle / `AppStart` / activity-state spans.
-- Slow-rendering / jank detection (`event_name=app.jank`).
-- Crash reporting (`CrashReporter`) — emits `event_name=device.crash` for
-unhandled exceptions. Since 1.7.0 the SDK force-flushes before delegating
-to the platform handler, so the record survives the crash; with disk
-buffering on it is delivered on the next launch.
-- ANR detection — emits `event_name=device.anr`.
-- Sessions — 15-minute background inactivity timeout and 4-hour maximum
-lifetime, with `session.id` stamped on spans and log records.
-- Disk buffering of OTLP exports for offline resilience (toggle off via
-  the Debug screen).
-
-The app separately wires auto OkHttp tracing: `AppModule` wraps the client with the
-`OkHttpTelemetry` `Call.Factory`, and the build also applies the Byte Buddy `okhttp3-agent`.
-
-Compose navigation also requires explicit setup: `MainActivity` calls
-`navController.withOpenTelemetry(rum)` to attach the SDK's `compose-navigation`
-instrumentation. It emits `event_name=app.navigation.complete` with
-`app.navigation.destination.name` set to the route pattern. These are log events,
-not screen-duration spans.
-
-The current [Grafana OpenTelemetry Android spike](grafana-opentelemetry-android/README.md) moves
-those shared startup defaults into a local library while returning the upstream OTel runtime. The package
-placement and remaining validation are recorded in
-[GRAFANA_OPENTELEMETRY_ANDROID.md](../docs/GRAFANA_OPENTELEMETRY_ANDROID.md).
-
-Where to view the data on the demo stack:
-
-- **Frontend Observability:** open the `QuickPizza_Android` app. The Faro
-  collector translates the OTLP payloads to Faro on ingest. The `/otlp/<appKey>`
-  route must be enabled on your stack; use the endpoint from its app setup page.
-- **Legacy OTLP gateway path only** (see
-  [Connect to Grafana Cloud](../docs/CONNECT_GRAFANA_CLOUD.md#alternative-the-otlp-gateway)):
-  the data stays raw OTel and does not appear in Frontend Observability. Query
-  the shared [Mobile OTel RUM dashboard](../docs/MOBILE_OTEL_RUM_DASHBOARD.md),
-  Tempo (`resource.service.name="quickpizza-android"`), or Loki
-  (`service_name="quickpizza-android"`).
-
----
-
-## Configuration reference
-
-`app/src/main/res/raw/config.json` (gitignored — copy from `config.json.example` at the project root):
-
-```json
-{
-  "OTLP_ENDPOINT": "https://faro-collector-<region>.grafana.net/otlp/<appKey>",
-  "OTLP_INSTANCE_ID": "",
-  "OTLP_API_KEY": "",
-  "BASE_URL": ""
-}
-```
-
-| Field | Description |
-| --- | --- |
-| `OTLP_ENDPOINT` | OTLP/HTTP base URL (without `/v1/traces`). Empty disables export. |
-| `OTLP_INSTANCE_ID` | Numeric Grafana Cloud OTLP gateway instance ID. Leave empty for Faro OTLP ingest. |
-| `OTLP_API_KEY` | Grafana Cloud access token (combined with the instance ID into `Authorization: Basic`). Leave empty for Faro OTLP ingest. |
-| `BASE_URL` | QuickPizza backend URL. Empty auto-resolves to `http://10.0.2.2:3333` on emulators. For physical devices, use HTTPS or USB port forwarding to loopback ([setup](../docs/ANDROID_NATIVE_SETUP.md#4-run-on-a-physical-device)). |
-
-To obtain the OTLP endpoint, instance ID, and token, see
-[Connect to Grafana Cloud](../docs/CONNECT_GRAFANA_CLOUD.md#opentelemetry-apps-ios-native-android-native).
-All four fields can also be overridden at runtime from **Debug → Config**
-without a rebuild — overrides apply on the next launch.
-
----
 
 ## Troubleshooting
 
 **No telemetry in Grafana**
 
-- Confirm `OTLP_ENDPOINT` (or its Debug-screen override) is set. The legacy
-OTLP gateway also needs `OTLP_INSTANCE_ID` and `OTLP_API_KEY`; Faro OTLP ingest
-needs neither.
-- Verify the endpoint accepts OTLP/HTTP (not gRPC).
-- Use the Debug tab to send a debug log + handled exception and
-confirm they arrive.
-
-**Disk buffering hides recent signals**
-
-- The default ~30–45 s buffering window is intentional for offline
-resilience. Toggle `Disable disk buffering` from the Debug screen for
-live demos.
+- Check `OTLP_ENDPOINT` in `config.json` or **Debug → Config**. The legacy gateway also needs
+  `OTLP_INSTANCE_ID` and `OTLP_API_KEY`; the Faro route needs neither.
+- The endpoint must accept OTLP over HTTP, not gRPC.
+- Send a debug log or handled exception from the Debug tab and confirm it arrives. With disk
+  buffering on, allow 30-45 s.
 
 **App can't reach the backend**
 
-- Emulator: leave `BASE_URL` empty (uses `10.0.2.2:3333`).
-- Physical device: use an HTTPS backend or `adb reverse tcp:3333 tcp:3333` with
-  `BASE_URL=http://127.0.0.1:3333` on API 24+. HTTP to a LAN IP is blocked by the
-  app's network security policy. API 23 requires HTTPS even for loopback.
+- Emulator: leave `BASE_URL` empty and make sure the backend is running on the host.
+- Physical device: use `adb reverse` with `http://127.0.0.1:3333`, or an HTTPS backend. See
+  [Run on a physical device](#run-on-a-physical-device).
 
-**Build fails with `ClassNotFoundException` / dex errors**
+**Build fails with `ClassNotFoundException` or dex errors**
 
-- Ensure `gradle.properties` has
-`android.useFullClasspathForDexingTransform=true` (required by
-`opentelemetry-android` with AGP 8.3+).
+- `gradle.properties` must contain `android.useFullClasspathForDexingTransform=true`, which
+  `opentelemetry-android` requires with AGP 8.3 and newer.
+
+**Gradle fails to start or reports an unsupported Java version**
+
+- Run Gradle with JDK 17 or newer, for example Android Studio's bundled JDK.

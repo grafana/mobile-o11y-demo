@@ -1,154 +1,101 @@
 # QuickPizza Mobile Demos
 
-**Start here.** This directory holds four mobile QuickPizza apps used to demo
-mobile observability with Grafana. They share the same screens and talk to the
-same backend — what differs is the telemetry SDK and the wire format it sends.
+Four QuickPizza mobile apps for demoing mobile observability with Grafana. They
+share the same screens and backend; they differ in the telemetry SDK.
 
-This page is the entry point: it tells you **which platforms are supported**,
-**how to get a demo running**, and **where to go for more detail**. Everything
-deeper lives in linked docs so the same information isn't repeated in five
-places.
+| App | SDK | Sends to | Run guide |
+| --- | --- | --- | --- |
+| Flutter (Android + iOS) | Grafana Faro | Faro collector `/collect/<appKey>` | [flutter/README.md](./flutter/README.md) |
+| React Native (Android + iOS) | Grafana Faro | Faro collector `/collect/<appKey>` | [react-native/README.md](./react-native/README.md) |
+| iOS native (SwiftUI) | OpenTelemetry Swift, via the local Grafana package | Faro collector `/otlp/<appKey>` (OTLP/HTTP) | [ios/README.md](./ios/README.md) |
+| Android native (Compose) | OpenTelemetry Android, via the local Grafana package | Faro collector `/otlp/<appKey>` (OTLP/HTTP) | [android/README.md](./android/README.md) |
 
----
-
-## Supported platforms
-
-| Platform | Type | Location | SDK | Run guide |
-| --- | --- | --- | --- | --- |
-| **Flutter** (Android + iOS) | Cross-platform | [`flutter/`](./flutter/) | Grafana **Faro** | [Flutter README](./flutter/README.md) |
-| **React Native** (Android + iOS) | Cross-platform | [`react-native/`](./react-native/) | Grafana **Faro** | [React Native README](./react-native/README.md) |
-| **iOS native** (SwiftUI) | Native | [`ios/`](./ios/) | **OpenTelemetry** Swift | [iOS README](./ios/README.md) |
-| **Android native** (Compose) | Native | [`android/`](./android/) | **OpenTelemetry** Android | [Android README](./android/README.md) |
-
-Two wire formats, one destination:
-
-- **Faro** (Flutter, React Native) → posts Faro payloads to the collector's
-  `/collect/<appKey>` endpoint.
-- **OpenTelemetry** (iOS, Android) → posts OTLP/HTTP to the same collector's
-  `/otlp/<appKey>` endpoint, which translates OTLP to Faro on ingest.
-
-Both end up in the Grafana Cloud **Frontend Observability** plugin, one app per
-key. The native apps also have a legacy OTLP gateway path that the plugin
-cannot read. See [Connect to Grafana Cloud](./docs/CONNECT_GRAFANA_CLOUD.md).
-
-For a side-by-side of what each app actually emits, see
-[`docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](./docs/MOBILE_OBSERVABILITY_OVERVIEW.md).
-
----
+All four land in Grafana Cloud **Frontend Observability**, one app per key.
 
 ## Run a demo in 3 steps
 
 ### Step 1 — Start the backend
 
-All four apps need the QuickPizza backend. To send telemetry to two stacks,
-use [dual-stack setup](#optional-dual-stack-telemetry) instead of this step.
-For a standalone backend, build the mobile image from this checkout and run it:
+Every app needs the QuickPizza backend. Build the mobile image from this
+checkout and run it:
 
 ```bash
 docker build -t quickpizza-mobile-local:development .
 docker run --rm -d --name quickpizza -p 3333:3333 \
   quickpizza-mobile-local:development
+curl --fail -i http://localhost:3333/healthz   # expect HTTP 200
 ```
 
-Verify it's up:
+Use `quickpizza-mobile-local` for mobile work; the upstream `quickpizza-local`
+image belongs to the k6/web workshops. To run the backend with its own
+observability through Docker Compose, select the local image:
 
 ```bash
-curl --fail -i http://localhost:3333/healthz   # should return HTTP 200
+export QUICKPIZZA_IMAGE=quickpizza-mobile-local:development
+docker compose -f compose.grafana-cloud.microservices.yaml up -d
 ```
 
-> Use the `quickpizza-mobile-local` image for mobile work. The upstream
-> `quickpizza-local` image is reserved for the k6/web workshops. To run the
-> backend with full local/cloud observability instead, see the Docker Compose
-> options in the [root README](../README.md).
+To send telemetry to two stacks at once, use
+[dual-stack telemetry](#optional-dual-stack-telemetry) instead of this step.
 
 ### Step 2 — Connect to Grafana Cloud
 
-Whether this is optional depends on the SDK family:
+- **Flutter / React Native:** `FARO_COLLECTOR_URL` is **required**. These apps
+  throw at startup without it, even for a local-only demo.
+- **iOS / Android native:** optional. With the OTLP fields empty the apps run,
+  but OpenTelemetry is not initialized and sends nothing.
 
-- **Flutter / React Native (Faro):** a `FARO_COLLECTOR_URL` is **required** —
-  these apps throw at startup without one, even for a local-only demo.
-- **iOS / Android native (OpenTelemetry):** Grafana Cloud is **optional** —
-  the apps still run with the OTLP fields empty, but OpenTelemetry is not
-  initialized and produces no signals. Local app logging remains available.
-  Configure an OTLP endpoint to enable telemetry; iOS debug builds then also
-  log spans to the Xcode console.
+Get the URL and where to put it from
+[Connect to Grafana Cloud](./docs/CONNECT_GRAFANA_CLOUD.md).
 
-One doc covers both: [**Connect to Grafana Cloud**](./docs/CONNECT_GRAFANA_CLOUD.md)
-(Faro collector URL and OTLP endpoint/token).
+### Step 3 — Run an app
 
-### Step 3 — Pick a platform and run it
+Each platform README has the toolchain prerequisites and full steps. From the
+repository root:
 
-Each app has the toolchain prerequisites and full instructions in its README.
-Quick orientation:
-
-- **iOS native** — lightest path on a Mac (Xcode + Docker only).
-  `cd ios && cp Config.xcconfig.example Config.xcconfig && bash Scripts/sim-run.sh`.
-  Full steps: [iOS README](./ios/README.md).
-- **Android native** — Android Studio + emulator.
-  `cd android && cp config.json.example app/src/main/res/raw/config.json && ./gradlew installDebug`.
-  Full steps: [Android README](./android/README.md) ·
-  [toolchain setup](./docs/ANDROID_NATIVE_SETUP.md).
-- **Flutter** — needs the Flutter SDK plus a mobile toolchain:
-  [Flutter README](./flutter/README.md) ·
-  [Android toolchain](./docs/FLUTTER_ANDROID_SETUP.md) ·
-  [iOS toolchain](./docs/FLUTTER_IOS_SETUP.md).
-- **React Native** — needs Node ≥ 24.5 + Yarn (and CocoaPods for iOS):
-  [React Native README](./react-native/README.md).
-
-> First-time mobile toolchain setup (Xcode ~15 GB, Android Studio + SDK, or the
-> Flutter/Node toolchains) can take an hour or more if you've never done mobile
-> development. The backend (Step 1) is the only part that's instant.
-
----
+- **iOS native** (Xcode): `cp Mobiles/ios/Config.xcconfig.example Mobiles/ios/Config.xcconfig && bash Mobiles/ios/Scripts/sim-run.sh`
+- **Android native** (Android Studio + emulator): `cp Mobiles/android/config.json.example Mobiles/android/app/src/main/res/raw/config.json && (cd Mobiles/android && ./gradlew installDebug)`
+- **Flutter** (Flutter SDK + Xcode or Android Studio): see [flutter/README.md](./flutter/README.md)
+- **React Native** (Node 24.5+, Yarn, CocoaPods for iOS): see [react-native/README.md](./react-native/README.md)
 
 ## Shared basics
 
-These apply to every app, so they're stated once here.
-
-- **Login:** username `default`, password `12345678`. This shared account cannot
-  delete ratings. Use a separate account such as `studio-user` / `k6studiorocks`
-  when demonstrating **Clear Ratings**.
-- **Backend URL on emulators/simulators:** leave `BASE_URL` empty — the apps
-  auto-resolve to `http://10.0.2.2:3333` on Android emulators (which routes to
-  your host) and `http://localhost:3333` on the iOS simulator. For a **physical
-  device**, follow the platform README. Native Android restricts cleartext
-  HTTP to loopback/emulator hosts: use USB `adb reverse tcp:3333 tcp:3333`
-  with `BASE_URL=http://127.0.0.1:3333` on Android 7+, or an HTTPS backend.
-  A plain HTTP LAN-IP URL is blocked in that app.
-- **Debug tab (the demo driver):** every app has an in-app **Debug** screen to
-  override config at runtime, inject backend errors/latency, and trigger test
-  logs, handled exceptions, and native crashes — this is how you generate
-  telemetry on demand during a demo. Details and per-platform extras are in
-  [`docs/MOBILE_OBSERVABILITY_OVERVIEW.md § The shared Debug screen`](./docs/MOBILE_OBSERVABILITY_OVERVIEW.md#the-shared-debug-screen).
-- **Android emulator:** `scripts/ensure-android-emulator.sh` boots or waits for an
-  adb-ready AVD. React Native's `react-native/scripts/run-android.sh` delegates to
-  it; native Android and E2E tooling can call it directly with `--avd`.
-
----
-
-## Where to go for more
-
-| I want to… | Read |
-| --- | --- |
-| Understand what each app emits and where it lands | [`docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](./docs/MOBILE_OBSERVABILITY_OVERVIEW.md) |
-| Send a mobile app's telemetry to a Grafana Cloud stack (the app's own Faro / OTLP config) | [`docs/CONNECT_GRAFANA_CLOUD.md`](./docs/CONNECT_GRAFANA_CLOUD.md) |
-| See the shared screens & workflows spec | [`FEATURES.md`](./FEATURES.md) |
-| Import the native OTel RUM dashboard | [`docs/MOBILE_OTEL_RUM_DASHBOARD.md`](./docs/MOBILE_OTEL_RUM_DASHBOARD.md) |
-| Deep-dive iOS OTel instrumentation | [`docs/IOS_OBSERVABILITY_OTEL_GUIDE.md`](./docs/IOS_OBSERVABILITY_OTEL_GUIDE.md) |
-| Understand the iOS app architecture | [`docs/IOS_APP_ARCHITECTURE.md`](./docs/IOS_APP_ARCHITECTURE.md) |
-| Run the cross-platform E2E tests | [`e2e/README.md`](./e2e/README.md) |
-| Track OTel mobile SDK gaps / contributions | [`docs/OTEL_MOBILE_MATURITY.md`](./docs/OTEL_MOBILE_MATURITY.md) |
+- **Login:** `default` / `12345678`. This shared account cannot delete ratings;
+  use the seeded `studio-user` / `k6studiorocks` account to demo **Clear Ratings**.
+- **Backend URL:** leave `BASE_URL` empty on emulators and simulators. The apps
+  resolve to `http://10.0.2.2:3333` on the Android emulator and
+  `http://localhost:3333` on the iOS simulator. For a physical device, follow
+  the platform README.
+- **Debug tab:** every app has an in-app Debug screen to override config,
+  inject backend errors and latency, and trigger logs, handled exceptions, and
+  native crashes. Use it to generate telemetry during a demo. See
+  [the shared Debug screen](./docs/MOBILE_OBSERVABILITY_OVERVIEW.md#the-shared-debug-screen).
+- **Android emulator:** `Mobiles/scripts/ensure-android-emulator.sh` boots an
+  AVD or waits until one is adb-ready. Pass `--avd <name>` when several exist.
 
 ## Optional dual-stack telemetry
 
-This is an alternative to Step 1. If its standalone `quickpizza` container is
-running, stop it first with `docker stop quickpizza` to release port `3333`.
+An alternative to Step 1 that sends every app's telemetry to two saved Grafana
+Cloud stacks. Stop the standalone backend first (`docker stop quickpizza`),
+then from the repository root:
 
-Run `python3 Mobiles/telemetry/setup.py` from the repository root to build and start a
-shared Docker backend and forwarding to both saved Grafana Cloud stacks. It prepares
-all four apps on both platforms; run `python3 Mobiles/telemetry/teardown.py` to
-stop it. See [the setup guide](telemetry/README.md) for IDE launch instructions.
-To keep a separately managed backend, use `--backend none` and configure that
-backend's telemetry forwarding yourself; the flag only configures the mobile
-apps and forwarders. Apps retain single-endpoint SDK configuration; forwarding
-and credentials live in tooling.
+```bash
+python3 Mobiles/telemetry/setup.py     # backend + forwarders, configures all apps
+python3 Mobiles/telemetry/teardown.py  # stop
+```
+
+See [telemetry/README.md](./telemetry/README.md) for options and IDE launch.
+
+## Docs
+
+| I want to… | Read |
+| --- | --- |
+| Connect an app to a Grafana Cloud stack | [docs/CONNECT_GRAFANA_CLOUD.md](./docs/CONNECT_GRAFANA_CLOUD.md) |
+| See what each app emits and where it lands | [docs/MOBILE_OBSERVABILITY_OVERVIEW.md](./docs/MOBILE_OBSERVABILITY_OVERVIEW.md) |
+| Read the shared screens and workflows spec | [FEATURES.md](./FEATURES.md) |
+| Import the native OTel RUM dashboard (legacy gateway path) | [docs/MOBILE_OTEL_RUM_DASHBOARD.md](./docs/MOBILE_OTEL_RUM_DASHBOARD.md) |
+| Go deeper on iOS OTel instrumentation | [docs/IOS_OBSERVABILITY_OTEL_GUIDE.md](./docs/IOS_OBSERVABILITY_OTEL_GUIDE.md) |
+| Understand the iOS app architecture | [docs/IOS_APP_ARCHITECTURE.md](./docs/IOS_APP_ARCHITECTURE.md) |
+| Use the local Grafana OTel packages | [iOS package](./ios/grafana-opentelemetry-ios/README.md), [Android library](./android/grafana-opentelemetry-android/README.md) |
+| Run the cross-platform E2E tests | [e2e/README.md](./e2e/README.md) |
+| Track OTel mobile SDK gaps | [docs/OTEL_MOBILE_MATURITY.md](./docs/OTEL_MOBILE_MATURITY.md) |

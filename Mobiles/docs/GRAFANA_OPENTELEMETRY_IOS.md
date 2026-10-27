@@ -1,622 +1,144 @@
-# Grafana OpenTelemetry iOS
-
-**Status:** Experimental local package. It is not published or supported for production use.
-
-> **Current pin and session wiring.** This note records the spike's `2.6.0` decision. The package
-> now pins the merged `opentelemetry-swift` #1218 revision for session validation, which raises the
-> floor to iOS 15 and `swift-tools-version:6.2`. It wires sessions through `SessionTraceSampler` and
-> `SessionSamplingLogRecordProcessor` instead of `SessionSpanProcessor` /
-> `SessionLogRecordProcessor`. The [package README](../ios/grafana-opentelemetry-ios/README.md) and
-> [session validation notes](../ios/session-validation/README.md) describe the current state; where
-> they differ from the sections below, they win.
-
-This package follows the composition direction: customers keep instrumenting through standard
-OpenTelemetry APIs, and a Grafana package adds setup, defaults and Grafana-specific instrumentation
-around the upstream SDK without introducing a Grafana telemetry API.
-
-## Placement decision
-
-The runnable spike lives in `Mobiles/ios/grafana-opentelemetry-ios` and is consumed by the
-existing QuickPizza iOS app as a local Swift package reference. This gives the package a real
-application and build without creating an empty repository or treating the demo repository as its
-permanent home.
-
-The package sits beside `QuickPizzaIos.xcodeproj` rather than inside `Mobiles/ios/QuickPizzaIos/`,
-because the app target uses a file-system-synchronized group over that folder: sources placed there
-would be compiled both as package targets and as app sources.
-
-The demo proves the package boundary but is not the permanent source or release location. Generic
-Swift SDK and instrumentation work belongs upstream in
-[`opentelemetry-swift`](https://github.com/open-telemetry/opentelemetry-swift), while build-time
-symbol upload for mobile stays outside this runtime package. The final Grafana-owned runtime
-location, package identity, release ownership, automation, and supported upstream version window
-require agreement before the package is extracted or published.
-
-The proposed name is **Grafana OpenTelemetry iOS**, with `GrafanaOtel.initialize(...)` as the
-startup entrypoint. The local directory name is not a published package identity.
-
-The spike uses `opentelemetry-swift` `2.6.0` with `opentelemetry-swift-core` `2.6.0`, required as
-`.upToNextMinor(from:)` — the same operator the Frontend Observability app page gives customers. The
-app page names an older pair, so the versions are ahead of the product's own instructions until that
-page moves. `2.6.0` is a floor, not a preference: the package relies on `OtlpHttpLogExporter.export`
-returning the upload result, which lets disk buffering keep a failed log batch, and on
-`SessionLogRecordProcessor` forwarding `forceFlush` and `shutdown`. Minor releases are excluded
-because upstream has shipped breaking work in them; patches have been bug fixes only. The app's
-project requirement and its committed `Package.resolved` were both moved to match.
-
-The package declares **iOS only**, at iOS 13 — the floor `opentelemetry-swift` itself declares — and
-`swift-tools-version:6.0`, matching both upstream manifests. Scope and floor are separate decisions
-here: the scope is iOS because that is the only platform this spike builds and tests for, while the
-floor is upstream's rather than a higher one a demo app would suggest, because a Grafana package
-that raised the floor would silently disqualify iOS apps the upstream SDK supports.
-
-macOS is declared alongside it, at upstream's `.macOS(.v12)` floor, purely as a host platform:
-upstream's exporter, resource, session and instrumentation products all require macOS 12, so without
-it the `swift` CLI cannot resolve the package and `swift build` / `swift test` are unavailable. It is
-the minimum needed to keep a command-line loop, not a claim of macOS support. Nothing beyond those
-two is declared.
-
-The cost of that host entry is that `swift test` does not cover everything: MetricKit sits behind
-upstream's `#if canImport(MetricKit) && !os(tvOS) && !os(macOS)` guard and compiles out on a macOS
-host, so the simulator run remains the authoritative one.
-
-That guard's two terms have different causes, and only one is a real limitation. `!os(tvOS)` is
-required: `MetricKit.framework` ships in the tvOS SDK so `canImport` is true, but every type is
-`API_UNAVAILABLE(tvos, watchos)`. `!os(macOS)` is not required — the full surface upstream uses is
-available on macOS 12, and upstream annotates its own instrumentation
-`@available(iOS 13.0, macOS 12.0, macCatalyst 13.1, visionOS 1.0, *)`, which that term makes
-unreachable. It is an upstream scoping decision. This package mirrors the guard rather than
-diverging from it, so the macOS gap in `swift test` is inherited, not chosen here.
-
-Both are declared with `.upToNextMinor(from:)` in the package manifest, at `2.6.0`. Patches are
-accepted without a manifest change, the minor line is not: upstream has shipped breaking work in
-minor releases, so each new minor is something to test into rather than resolve into. The floor is
-not a preference either — see above for the two `2.6.0` behaviours the package relies on.
-
-## Why this package exists
-
-`opentelemetry-swift` ships no assembled RUM agent. There is no `OpenTelemetryRum`, no
-`OpenTelemetryRumInitializer`, no autoconfigure module, and no SDK facade type. Upstream ships
-providers, OTLP exporters, session processors and instrumentations as independent pieces, and leaves
-each app to wire them together in the right order.
-
-That is what this package is for. It owns the assembly and its ordering once, applies Grafana's
-defaults, and hands back a runtime handle — so an app gets a working RUM setup from one call instead
-of rediscovering the ordering rules recorded below, several of which fail silently when they are got
-wrong. It is why this package is more than a thin configuration shim, and it is worth recording as a
-platform finding rather than an implementation detail.
-
-## Package boundary
-
-The package owns only startup configuration and assembly that is specific to the Grafana
-distribution:
-
-- the OTLP endpoint — required, and validated — plus its per-signal paths and export headers;
-- the resource, including removing the bundle-derived `service.name`;
-- session inactivity, maximum lifetime, and cold-start restore behaviour;
-- the HTTP semantic convention, fixed at the stable attribute names;
-- which hosts receive W3C trace-context headers;
-- disk buffering, its directory, and its backup policy;
-- excluding its own collector origin from automatic HTTP tracing;
-- sanitising the request URL recorded on HTTP spans;
-- the retry ownership split between the disk queue and the HTTP exporters;
-- the order in which the upstream pieces are installed.
-
-It delegates all SDK behaviour to upstream and returns `GrafanaOtelRuntime`, which exposes the
-registered `TracerProviderSdk` and `LoggerProviderSdk`, the standard OpenTelemetry API entry point,
-a flush/shutdown path, and a redirect guard applications can install on their own `URLSession`. It does
-**not** define Grafana tracer, span, logger, event or meter APIs.
-
-The app still owns application-specific behaviour: the runtime config UI, the debug-only console
-span exporter, business instrumentation, screen-view events, the app's instrumentation scope, and
-opting into automatic redirect protection for its delegate-less requests.
-
-No `MeterProvider` is registered. Faro OTLP ingest currently accepts logs and traces only, so
-metrics are left off rather than exported to a route that rejects them. This is an ingest
-constraint, not a Swift SDK limitation — `opentelemetry-swift-core` `2.6.0` does ship a metrics SDK.
-
-### Install order
-
-The install order is load-bearing, and every way of getting it wrong fails silently rather than
-loudly. This is the part of the package with the least upstream guidance:
-
-1. The upstream default resource, built *before* the initialization lock is taken. Upstream's
-   device and OS resource providers block on the main queue, so building the resource under the lock
-   would let a main-thread status read deadlock against a background initializer.
-2. The diagnostics handler, so failures in later steps are observable at all.
-3. The session manager, created from the configured timeouts, registered, and passed explicitly
-   to `SessionTraceSampler` and `SessionSamplingLogRecordProcessor`. Anything that instead resolves
-   `SessionManagerProvider.getInstance()` before registration *lazily creates* a default manager
-   with a 30-minute timeout, and registering afterwards does not repair it.
-4. Everything that can fail: both disk-buffering directories, the exporters, and both pipelines.
-   None of the remaining steps throw, so a failure can never leave a globally registered provider
-   with a live batch worker that no runtime handle can flush or shut down.
-5. The providers, registered globally — tracer then logger.
-6. `SessionEventInstrumentation.install()`, after the logger provider, so its queued session events
-   do not reach the no-op default logger.
-7. The instrumentations last. `URLSessionInstrumentationConfiguration.init` and
-   `MetricKitConfiguration.init` resolve a concrete `Tracer`/`Logger` from the global
-   `OpenTelemetry.instance` **at construction time**. Anything built before registration is
-   permanently wired to the no-op provider and drops all data with no error.
-
-Steps 1 and 4 exist because of review findings, not because upstream documents them.
-
-### Instrumentation extension
-
-Swift has no `ServiceLoader` and upstream has no instrumentation-discovery mechanism, so there is no
-Swift analogue of publishing an instrumentation as a separately discovered module. A Grafana
-instrumentation would either be a span/log processor supplied through the package's experimental
-options, or code the package installs itself.
-
-`URLSessionInstrumentation` constrains this: it swizzles globally in its initializer with no
-idempotency guard and no uninstall, and only one configuration can win per process. Constructing a
-second instance chains implementations and double-instruments every request. That is why the package
-installs it and exposes a `customizeURLSession` hook rather than letting the app build its own.
-
-## Add and remove
-
-The demo adds the local package reference and replaces `OTelService`'s hand-written provider,
-exporter, session and instrumentation setup with `GrafanaOtel.initialize`. Existing application
-instrumentation is unchanged: `Tracer.swift`, `Logger.swift` and `AppEvents.swift` still receive
-`OpenTelemetryApi` types and were not edited.
-
-To remove Grafana OpenTelemetry iOS:
-
-1. Remove the `GrafanaOpenTelemetryIOS` product dependency from the app target and the
-   `XCLocalSwiftPackageReference` from the project's package references.
-2. Replace the `GrafanaOtel.initialize` call with direct upstream setup: build a
-   `TracerProviderSdk` and `LoggerProviderSdk`, register them on `OpenTelemetry`, and construct the
-   desired non-Grafana exporters and instrumentations.
-3. Keep the upstream package products the app already links, and add any the package was providing
-   transitively.
-4. Delete `Mobiles/ios/grafana-opentelemetry-ios`.
-5. Leave application tracer, logger, event and context-propagation calls unchanged.
-
-This spike verifies the source boundary, but the removal path still needs an automated build or
-fixture before the portability gate can be marked complete.
-
-## Run locally
-
-```bash
-cd Mobiles/ios/grafana-opentelemetry-ios
-xcodebuild test \
-  -scheme grafana-opentelemetry-ios \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-  -derivedDataPath .build/xcodebuild-dd
-
-cd ..
-xcodebuild -project QuickPizzaIos.xcodeproj -scheme QuickPizzaIos \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
-bash Scripts/sim-run.sh
-```
-
-The app reads its normal `Config.xcconfig`. See [`Mobiles/ios/README.md`](../ios/README.md) for
-configuration and simulator instructions, and the
-[package README](../ios/grafana-opentelemetry-ios/README.md) for the configuration surface.
-
-Two command-line notes specific to Swift packages:
-
-- `swift build` and `swift test` work from the package directory and are much faster, but on a macOS
-  host `MetricKitInstrumentation` compiles to an empty module, so they skip the MetricKit branch.
-- The package's tests are not reachable through the app project. Xcode generates a project-level
-  scheme from the package *product* only, and that scheme has no test action, so
-  `xcodebuild test -project QuickPizzaIos.xcodeproj -scheme GrafanaOpenTelemetryIOS` fails with
-  "Scheme GrafanaOpenTelemetryIOS is not currently configured for the test action".
-
-## Validation results
-
-All runs below used an iPhone 17 Pro simulator on iOS 26.5, Xcode 26.6 and Swift 6.3.3, with the
-local QuickPizza backend and a host-side HTTP receiver. The receiver records request paths, sizes
-and decompressed bodies; it is not a Faro Collector, so these runs prove the client export path and
-not product ingest.
-
-### Unit and mapping coverage
-
-On September 10, 2026, the package's tests passed both on an iOS 26.5 simulator
-(`xcodebuild test`, `** TEST SUCCEEDED **`) and on the macOS host (`swift test`). The simulator run
-is the one that compiles the MetricKit path against the real iOS SDK; `swift build` resolved the
-same pinned upstream versions the app uses, so the fast loop and the authoritative run agree on
-dependencies.
-
-Coverage is split so that the configuration-to-SDK mapping can be asserted without registering
-process-wide providers:
-
-- configuration validation, including endpoint scheme/query/fragment rules, blank identity values,
-  resource-attribute key rules, header character rules and session-timeout ordering;
-- the resolved plan: resource precedence, signal-path construction, header merge precedence and
-  deduplication, environment-variable header parsing, session mapping, semantic-convention mapping
-  and collector-origin exclusion;
-- the trace-propagation allowlist, including subdomain matching and suffix look-alikes;
-- the redirect guard: that a redirect off the first-party hosts loses its trace context, that one
-  staying on them keeps it, that nothing else about the request is altered, and that the guard
-  still implements the delegate selector upstream swizzles to end spans;
-- the opt-in automatic protection: that upstream's delegate classes still exist under the names it
-  looks them up by — a rename is the one thing that would silently reduce it to nothing — that
-  installing twice adds nothing, that an unknown class name is reported rather than ignored, and
-  that the selector's type encoding comes from the protocol rather than the written-out fallback;
-- the disk queue, against the real persistence exporters over a temporary directory: that flushing
-  a provider reaches disk and no further, that the runtime's own flush then delivers, that
-  stopping export closes the workers' `exportCondition`, and that a shutdown flush still delivers
-  after it is closed;
-- the single-initialization guard, including concurrent callers, remembered failure and re-entry;
-- the `URLSession` configuration the package assembles: collector-origin exclusion, the propagation
-  policy, the semantic convention, and the fact that a caller's customization can narrow those but
-  not widen them;
-- one end-to-end installation test that registers real upstream providers and asserts that a span
-  and a log record created through the standard API carry the Grafana resource and the same
-  `session.id`, that the session processors captured the *configured* session manager rather than a
-  lazily created default, that session lifecycle records are emitted, that the diagnostics handler
-  is installed, that a second `initialize` returns the identical runtime, and that `forceFlush` and
-  `shutdown` reach the log processors through the session decorator.
-
-The last two were added after review: without them, a broken log flush path or a deleted
-collector exclusion left the suite green. Both are now caught.
-
-### Debug runtime result
-
-On September 10, 2026, the debug app was installed and cold-started with the OTLP endpoint pointed
-at a host-side receiver on `http://localhost:8002/otlp/<appKey>` and the backend on
-`http://localhost:3336`.
-
-The receiver accepted gzip-compressed OTLP for both supported signals:
-
-```text
-POST /otlp/<appKey>/v1/logs   wire=885 decoded=1958 enc=gzip
-POST /otlp/<appKey>/v1/traces wire=797 decoded=1394 enc=gzip
-```
-
-The decompressed log payload carried the full resource — `service.name=quickpizza-ios`,
-`service.namespace=quickpizza`, `service.version`, `service.build`,
-`deployment.environment=production` — merged over the upstream default resource (`os.*`,
-`device.*`, `telemetry.sdk.*`). It contained a `session.id`, and a later launch produced a
-`session.end` record with `session.previous_id` under the `io.opentelemetry.sessions` scope,
-confirming the session lifecycle events and the cold-start "new session" rule.
-
-The trace payload carried automatic `URLSession` client spans under the upstream `NSURLSession`
-scope with `session.id` stamped on the span. A re-run after the field-guide alignment confirmed the
-new defaults on the wire: `url.full` and `http.request.method` present, `http.url` and `http.method`
-absent, and `deployment.environment.name` on the resource of both signals.
-
-### Connected-trace result
-
-The app injected W3C trace context into its backend requests, and the identifiers it injected are
-the ones it exported:
-
-```text
-GET /api/tools  traceparent=00-7f41a18be35852e1f0fa098685eda9fa-dd3f9e703a8868c4-01
-GET /api/quotes traceparent=00-f133b98946502a51fa1319adbf7bfaee-feea95acc3847fc0-01
-```
-
-Both 16-byte trace IDs and both 8-byte span IDs were then found verbatim in the exported OTLP trace
-payload. That establishes the client half of a connected mobile-to-backend trace: the span the app
-exports is the parent the backend receives. The backend half is the existing QuickPizza tracing and
-is not re-proven here.
-
-### Re-confirmed after the API changes
-
-The runtime results above were first captured before several public-API decisions landed — the
-required endpoint, the removal of `serviceName`/`serviceNamespace`, the fixed semantic convention,
-and `firstPartyHosts` replacing the propagation enum. They were re-run on September 11, 2026 on the
-same simulator and the wire output was identical: `url.full` and `http.request.method` present with
-`http.url` and `http.method` absent, `deployment.environment.name`, `session.id`, `service.name`,
-`service.namespace` and `service.build` on both signals, clean request URLs with no query string,
-and both injected `traceparent` trace ids present in the exported spans.
-
-That last point is the one the changes could have broken: `service.name` now arrives through
-`resourceAttributes` rather than a dedicated setting, and trace context now matches the first-party
-host exactly rather than by policy. Both produce the same telemetry as before.
-
-### Buffered delivery result
-
-On September 10, 2026, disk buffering was exercised on the same simulator by taking the receiver
-down, running the app so records failed to export, killing the app, restoring the receiver, and
-relaunching.
-
-The queue behaved as intended. A trace batch was written to
-`Library/Application Support/com.grafana.opentelemetry.ios/traces/`, survived the kill, and was
-delivered after relaunch — then removed from the queue. The two delivered trace payloads carried
-two different `session.id` values against a constant `device.id`, which is what shows the queued
-batch kept the session it was recorded in rather than being re-stamped with the new one.
-
-The directory carried `com.apple.metadata:com_apple_backup_excludeItem`, so the backup exclusion the
-package sets is in force.
-
-On October 1, 2026, the same run was made for logs, with the same simulator and a local OTLP
-capture server. With the receiver down, six log exports to `/v1/logs` failed with
-connection refused, and the batch of 8 log records stayed in `logs/`. The app was killed, the
-receiver restored, and the app relaunched. All 8 records arrived about 6 seconds after relaunch,
-still carrying the first launch's `session.id`, while new records carried a new one. The queue was
-then empty. No log record or span arrived twice, which shows the disk queue is the only retry.
-
-### Release runtime result
-
-The same checks were repeated with a `Release` build, which is where Swift optimization and
-dead-code stripping apply.
-
-The release build succeeded, installed, cold-started, and exported both signals to the receiver
-(`POST /otlp/<appKey>/v1/traces wire=794 decoded=1393 enc=gzip`, plus a logs payload). The
-traceparent identifiers injected into the backend requests were again present in the exported trace
-payload, and the resource carried the expected `os.*` and `device.*` attributes — which matters
-because upstream's `DefaultResources` discovers its providers with `Mirror`, the one reflective
-path in the startup sequence. There is no `ServiceLoader` and no keep-rule equivalent to maintain.
-
-### Two defects this validation caught
-
-Each was found by running the app rather than by reading code, and each is recorded because it is
-the kind of thing a reference kit is supposed to get right once for everyone:
-
-- **Collector exclusion must match host *and* port.** Excluding the collector by host alone
-  suppressed every backend span during local development, because the receiver and the backend were
-  both `localhost`. The package now compares scheme-normalised host and port, and a regression test
-  covers the local-development case.
-- **A rejected endpoint fails loudly, not silently.** Startup originally abandoned initialization
-  without saying why, so a mistyped endpoint looked identical to a working one from inside the app.
-  `OTelService` now validates the endpoint before calling the package, reports the specific reason
-  through both its own log and the app's startup log, and records it on `otlpRejectionReason` so the
-  state is inspectable rather than guessed at. It does **not** fall back to a telemetry stack with
-  export disabled: the endpoint is required, and a rejected one means no SDK for that process — see
-  [There is no install-without-exporting mode](#there-is-no-install-without-exporting-mode) for why
-  that trade was taken and what it costs.
+# Grafana OpenTelemetry iOS: decision record
+
+**Status:** experimental local package. Not published, not supported for production use.
+
+The package follows the composition direction: apps keep instrumenting through standard
+OpenTelemetry APIs, and a Grafana package adds setup and defaults around the upstream SDK without a
+Grafana telemetry API. API, defaults, install order, version pin and limitations live in the
+[package README](../ios/grafana-opentelemetry-ios/README.md). This page records why it looks the
+way it does and what is still open.
+
+## Placement
+
+- The package lives in `Mobiles/ios/grafana-opentelemetry-ios` and QuickPizza consumes it as a
+  local package reference. That gives it a real app and build without an empty repository.
+- It sits beside `QuickPizzaIos.xcodeproj`, **not** inside `QuickPizzaIos/`. The app target is a
+  file-system-synchronized group over that folder, so sources there would compile twice.
+- The demo repo is not its permanent home. Generic Swift SDK and instrumentation work goes upstream
+  to [`opentelemetry-swift`](https://github.com/open-telemetry/opentelemetry-swift). Build-time
+  symbol upload stays out of the runtime package. Location, identity, release owner and supported
+  upstream window need agreement before extraction.
+- Proposed name: **Grafana OpenTelemetry iOS**, entry point `GrafanaOtel.initialize(...)`. The local
+  directory name is not a package identity.
+
+## Why it exists
+
+`opentelemetry-swift` has no assembled RUM agent, no autoconfigure module and no facade. Apps wire
+providers, exporters, session processors and instrumentations themselves, and several ordering
+mistakes fail silently. The package owns that assembly once. This is a platform finding, not an
+implementation detail.
+
+## Ownership split
+
+The package owns startup assembly and Grafana defaults (full list in the package README). The app
+still owns the runtime config UI, the debug-only console span exporter, business instrumentation,
+screen-view events, its instrumentation scope, and opting into automatic redirect protection.
+
+## Decisions
+
+- **Instrumentation extension.** Swift has no `ServiceLoader` and upstream has no discovery, so a
+  Grafana instrumentation is either a processor passed through experimental options or code the
+  package installs. `URLSessionInstrumentation` swizzles globally with no idempotency guard or
+  uninstall, so the package installs it once and exposes `customizeURLSession` instead of letting
+  the app build a second one.
+- **Trace propagation is a host list, not a policy type.** An earlier enum had an `allHosts` case
+  and suffix matching. It duplicated `customizeURLSession`, offered the upstream default the package
+  exists to correct, and decided trust by string shape. `firstPartyHosts` is required, exact-match,
+  and has no default. Subdomains must be listed; propagating everywhere is unsupported. Both intended.
+- **Redirect protection is opt-in and patches upstream's delegates.** Upstream has no redirect hook.
+  Two alternatives were rejected: no `resume` fires for a redirect (Foundation follows `3xx` inside
+  the task), and a second `resume` swizzle stacks on upstream's most intricate swizzle and writes
+  `task.delegate` on app tasks. Shipped: add the redirect callback to upstream's internal
+  `AsyncTaskDelegate` / `FakeDelegate`, which covers exactly the delegate-less tasks. Off by default
+  because it reaches into internal classes; a test fails on a rename. Wiring `redirectGuard` through
+  QuickPizza's `APIClient` was rejected because it puts a package concern in the app's HTTP client.
+- **No service-name setting.** The correct value for Faro ingest is "unset", so the setting is
+  gone. The package removes the bundle-derived `service.name`; `resourceAttributes` is the escape
+  hatch and wins for identity. The package owns only `service.version` and
+  `deployment.environment.name`.
+- **HTTP semantic convention is fixed at stable.** Ingest reads stable first and falls back, so a
+  setting could only choose the deprecated set. The URL sanitiser writes only `url.full`.
+- **No install-without-exporting mode.** `otlpEndpoint` is required. A `nil` mode produced a stack
+  that looked installed and emitted nothing. The cost: a bad endpoint means no SDK, so QuickPizza
+  reports the reason and runs on no-op providers, without its debug console exporter.
+- **Disk buffering is on by default.** Application Support plus backup exclusion (caches can be
+  evicted; backups would keep full payloads). Caller directories are left alone. Batches drop to
+  128 records under the 256 KiB persistence cap. `requeueOnFailure: false` for both signals so the
+  disk queue is the only retry. The runtime drains the persistence exporters itself on flush and
+  gates them through an owned `exportCondition` on shutdown. Cost: about 4.75 s plus a 1–20 s
+  export cycle; `.disabled` stays available.
 
 ## Alignment with the iOS field guide
 
-The Frontend Observability field guide *OpenTelemetry Swift (iOS) with Frontend Observability* is the
-normative description of this ingest path. It is maintained outside this repository, so it is named
-rather than linked. The package was reviewed against it and six things changed as a result. They are recorded here because each is a default that would otherwise
-look arbitrary:
+The Frontend Observability field guide *OpenTelemetry Swift (iOS) with Frontend Observability* is
+the normative description of this ingest path (maintained outside this repo). Reviewing against it
+changed six defaults:
 
-| Guide requirement | What the package now does |
+| Guide requirement | What the package does |
 | --- | --- |
-| `createdRequest` must rewrite the recorded URL — upstream records `absoluteString`, so query values and embedded credentials would be exported verbatim | Always rewrites it with query, fragment, user and password removed, after any caller callback, on whichever attribute the convention emits |
-| `shouldInjectTracingHeaders` must be restricted to hosts you control; it defaults to true | `firstPartyHosts` has **no default**, so the decision cannot be skipped |
-| `semanticConvention: .stable` — new apps should not start on deprecated names | Fixed at `.stable`, with no way to configure it |
-| `deployment.environment.name` | Uses that key, not the older `deployment.environment` |
-| `service.name` should be removed so ingest uses the registered app identity | Always removed; there is no setting to put one back, and `resourceAttributes` is the escape hatch |
-| `requeueOnFailure: false` on the trace exporter under persistence, `true` for logs | Sets `false` for both. The log exporter returns `.failure` on a failed upload, so `true` under persistence sends a failed batch twice. The guide needs the same change |
+| `createdRequest` must rewrite the recorded URL; upstream records `absoluteString` | Always rewrites it without query, fragment, user and password, after any caller callback |
+| Restrict `shouldInjectTracingHeaders` to hosts you control (defaults to true) | `firstPartyHosts` has **no default** |
+| `semanticConvention: .stable` | Fixed at stable |
+| `deployment.environment.name` | Uses it, not `deployment.environment` |
+| Remove `service.name` so ingest uses the registered app | Always removed; `resourceAttributes` is the escape hatch |
+| `requeueOnFailure: false` for traces under persistence, `true` for logs | `false` for both. The log exporter returns `.failure` on a failed upload, so `true` sends it twice. The guide needs the same change |
 
-Nine other requirements the guide calls load-bearing were already satisfied: both session processors,
-the Faro session values, `SessionEventInstrumentation` after the logger provider, collector-host
-exclusion, no meter provider, a feedback handler, creating the persistence directories, the
-main-thread requirement, and avoiding the `MetricKit`/`OpenTelemetryApi` `Logger` ambiguity.
+The other load-bearing guide requirements were already met.
 
-The package reduces buffered batches to 128 records to lower the risk of exceeding the
-256 KiB persistence cap and excludes its default Application Support directory from backups.
-The record-count limit is not a byte-size guarantee: unusually large records can still exceed
-the cap. See [Disk buffering is on by default](#disk-buffering-is-on-by-default).
+## Differences from the product's setup instructions
 
-### Trace propagation is a host list, not a policy type
+The Frontend Observability app page generates native iOS setup code. The package agrees on every
+substantive point except three deliberate differences:
 
-An earlier revision modelled this as a `GrafanaOtelTracePropagation` enum with an `allHosts` case
-and suffix matching, so `example.com` also authorised `api.example.com`. It is now a plain
-`firstPartyHosts: [String]` with exact, case-insensitive matching.
+- **Dependency pin.** The package tracks a specific upstream revision (see package README), not the
+  version the app page names.
+- **Trace-context propagation.** The app page leaves `shouldInjectTracingHeaders` at its default
+  (inject everywhere). The package requires an explicit `firstPartyHosts`.
+- **`PersistenceExporter`.** Not in the app page's product list. The package uses it to offer disk
+  buffering, on by default.
 
-Three reasons. The enum duplicated `customizeURLSession`, which can already set
-`shouldInjectTracingHeaders` — two routes to one upstream setting. `allHosts` existed only to
-reproduce the upstream default this package exists to correct, so offering it was offering the
-mistake. And suffix matching decided trust by string shape rather than by an explicit list, which is
-the kind of rule that quietly authorises more than its author intended.
+## Add and remove
 
-What survived is the part that earns its place: the parameter is still required, so the decision
-cannot be skipped. What went is roughly 50 lines of enum, matcher and validation, and an 81-line
-test file replaced by a tighter one.
+QuickPizza adds the local package and replaces `OTelService`'s hand-written provider, exporter,
+session and instrumentation setup with `GrafanaOtel.initialize`. `Tracer.swift`, `Logger.swift` and
+`AppEvents.swift` still use `OpenTelemetryApi` types and are unchanged.
 
-The cost is that subdomains must be listed individually, and there is no supported way to propagate
-to every host. Both are intended.
+To remove the package:
 
-The host list alone does not cover redirects, and cannot. Upstream injects when the request is
-created, `URLSession` copies custom headers onto the request it builds for a `3xx`, and upstream
-swizzles no redirect method — so a first-party request that redirects to a third party carries
-`traceparent` there. `GrafanaOtelRuntime.redirectGuard` is a `URLSessionTaskDelegate` that applies
-the same host policy at the one place the system exposes a redirect destination before the request
-is sent — for apps whose sessions carry a delegate of their own, or which still support iOS 13
-and 14. QuickPizza needs neither, so it sets `automaticRedirectProtection` and installs nothing:
-its requests go through `URLSession.shared` with no delegate, which is the case the flag covers.
+1. Remove the `GrafanaOpenTelemetryIOS` product from the app target and the
+   `XCLocalSwiftPackageReference` from the project.
+2. Replace `GrafanaOtel.initialize` with direct upstream setup: build and register a
+   `TracerProviderSdk` and `LoggerProviderSdk`, and construct the exporters and instrumentations.
+3. Keep the upstream products the app links, and add any the package provided transitively.
+4. Delete `Mobiles/ios/grafana-opentelemetry-ios`.
+5. Leave application tracer, logger, event and propagation calls unchanged.
 
-Three routes to an automatic version were investigated; two were rejected.
+## Validation
 
-- **Rewriting the request on the redirect's `resume`** does not exist to be done.
-  `urlSessionTaskWillResume` carries an upstream comment claiming redirect handling can make
-  `resume` fire more than once per logical request, which would have exposed the destination with
-  no delegate at all. A probe that swizzled `URLSessionTask.resume` and logged every call recorded
-  three, all for separate tasks — the original request and the two OTLP exports — and none for the
-  redirect. Foundation follows a `3xx` inside the existing task, below the public API.
-- **A second `URLSessionTask.resume` swizzle** that assigns the guard as the task delegate does
-  work, and reaches app-created tasks too. Rejected: it stacks onto the most intricate method
-  upstream swizzles, and it writes `task.delegate` on tasks the application created.
-- **Adding the redirect callback to upstream's own delegate classes** is what shipped, as the
-  opt-in `automaticRedirectProtection`. Upstream already assigns `AsyncTaskDelegate` — or
-  `FakeDelegate` on its non-async path — to every task with neither a task delegate nor a session
-  delegate, and those classes implement completion callbacks but no redirect callback. Adding one
-  covers exactly the tasks the app expressed no delegate opinion about, with no second swizzle and
-  nothing app-owned mutated.
+Validated on simulators against local receivers and a local Faro collector (September–October
+2026): Debug and Release export of both signals, the resource and session attributes on the wire,
+client-side `traceparent` matching the exported spans, buffered replay of traces and logs across a
+kill and relaunch without duplicates, and the backup exclusion on the queue directory. Hosted ingest
+was not validated. Current evidence and reproduction: [session validation](../ios/session-validation/README.md).
 
-It is off by default because it reaches into two *internal* classes of `opentelemetry-swift`, which
-is a decision to take rather than inherit, and because it covers less than the guard: nothing on
-iOS 13 or 14, where upstream assigns no delegate, and nothing on sessions that have a delegate of
-their own. A rename upstream is reported through the diagnostics handler rather than leaving the
-gap silent, and installation is skipped wherever an implementation already exists, so an upstream
-release that starts handling redirects keeps ownership.
+Done: the package builds and is consumed by the demo; config validation, mapping, propagation,
+redirect, persistence and initialization have unit coverage; app instrumentation compiles unchanged.
 
-The demo app turns it on, which is why no application file in this change installs a delegate.
-The alternative was considered and rejected for the reference implementation: wiring
-`redirectGuard` through `APIClient` does not depend on upstream's internal class names, but it put
-a `URLSessionTaskDelegate` into the app's HTTP client for a concern the package is supposed to own,
-and left two mechanisms visible for one problem. The class names are covered by a test that fails
-on a rename, which is the risk that trade was about.
+Open:
 
-Installing it has a consequence worth stating, because it is invisible until spans go missing:
-giving a task or session a delegate makes upstream skip its own `AsyncTaskDelegate`, which is what
-ends the span for `async`/`await` requests. The guard therefore also implements
-`urlSession(_:task:didCompleteWithError:)`, one of the six selectors `URLSessionInstrumentation`
-scans delegate classes for, which is what makes upstream swizzle it and end the span there. That is
-the same role upstream's own `FakeDelegate` plays for delegate-less tasks, and a test asserts the
-selector is still implemented.
-
-### There is no service-name setting
-
-`serviceName` and `serviceNamespace` were removed from the configuration. Both were optional, both
-defaulted to unset, and unset was the recommended value for this ingest path — a setting whose
-correct value is "don't use it" is better expressed by not having it.
-
-The package now always removes the bundle-derived `service.name` that upstream's
-`ApplicationResourceProvider` adds, so ingest applies the registered app identity. The one case that
-genuinely needs a service name — export to somewhere with no registered app, such as the general
-Grafana Cloud OTLP gateway — goes through `resourceAttributes`, and an explicit `service.name` there
-survives the removal.
-
-That also resolves an inconsistency: `resourceAttributes` used to be documented as losable to the
-package's own service attributes, which made it unusable as an override. Now the precedence is
-simply that the caller's map wins for identity, and the package owns only `service.version` and
-`deployment.environment.name`.
-
-QuickPizza passes both through `resourceAttributes`, because the demo also runs against the legacy
-gateway — so its emitted identity is unchanged.
-
-### The HTTP semantic convention is not configurable
-
-The package always emits the stable HTTP attribute names and provides no setting to change that.
-Ingest reads the stable names first and falls back to the legacy ones, so a configurable convention
-only ever let an app choose the deprecated set — and it cost three enum cases, a mapping function, a
-per-convention attribute-key lookup in the URL sanitiser, and the tests for all of it. A
-`customizeURLSession` callback that sets `semanticConvention` is overridden after it runs.
-
-That also simplified the URL sanitiser: it writes `url.full` and nothing else, rather than choosing
-keys per convention.
-
-### There is no install-without-exporting mode
-
-`otlpEndpoint` is non-optional. An earlier revision allowed `nil` to install the providers, sessions
-and instrumentations with no exporter attached, which was convenient for local runs and wrong as a
-product: it produced a telemetry stack that looked installed and silently emitted nothing, and it
-put a branch through every pipeline in the package for a case the distribution does not support.
-
-Requiring it removed four conditional paths and one class of silent failure. The cost is that a
-malformed or absent endpoint now means no SDK at all rather than an SDK with export disabled, so
-`OTelService` in the demo reports the reason and continues on upstream's no-op providers —
-instrumentation still compiles and runs, it just produces nothing. That state also costs the demo
-its debug-only console span exporter, because the exporter reaches the SDK through the package's
-experimental options.
-
-A placeholder endpoint is not a substitute: an unreachable endpoint still creates exporters and
-queues failed telemetry on disk for both signals.
-
-### Disk buffering is on by default
-
-Its guarantee is the same for both signals. Trace and log batches — including MetricKit
-diagnostics — are retried from disk, survive relaunch, and can be delivered after connectivity
-returns. Three decisions had to ship with buffering:
-
-- **A directory that survives and is not backed up.** A caches directory can be evicted under
-  storage pressure, losing the queue. A durable directory is normally included in device backups,
-  and the queue holds full payloads, so the package uses Application Support and sets
-  `isExcludedFromBackupKey`. A caller-supplied directory is left untouched.
-- **A smaller export batch.** Persistence JSON-encodes a whole batch and then applies a 256 KiB
-  cap, and an oversized write fails *silently*. `maxExportBatchSize` counts records, not bytes, so
-  the package drops from 512 to 128 records whenever buffering is active.
-- **Retry ownership.** Both exporters get `requeueOnFailure: false` under persistence, so the disk
-  queue owns retry and a failed batch is not also requeued in memory and sent twice.
-
-The cost is latency: records become readable after roughly 4.75 seconds and export on an adaptive
-1–20 second cycle. `.disabled` remains available for prompt delivery.
-
-Two more had to ship after review, because buffering silently changed what the runtime's lifecycle
-methods mean:
-
-- **Flushing has to drain the queue explicitly.** `BatchSpanProcessor.forceFlush` and
-  `BatchLogRecordProcessor.forceFlush` reach the exporter's `export`, which under persistence
-  writes to disk and returns. Neither calls the exporter's own `flush`/`forceFlush`, the only
-  method that reads the queue back, so flushing the providers left the batch on disk for up to
-  20 seconds. The runtime now holds the persistence exporters and drains them as a second step,
-  after the providers. The flush path reads through `onRemainingBatches`, which — unlike the
-  periodic `readNextBatch` — applies no `minFileAgeForRead`, so a just-written batch is eligible.
-- **Shutdown has to stop the workers.** `PersistenceExporterDecorator` never cancels its
-  `DataExportWorker`, whose repeating `DispatchWorkItem` therefore outlived `shutdown()` and kept
-  retrying a failed batch. `cancelSynchronously()` exists but is not on `DataExportWorkerProtocol`,
-  so it cannot be called from here. The package instead supplies an `exportCondition` it owns and
-  closes it on `shutdown()`: the final batch is still delivered, because the flush path never
-  consults that condition, and nothing is exported afterwards. The workers stay parked and idle for
-  the rest of the process rather than being cancelled, which is as far as upstream's surface goes.
-
-### Checked against the product's own setup instructions
-
-The Frontend Observability app page now carries native iOS setup instructions. The package was
-compared against the Swift they generate, and they agree on every substantive point: `service.name`
-left unset so ingest applies the registered app name, `semanticConvention: .stable`, the
-`createdRequest` rewrite of the recorded URL, the Faro session values, `SessionEventInstrumentation`
-after the logger provider, excluding the collector host from tracing, retaining the MetricKit and
-`URLSession` instances, and no meter provider. They differ on the version pair: the app page names
-`2.5.2` / `2.5.1`, and the package requires `2.6.0` for both.
-
-Three differences, each deliberate:
-
-- **Dependency operator.** Adopted from the product instructions: `.upToNextMinor(from:)` rather
-  than the `exact:` pin this spike started with.
-- **Trace-context propagation.** The product instructions leave
-  `shouldInjectTracingHeaders` at its default, which injects into every instrumented request. The
-  field guide calls restricting it load-bearing. This package resolves the disagreement by giving
-  `firstPartyHosts` no default, so the choice is made explicitly at the call site rather than
-  inherited from either source.
-- **`PersistenceExporter`.** Not in the product's product list. This package takes it so disk
-  buffering can be offered at all, and enables it by default with the signal-specific guarantees
-  above.
-
-## Known upstream limitations
-
-These are properties of the pinned upstream release, not of this package's configuration. They are
-what a RUM product needs and `opentelemetry-swift` does not yet provide:
-
-| Capability | Status at the pinned version |
-| --- | --- |
-| Assembled RUM agent | None; this package owns the assembly |
-| Lifecycle, screen-view and jank signals | Not available; app-owned |
-| Crash and hang capture | MetricKit diagnostics; [Apple documents immediate delivery on iOS 15+](https://developer.apple.com/documentation/metrickit), separately from daily metric reports |
-| Offline buffering | A contrib decorator enabled by default; trace and log retry from disk across a relaunch are runtime-validated |
-| Export retry | Traces and logs retry from disk on the persistence schedule, with no backoff |
-| Background and termination flush | None; the caller must call `forceFlush` |
-| Flushing the disk queue | Not reachable from a provider; the runtime holds the persistence exporters and drains them itself |
-| Stopping the disk queue | `DataExportWorker.cancelSynchronously()` is not on its protocol, so shutdown gates the workers through `exportCondition` instead of cancelling them |
-| Redirect-aware trace propagation | No redirect hook at all; the app installs `GrafanaOtelRuntime.redirectGuard`, or opts into `automaticRedirectProtection`, which adds one to upstream's internal delegate classes |
-
-Additionally: `OtlpHttpLogExporter.export` always reports success, so a wrong ingest URL looks
-identical to a working one from inside the app — only the diagnostics handler reveals a 404 or 401.
-Session inactivity is signal-based rather than interaction-based, because
-`SessionSpanProcessor.onStart` extends the session on every span and automatic HTTP spans include
-background traffic.
-
-## Validation status
-
-- [x] The package compiles as a Swift package and is consumed by the runnable demo app.
-- [x] Configuration validation has focused unit coverage.
-- [x] Grafana defaults, additive resources, header policy, the first-party host list and
-  collector-origin exclusion have focused mapping coverage.
-- [x] The package returns upstream OTel runtime and API types.
-- [x] Existing application instrumentation compiles without changes.
-- [x] The demo cold-starts through the package in debug and release on an iOS 26.5 simulator.
-- [x] Decoded OTLP logs and traces reach a local receiver from both build configurations.
-- [x] Required session signals (`session.id`, `session.previous_id`, session lifecycle records) are
-  present on spans and log records.
-- [x] Client-side trace-context propagation is verified byte-for-byte against the exported spans.
-- [ ] Run the app against Faro Collector and verify the required Mobile O11y signals and the
-  Frontend Observability product paths.
-- [ ] Verify an app-instrumented mobile HTTP span remains connected to the QuickPizza backend trace
-  in Tempo.
-- [ ] Automate the add/remove build using a supported non-Grafana provider.
+- [ ] Run against the hosted Faro collector and verify the Mobile O11y signals and Frontend
+  Observability product paths.
+- [ ] Verify a mobile HTTP span stays connected to the QuickPizza backend trace in Tempo.
+- [ ] Automate the add/remove build with a non-Grafana provider.
 - [ ] Agree the production repository, package identity, release owner and support window.
-- [ ] Validate a released package from a separate consumer resolving it by URL and tag; a local path
-  reference does not exercise real resolution.
-- [ ] Decide whether Objective-C interop is required, or state that Swift-only is intentional.
-- [ ] Add public-API stability checking before publishing a versioned release.
-- [ ] Add background and termination flush hooks, and an observable export-health path beyond the
-  diagnostics callback. `forceFlush` blocks the caller on synchronous OTLP trace export, so a hook
-  cannot simply call it on the main thread.
-- [x] Validate buffered delivery at runtime with a kill and relaunch.
-- [x] Cover persistence flush, shutdown, and pipeline wiring with real persistence exporters.
-- [ ] Automate retry across process termination and relaunch; that path is runtime-validated only.
-- [ ] Confirm the added latency is acceptable for the demo. Buffering makes records readable after
-  ~4.75 s and exports on an adaptive 1–20 s cycle, which changes what a live demo looks like.
-- [ ] Decide whether to strip `device.id`. Upstream's default resource sends
-  `identifierForVendor`, ingest does not drop it from traces, and shipping it obliges an app to
-  declare a device identifier in App Privacy.
-- [ ] Decide whether the package should own screen-view and lifecycle instrumentation, or whether
-  that work should go upstream first.
+- [ ] Validate a released package from a separate consumer resolving it by URL and tag.
+- [ ] Decide whether Objective-C interop is required, or state Swift-only is intentional.
+- [ ] Add public-API stability checking before a versioned release.
+- [ ] Add background and termination flush hooks, and an export-health path beyond the diagnostics
+  callback. `forceFlush` blocks on synchronous export, so a hook cannot call it on the main thread.
+- [ ] Automate retry across process termination and relaunch (runtime-validated only).
+- [ ] Confirm the buffering latency is acceptable for live demos.
+- [ ] Decide whether to strip `device.id`. Upstream sends `identifierForVendor`, ingest keeps it on
+  traces, and shipping it requires an App Privacy device-identifier declaration.
+- [ ] Decide whether the package or upstream should own screen-view and lifecycle instrumentation.
 - [ ] Document the final public setup, migration, removal and limitations after product validation.

@@ -1,96 +1,63 @@
 # Grafana OpenTelemetry Android
 
-**Status:** Experimental local module. It is not published or supported for production use.
+**Status:** experimental local module, not published or supported for production use. Usage and
+configuration are in the [library README](../android/grafana-opentelemetry-android/README.md).
 
 ## Placement decision
 
-The runnable spike lives in `Mobiles/android/grafana-opentelemetry-android` and is consumed by the
-existing QuickPizza Android app. This gives the package a real application and build without
-creating an empty repository or treating the demo repository as its permanent home.
+The library lives in `Mobiles/android/grafana-opentelemetry-android` and is consumed by the
+QuickPizza Android app, which gives it a real application and build without creating an empty
+repository. The demo is not its permanent home. Generic SDK and instrumentation work stays in
+[`opentelemetry-android`](https://github.com/open-telemetry/opentelemetry-android), and build-time
+symbol upload stays in
+[`faro-android-gradle-plugin`](https://github.com/grafana/faro-android-gradle-plugin).
 
-The demo proves the package boundary but is not the permanent source or release location. Generic
-Android SDK and instrumentation work remains in
-[`opentelemetry-android`](https://github.com/open-telemetry/opentelemetry-android), while build-time
-symbol upload remains in
-[`faro-android-gradle-plugin`](https://github.com/grafana/faro-android-gradle-plugin). The final
-Grafana-owned runtime location, Maven coordinate, release ownership, automation, and supported
-upstream version window require agreement before the module is extracted or published.
-
-The agreed name is **Grafana OpenTelemetry Android**, with `GrafanaOtel.initialize(...)` as the
-startup entrypoint. The local module name is not a published Maven coordinate. Once repository and
-publishing access are approved, the library can move to its own repository and QuickPizza can
-consume the published AAR instead of a project dependency.
-
-The spike uses OTel Android `1.7.0` with its matching `1.7.0-alpha` BOM, following the
-[1.7.0 upgrade](https://github.com/grafana/mobile-o11y-demo/pull/112). Both the app and library
-compile against Android API 37 with AGP 9.1.1 and Gradle 9.3.1; the app's target SDK stays at 36.
+The name is **Grafana OpenTelemetry Android**, with `GrafanaOtel.initialize(...)` as the entrypoint.
+The final repository, Maven coordinate, release owner and supported upstream version window still
+need agreement. Once they are agreed, QuickPizza can consume the published AAR instead of the
+project dependency.
 
 ## Package boundary
 
-The spike owns only startup configuration that is specific to the Grafana distribution:
+The library owns only Grafana-specific startup configuration: the OTLP endpoint and headers, disk
+buffering defaults, service and extra resource attributes, the semantic-convention choice, and
+session timeout defaults. It delegates initialization and instrumentation discovery to the upstream
+SDK and returns `OpenTelemetryRum`. It defines no Grafana tracer, logger, span or meter APIs.
 
-- the OTLP endpoint and headers;
-- disk buffering defaults;
-- service and additional resource attributes;
-- the semantic-convention compatibility choice;
-- background-session inactivity and maximum-lifetime defaults.
+The app keeps application-specific behavior: native crash replay, the runtime config UI, business
+instrumentation, and OkHttp instrumentation (the `OkHttpTelemetry` wrapper and the Byte Buddy
+`okhttp3-agent`). Crash flushing uses the upstream 1.7.0 handler, so the app installs no handler of
+its own and emits no duplicate crash event.
 
-It delegates initialization and instrumentation discovery to the upstream Android SDK and returns
-`OpenTelemetryRum`. It does not define Grafana tracer, logger, span, or meter APIs. The optional
-configuration callback exposes selected upstream settings and instrumentations through a Grafana
-scope. Its `resource {}` actions are additive, and required Grafana service attributes are applied
-last.
-
-The app still owns application-specific behavior, including native crash replay, runtime config
-UI, business instrumentation, and automatic OkHttp
-instrumentation. The connected HTTP trace below proves those app-owned spans remain connected
-through this library; the package does not install the Byte Buddy plugin or OkHttp agent.
-
-Crash flushing uses the upstream 1.7.0 handler. The app no longer installs a separate crash-flush
-handler or emits a second crash event.
-
-Faro OTLP ingest currently accepts logs and traces only. The spike therefore disables upstream
-periodic metric export rather than repeatedly sending unsupported requests.
+Faro OTLP ingest accepts logs and traces only, so the library disables periodic metric export
+(`GrafanaOtel.kt`). A production package needs per-signal routing before it can send metrics
+elsewhere.
 
 ### Instrumentation modules
 
-A new instrumentation remains a separate Android AAR that implements the upstream
-`AndroidInstrumentation` interface and registers itself for `ServiceLoader` discovery. Generic
-instrumentation should be contributed upstream. A Grafana-specific module can be published
-separately and either included as a library dependency when it is part of the default product
-experience or added directly by an application when it is optional. In both cases, the upstream
-agent discovers and installs it while application telemetry continues to use standard OTel APIs.
+A new instrumentation is a separate AAR that implements the upstream `AndroidInstrumentation`
+interface and registers for `ServiceLoader` discovery. Generic instrumentation belongs upstream. A
+Grafana-specific module can be a library dependency when it is part of the default experience, or
+added by the app when optional; the upstream agent discovers and installs it either way.
 
-With the upstream version pinned by this spike, arbitrary instrumentation can be suppressed by its
-canonical name, but the configuration DSL has no generic type-safe hook for configuring a
-third-party module. A configurable Grafana instrumentation therefore needs explicit Grafana
-configuration forwarding or a suitable upstream extension point before publication. This spike
-does not add an empty instrumentation module solely to reserve that boundary.
+With the pinned upstream version, any instrumentation can be suppressed by name, but there is no
+type-safe hook for configuring a third-party module. A configurable Grafana instrumentation needs
+explicit configuration forwarding or an upstream extension point before publication.
 
-## Add and remove
-
-The demo adds the local AAR module as a dependency and replaces its direct
-`OpenTelemetryRumInitializer` block with `GrafanaOtel.initialize`. Existing application
-instrumentation is unchanged and continues to receive `io.opentelemetry.api.OpenTelemetry`.
-
-To remove Grafana OpenTelemetry Android:
+## Remove the library
 
 1. Replace the module dependency with the upstream `android-agent` dependency.
-2. Replace the `GrafanaOtel.initialize` call with `OpenTelemetryRumInitializer.initialize` and the
-   desired non-Grafana exporter configuration.
-3. Remove `include(":grafana-opentelemetry-android")` from `settings.gradle.kts`, then delete the local
+2. Replace `GrafanaOtel.initialize` with `OpenTelemetryRumInitializer.initialize` and the desired
+   exporter configuration.
+3. Remove `include(":grafana-opentelemetry-android")` from `settings.gradle.kts` and delete the
    module.
-4. Remove the now-unused Android library plugin alias and `opentelemetry-android-core` test-library
-   alias from the root build and version catalog.
-5. From `Mobiles/android`, run `./gradlew --write-locks :app:dependencies` to refresh the remaining
-   app and buildscript locks.
-6. Leave application tracer, logger, context propagation, and instrumentation calls unchanged.
+4. Remove the unused Android library plugin alias and the `opentelemetry-android-core` test alias
+   from the root build and version catalog.
+5. From `Mobiles/android`, run `./gradlew --write-locks :app:dependencies`.
+6. Leave application tracer, logger, context propagation and instrumentation calls unchanged.
 
-While the local module exists, refresh both dependency lockfiles with
-`./gradlew --write-locks :app:dependencies :grafana-opentelemetry-android:dependencies`.
-
-This spike verifies the source boundary, but the removal path still needs an automated build or
-fixture before the portability gate can be marked complete.
+The removal path still needs an automated build before the portability gate is complete. While the
+module exists, use the lockfile command in the [Android README](../android/README.md#dependency-lockfiles).
 
 ## Run locally
 
@@ -100,204 +67,26 @@ cd Mobiles/android
 ./gradlew :app:installDebug
 adb logcat -c
 adb shell am force-stop com.grafana.quickpizza.android
-adb shell am start -W \
-  -n com.grafana.quickpizza.android/com.grafana.quickpizza.MainActivity
+adb shell am start -W -n com.grafana.quickpizza.android/com.grafana.quickpizza.MainActivity
 adb logcat -d -s OTelService:I AndroidRuntime:E '*:S'
 ```
 
-The app reads its normal `app/src/main/res/raw/config.json`. See
-[`Mobiles/android/README.md`](../android/README.md) for configuration and emulator instructions.
+## Validation results
 
-### Device smoke result
+All runs used ARM64 emulators. Environment-specific stack identifiers are kept out of this repo.
 
-On August 27, 2026, the demo was installed and cold-started on the
-`otel_ci_api23_arm64` API 23 ARM64 and `quickpizza_pixel_35` Android 15 ARM64 emulators with a
-local OTLP endpoint. In both cases, the activity started, the app process remained alive, and
-`OTelService` reported initialization through the library with disk buffering enabled. This
-proves the packaged startup path; it does not prove that Faro Collector accepted telemetry.
+| Date (2026) | Build | Receiver | Result |
+| --- | --- | --- | --- |
+| Aug 27 | Debug, API 23 and API 35 | Local OTLP | Cold start through the library with disk buffering on. Startup only. |
+| Aug 28 (`ba69548`) | Debug, API 35 | Local Faro collector | `202` for logs and traces. Session, startup, screen and HTTP records shared one session ID. Mobile `GET` span connected to backend server and DB spans. Metrics got `400`, so metric export was disabled. |
+| Sep 9 (OTel Android 1.7.0) | Debug and minified release, API 35 | Local OTLP | 17 library and 7 app tests, library lint and both builds passed. Pizza trace connected end to end. `RuntimeException` delivered after restart with the original session ID, no duplicate. Release kept all 10 instrumentation providers and the OkHttp HTTP sender (5 service descriptors vs 10 in debug). |
+| Sep 9 | Minified release, API 35 | Local OTLP | SIGSEGV replayed once as `device.crash` (`reason=CRASH_NATIVE`) after narrow keep rules for two `unobfuscate()` methods in `app/proguard-rules.pro`. No blanket OTel keep rule. |
+| Sep 9 | Minified release, API 23 | Local OTLP | Cold start passed. Export blocked by `usesCleartextTraffic=false`; no API 23 export pass claimed. |
 
-### Faro Collector runtime result
+The Sep 9 runs are local OTLP checks, not a fresh Faro collector acceptance test. App lint reports
+six API-level errors in `NativeExitCrashReporter`; library lint passes.
 
-On August 28, 2026, commit `ba695485c9c9ac7b98df3903054af423c8c5024a` was tested on an Android
-15 API 35 ARM64 emulator against a local Faro Collector and QuickPizza backend. After the disk
-buffer flushed, Faro Collector returned `202` for both OTLP logs and traces. The translated Loki
-records contained:
-
-- `session_start`, `rum.sdk.init.*`, `view_changed`, and `app.screen.view` events;
-- an `app_startup` measurement with `coldStart=1`;
-- `faro.tracing.fetch` for `GET /api/quotes` with HTTP status `200`;
-- the same session ID on the startup, screen, and HTTP records.
-
-This historical run predates the Compose navigation integration. The current app
-uses `withOpenTelemetry` to emit `app.navigation.complete` with
-`app.navigation.destination.name`; the `app.screen.view` records above describe
-the older manual tracker.
-
-The connected trace contained the Android `GET` client span, the QuickPizza `GET /api/quotes`
-server span as its child, and the backend `SELECT` span as the server span's child. Faro translation
-labels product records with the registered application identity, which may differ from the Android
-`service.name` resource value.
-
-The environment-specific stack commands and raw identifiers are intentionally kept outside this
-public repository. To repeat the validation against Grafana Cloud, follow
-[Connect the Demo Apps to Grafana Cloud](CONNECT_GRAFANA_CLOUD.md), run the app as described above,
-and inspect the configured application's logs and traces.
-
-During this run, the Faro OTLP endpoint returned `400` for periodic OTLP metrics because that route
-supports logs and traces only. The current spike now disables metric export. A production package
-must add explicit per-signal routing before it can send metrics to another endpoint.
-
-### Minified release runtime result
-
-On August 28, 2026, the current PR working tree based on commit
-`f55efa561b863e006a08964d882a60947f57bab7` was installed with `:app:installRelease` on the
-`quickpizza_pixel_35` Android 15 API 35 ARM64 emulator. The app used
-`http://10.0.2.2:8001/otlp/release-smoke`, cold-started successfully, remained alive, and exercised
-the **Pizza, Please!** action before being backgrounded and foregrounded.
-
-This run used a separate host-side HTTP recorder, not Faro Collector, to isolate the minified OTLP
-export path. The recorder verifies request paths and non-empty bodies; it does not decode or validate
-the protobuf payloads.
-
-```bash
-python3 -u - <<'PY'
-from http.server import BaseHTTPRequestHandler, HTTPServer
-
-
-class Recorder(BaseHTTPRequestHandler):
-    def do_POST(self):
-        body = b""
-        if self.headers.get("Transfer-Encoding", "").lower() == "chunked":
-            while True:
-                size = int(self.rfile.readline().split(b";", 1)[0].strip(), 16)
-                if size == 0:
-                    self.rfile.readline()
-                    break
-                body += self.rfile.read(size)
-                self.rfile.read(2)
-        else:
-            body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
-
-        print(
-            f"POST {self.path} bytes={len(body)} "
-            f"encoding={self.headers.get('Content-Encoding')} "
-            f"transfer={self.headers.get('Transfer-Encoding')}",
-            flush=True,
-        )
-        self.send_response(200)
-        self.send_header("Content-Type", "application/x-protobuf")
-        self.send_header("Content-Length", "0")
-        self.end_headers()
-
-    def log_message(self, *_):
-        pass
-
-
-HTTPServer(("0.0.0.0", 8001), Recorder).serve_forever()
-PY
-```
-
-```bash
-cd Mobiles/android
-./gradlew :app:installRelease
-adb logcat -c
-adb shell am force-stop com.grafana.quickpizza.android
-adb shell am start -W \
-  -n com.grafana.quickpizza.android/com.grafana.quickpizza.MainActivity
-```
-
-The host recorder received non-empty, gzip-compressed OTLP payloads from the minified build:
-
-```text
-POST /otlp/release-smoke/v1/traces bytes=1722 encoding=gzip transfer=chunked
-POST /otlp/release-smoke/v1/traces bytes=1729 encoding=gzip transfer=chunked
-POST /otlp/release-smoke/v1/logs bytes=845 encoding=gzip transfer=chunked
-POST /otlp/release-smoke/v1/logs bytes=1147 encoding=gzip transfer=chunked
-```
-
-The release APK inspection resolved the R8 names from the generated mapping instead of hard-coding
-one build's obfuscated names:
-
-```bash
-APK=app/build/outputs/apk/release/app-release.apk
-MAP=app/build/outputs/mapping/release/mapping.txt
-INSTRUMENTATION_SERVICE=$(
-  sed -n 's/^io\.opentelemetry\.android\.instrumentation\.AndroidInstrumentation -> \(.*\):$/\1/p' "$MAP"
-)
-OKHTTP_PROVIDER=$(
-  sed -n 's/^io\.opentelemetry\.exporter\.sender\.okhttp\.internal\.OkHttpHttpSenderProvider -> \(.*\):$/\1/p' "$MAP"
-)
-
-if [ -z "$INSTRUMENTATION_SERVICE" ]; then
-  echo "AndroidInstrumentation is missing from the R8 mapping" >&2
-  exit 1
-fi
-if [ -z "$OKHTTP_PROVIDER" ]; then
-  echo "OkHttpHttpSenderProvider is missing from the R8 mapping" >&2
-  exit 1
-fi
-
-unzip -p "$APK" "META-INF/services/$INSTRUMENTATION_SERVICE" | wc -l
-HTTP_SENDER_FOUND=false
-while IFS= read -r service; do
-  if unzip -p "$APK" "$service" | grep -Fxq "$OKHTTP_PROVIDER"; then
-    printf '%s -> %s\n' "$service" "$OKHTTP_PROVIDER"
-    HTTP_SENDER_FOUND=true
-  fi
-done < <(zipinfo -1 "$APK" | grep '^META-INF/services/')
-if [ "$HTTP_SENDER_FOUND" != true ]; then
-  echo "OkHttpHttpSenderProvider is missing from release service descriptors" >&2
-  exit 1
-fi
-```
-
-The first command returned `10`, covering every Android instrumentation provider, including OkHttp.
-The second found the R8-rewritten OkHttp OTLP HTTP sender in a service descriptor. The release APK
-contains six service descriptors rather than debug's eleven. Four omitted descriptors belong to the
-SDK autoconfigure SPI, which the Android agent does not use because it builds exporters
-programmatically; the fifth is the unused gRPC sender. Together with the live log and trace requests
-above, this shows that the required runtime providers remained reachable after R8 minification.
-
-## Validation status
-
-On September 9, the spike was retested with the merged
-[1.7.0 upgrade](https://github.com/grafana/mobile-o11y-demo/pull/112). The 17 library tests, seven app
-tests, library lint for debug and release, and both app builds passed. Both builds included native
-libraries for all four Android ABIs. R8 completed without the earlier Kotlin metadata warnings, and
-the release APK retained all 10 instrumentation providers and the OkHttp HTTP sender. With 1.7.0,
-the release has five service descriptors and debug has ten; the counts in the August runtime
-result above describe that older build.
-
-On an Android 15 / API 35 ARM64 emulator, debug and minified release both cold-started and exported
-decoded OTLP logs and traces to a local HTTP receiver. In each build, **Pizza, Please!** produced a
-connected chain from `pizza.get_recommendation` through the Android HTTP client span to QuickPizza's
-`POST /api/pizza` server span and its backend children.
-
-Deliberate `RuntimeException` crashes were tested with disk buffering enabled in both builds. Each
-crash was delivered after restart with its original session ID, with no duplicate after another
-restart. With buffering disabled, the minified build delivered its crash before the next launch.
-These runs use the upstream crash-flush handler, without the old app-owned handler or duplicate
-crash event. This is local OTLP validation, not a fresh Faro Collector acceptance test; the earlier
-Faro results above remain historical evidence.
-
-The minified release was also tested with **Debug > SIGSEGV (null dereference)**. R8 initially
-removed the SDK provider methods used by the app's reflective native-crash replay path. Narrow
-app-owned keep rules now preserve those two `unobfuscate()` methods without retaining the whole
-OpenTelemetry SDK. After the fix, the local receiver decoded one `device.crash` record with
-`reason=CRASH_NATIVE` after restart, and another restart produced no duplicate. The connected
-mobile-to-backend pizza trace still worked with the same APK.
-
-To repeat this check, install the minified release, trigger the SIGSEGV from the Debug tab, and
-relaunch without reinstalling. Wait for the disk buffer to export, check for the native-crash
-record, then restart once more and verify that the count stays at one. A managed
-`RuntimeException` test does not exercise this app-owned replay path.
-
-The minified app also cold-started on an API 23 ARM64 emulator. Local HTTP export was blocked by the
-app's existing `usesCleartextTraffic=false` policy: API 23 does not apply the per-host network
-security configuration. No API 23 export pass is claimed for this run.
-
-App lint reports six errors - API-level findings in `NativeExitCrashReporter`. No relevant
-code changed in this integration. The library's debug and release lint checks pass.
+## Gate checklist
 
 - [x] The module compiles as an Android AAR and is consumed by the runnable demo app.
 - [x] Configuration validation has focused unit coverage.

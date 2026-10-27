@@ -1,354 +1,190 @@
 # QuickPizza iOS Demo App
 
-A native SwiftUI app that demonstrates mobile observability using OpenTelemetry.
-It connects to the QuickPizza backend and sends traces/logs over OTLP/HTTP to the Faro collector
-(any Grafana Cloud stack you configure — see [Sending Telemetry to Grafana Cloud](#sending-telemetry-to-grafana-cloud)).
-
-> **New here?** Start at [`../README.md`](../README.md) for the overview of all
-> four apps, the backend, and how to get a demo running. This page covers the
-> native iOS app specifically.
->
-> For a cross-platform comparison of what each app emits, see [`../docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md). For the iOS instrumentation deep-dive see [`../docs/IOS_OBSERVABILITY_OTEL_GUIDE.md`](../docs/IOS_OBSERVABILITY_OTEL_GUIDE.md). The shared feature spec lives in [`../FEATURES.md`](../FEATURES.md).
-
----
+A native SwiftUI app that sends OpenTelemetry traces and logs over OTLP/HTTP to the Faro
+collector. Frontend Observability shows them under the name registered for the app key in the
+endpoint (`QuickPizza_iOS` on the demo stack).
 
 ## Prerequisites
 
-| Requirement                                                       | Notes                               |
-| ----------------------------------------------------------------- | ----------------------------------- |
-| macOS (Apple Silicon or Intel)                                    | Any recent macOS version            |
-| [Xcode](https://apps.apple.com/app/xcode/id497799835)             | Xcode 26+ with an iOS 26+ simulator runtime |
-| Python 3 | Used by `Scripts/sim-run.sh` to select a simulator |
-| [Docker Desktop](https://www.docker.com/products/docker-desktop/) | For running the backend locally     |
-| Git                                                               | To clone this repository            |
+- macOS with Xcode 26+ and an iOS 26+ simulator runtime (the app targets iOS 26.0; the package
+  needs Swift tools 6.2, also Xcode 26)
+- Python 3 (`Scripts/sim-run.sh` uses it to pick a simulator)
+- Docker, for the backend
 
-> **Note for AI agents:** These are the only tools needed. No CocoaPods, no Homebrew, no Swift Package Manager setup — the Xcode project handles all dependencies automatically.
+No CocoaPods or Homebrew. Xcode resolves the Swift packages.
 
----
+## Run it
 
-## Quickstart (Simulator + Local Backend)
+### 1. Start the backend
 
-This is the recommended path. Everything runs on your MacBook.
-
-### Step 1 — Clone the repo
+From the repository root:
 
 ```bash
-git clone https://github.com/grafana/mobile-o11y-demo.git
-cd mobile-o11y-demo
-```
-
-### Step 2 — Start the QuickPizza backend
-
-```bash
-# From the repo root
 docker build -t quickpizza-mobile-local:development .
-docker run --rm -d \
-  --name quickpizza \
-  -p 3333:3333 \
-  quickpizza-mobile-local:development
+docker run --rm -d --name quickpizza -p 3333:3333 quickpizza-mobile-local:development
+curl http://localhost:3333/api/quotes   # should return JSON
 ```
 
-Verify it's up:
-
-```bash
-curl http://localhost:3333/api/quotes
-```
-
-You should get a JSON response containing quotes.
-
-### Step 3 — Configure the iOS app
+### 2. Create your config
 
 ```bash
 cd Mobiles/ios
 cp Config.xcconfig.example Config.xcconfig
 ```
 
-Open `Config.xcconfig` in any editor. The defaults work for a local simulator run:
+The defaults work for a simulator with a local backend:
 
 ```
-// Backend — localhost works for the simulator (not a physical device)
 BASE_URL = http:/$()/localhost:3333
 PORT = 3333
-
-// OTLP — leave empty to run without OpenTelemetry
 OTLP_ENDPOINT =
 OTLP_INSTANCE_ID =
 OTLP_API_KEY =
 ```
 
-> The `$()` in the URL is an Xcode xcconfig escape for `://` — leave it as-is.
+- `/$()/` escapes `://` in xcconfig files. Leave it in.
+- Keep the `KEY = value` spacing. `Scripts/generate-config.sh` only reads lines in that form.
+- On a physical device, `localhost` is the phone. Use `BASE_URL = http:/$()/<your-mac-ip>:3333`.
+- An empty `OTLP_ENDPOINT` means OpenTelemetry is not started at all. The app still runs and
+  logs to OSLog only.
 
-### Step 4 — Build and run on the simulator
-
-From the `Mobiles/ios` directory used in Step 3, the helper script builds the app
-and launches it in an iPhone simulator automatically:
-
-```bash
-bash Scripts/sim-run.sh
-```
-
-The script will:
-
-1. Auto-detect an available iPhone simulator
-2. Build the app with `xcodebuild`
-3. Boot the simulator if needed
-4. Install and launch the app
-5. Stream app logs to your terminal
-
-To target a specific simulator model:
+### 3. Build and launch on a simulator
 
 ```bash
-bash Scripts/sim-run.sh --device "iPhone 16 Pro"
+bash Scripts/sim-run.sh                            # booted iPhone simulator, else the newest one
+bash Scripts/sim-run.sh --device "iPhone 17 Pro"   # a specific simulator
+bash Scripts/sim-run.sh --no-logs                  # exit after launch instead of streaming logs
 ```
 
-List available simulators:
+The script builds, installs, launches and then streams the app's logs. Sign in with
+`default` / `12345678` and tap **Pizza, Please!**.
 
-```bash
-xcrun simctl list devices available
-```
+Prefer Xcode? Run `open Mobiles/ios/QuickPizzaIos.xcodeproj` from the repository root, pick a
+simulator and press **Cmd+R**. The build reads `Config.xcconfig` the same way.
 
-### Step 5 — Open the app
+## Send telemetry to Grafana Cloud
 
-The Simulator app opens automatically. You'll see the QuickPizza home screen.
-Sign in, then tap **Pizza, Please!** to generate a recommendation. API calls
-produce OpenTelemetry spans when a valid OTLP endpoint is configured.
+1. In Grafana Cloud, open **Frontend Observability**, open your app (or create one), and copy
+   its collector URL: `https://faro-collector-<region>.grafana.net/collect/<appKey>`.
+2. Change `/collect/` to `/otlp/` and put it in `Config.xcconfig`. Leave both credentials empty;
+   the app key in the path identifies the app.
 
----
+   ```
+   OTLP_ENDPOINT = https:/$()/faro-collector-<region>.grafana.net/otlp/<appKey>
+   OTLP_INSTANCE_ID =
+   OTLP_API_KEY =
+   ```
 
-## E2E tests
+3. Run `bash Scripts/sim-run.sh` again.
+4. Look under the app in **Frontend Observability**. Disk buffering delays export, so allow
+   tens of seconds.
 
-Native iOS is covered by the shared Arbigent E2E runner. Build and install the
-app on a booted simulator first:
+Endpoint rules:
+
+- Use the OTLP **base** URL. The app appends `/v1/traces` and `/v1/logs`. A trailing slash is fine.
+  A URL ending in `/v1/traces`, `/v1/logs` or `/v1/metrics` is rejected and OTel does not start.
+- No query string or fragment.
+
+More detail on finding the URL: [Connect to Grafana Cloud](../docs/CONNECT_GRAFANA_CLOUD.md).
+
+**Legacy: Grafana Cloud OTLP gateway.** Set `OTLP_ENDPOINT` to
+`https:/$()/otlp-gateway-<regionSlug>.grafana.net/otlp` and fill in both `OTLP_INSTANCE_ID` and
+`OTLP_API_KEY`. The app sends them as Basic auth. The data stays raw OTel in Tempo and Loki and does
+**not** appear in Frontend Observability. See
+[Connect to Grafana Cloud](../docs/CONNECT_GRAFANA_CLOUD.md#alternative-the-otlp-gateway).
+
+## Where config comes from
+
+Highest precedence first:
+
+1. **Debug → Config** in the app. Saved to `UserDefaults`, applied on the **next launch**, and
+   wins over everything below. Clear the override if your xcconfig edits seem ignored.
+2. The generated `ios.xcconfig` from [`Mobiles/telemetry`](../telemetry/README.md). While
+   `setup.py` is active, `Build.xcconfig` includes it and it sets `QUICKPIZZA_IOS_CONFIG_FILE`, so
+   every build (Xcode or `sim-run.sh`) reads it instead of `Config.xcconfig`, pointed at the local
+   collector. Edits to `Config.xcconfig` have no effect until you run teardown.
+3. `Config.xcconfig`.
+4. `Config.xcconfig.example`, if `Config.xcconfig` does not exist.
+
+Build-time values go through `Scripts/generate-config.sh` into
+`QuickPizzaIos/Core/Config/BuildConfig.generated.swift` (gitignored, do not edit).
+
+## What the app emits
+
+Manual spans (`auth.login`, `pizza.get_recommendation`, `pizza.rate`), automatic `URLSession`
+HTTP spans, session events, app and exception logs, screen views, and MetricKit diagnostics.
+Startup goes through the local [`grafana-opentelemetry-ios`](grafana-opentelemetry-ios/README.md)
+package. The in-app **Debug** tab injects backend errors and latency, sends test logs and
+exceptions, and triggers crashes.
+
+Details: [iOS instrumentation guide](../docs/IOS_OBSERVABILITY_OTEL_GUIDE.md).
+
+## Real device on BrowserStack (optional)
+
+BrowserStack re-signs uploads, so build an unsigned IPA:
 
 ```bash
 cd Mobiles/ios
-bash Scripts/sim-run.sh
+xcodebuild -project QuickPizzaIos.xcodeproj -scheme QuickPizzaIos \
+  -configuration Release -destination "generic/platform=iOS" \
+  -archivePath build/QuickPizzaIos.xcarchive \
+  CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO archive
+
+mkdir -p build/ipa/Payload
+cp -R build/QuickPizzaIos.xcarchive/Products/Applications/QuickPizzaIos.app build/ipa/Payload/
+(cd build/ipa && zip -r ../QuickPizzaIos.ipa Payload)
+
+curl -u "<browserstack_user>:<browserstack_key>" \
+  -X POST "https://api-cloud.browserstack.com/app-live/upload" \
+  -F "file=@build/QuickPizzaIos.ipa"
 ```
 
-Then, from the repository root, run:
+The response has an `app_url` (`bs://...`) to open in App Live.
+
+A real device cannot reach your Mac's `localhost`. Before building, set `BASE_URL` to a hosted
+QuickPizza backend, or expose yours with `ngrok http 3333` and use the `https` URL it prints
+(`BASE_URL = https:/$()/<id>.ngrok.io`).
+
+## E2E tests
+
+With the app installed on a booted simulator (`bash Scripts/sim-run.sh`), from the repository root:
 
 ```bash
 export OPENAI_API_KEY='sk-...'
 ./Mobiles/e2e/run_e2e_tests.sh --app=ios-native --platform=ios
 ```
 
-The runner stores the HTML report, screenshots, AI logs, and rendered
-`arbigent-project.yaml` under `Mobiles/e2e/results/ios-native/`. See the shared
-[mobile E2E README](../e2e/README.md) for prerequisites, result layout, and CI
-details.
-
----
-
-## Sending Telemetry to Grafana Cloud
-
-The app sends OTLP/HTTP to the Faro collector, which translates OTLP to Faro on
-ingest for the app registered in Frontend Observability. Finding the endpoint is
-the same for both native apps — see
-[**Connect to Grafana Cloud**](../docs/CONNECT_GRAFANA_CLOUD.md#opentelemetry-apps-ios-native-android-native).
-Then fill it into `Config.xcconfig` as shown below.
-
-### Update Config.xcconfig
-
-The app key sits in the URL path, so no credentials are needed:
-
-```
-BASE_URL = http:/$()/localhost:3333
-PORT = 3333
-
-OTLP_ENDPOINT = https:/$()/faro-collector-<region>.grafana.net/otlp/<appKey>
-OTLP_INSTANCE_ID =
-OTLP_API_KEY =
-```
-
-Then re-run the app:
-
-```bash
-bash Scripts/sim-run.sh
-```
-
-The data appears under the `QuickPizza_iOS` app in **Frontend Observability**
-after the export queue drains; allow tens of seconds with default disk buffering.
-
-A legacy option: send to the Grafana Cloud OTLP gateway instead. Set
-`OTLP_ENDPOINT` to `https:/$()/otlp-gateway-<regionSlug>.grafana.net/otlp` and
-fill in `OTLP_INSTANCE_ID` and `OTLP_API_KEY`; the app then computes
-`Authorization: Basic base64(instanceId:apiKey)` at runtime. That path keeps the
-data as raw OTel, so the app does **not** appear in Frontend Observability —
-traces go to Tempo and logs to Loki for the shared
-[Mobile OTel RUM dashboard](../docs/MOBILE_OTEL_RUM_DASHBOARD.md).
-
----
-
-## Opening in Xcode (Alternative to the Script)
-
-If you prefer the Xcode GUI, run this from the repository root:
-
-```bash
-open Mobiles/ios/QuickPizzaIos.xcodeproj
-```
-
-Then:
-
-- Select a simulator from the device picker in the toolbar
-- Press **Cmd+R** to build and run
-
-The `Config.xcconfig` is automatically picked up by the build system — no extra steps needed.
-
----
-
-## BrowserStack (Real Device, Optional)
-
-If you want to test on a real iOS device via BrowserStack instead of the simulator:
-
-### 1 — Build an unsigned IPA
-
-BrowserStack re-signs uploaded apps with their own certificate, so no Apple
-Developer account or provisioning profile is needed. Build with code signing
-disabled:
-
-```bash
-cd Mobiles/ios
-
-# Archive without code signing
-xcodebuild \
-  -project QuickPizzaIos.xcodeproj \
-  -scheme QuickPizzaIos \
-  -configuration Release \
-  -destination "generic/platform=iOS" \
-  -archivePath build/QuickPizzaIos.xcarchive \
-  CODE_SIGN_IDENTITY="" \
-  CODE_SIGNING_REQUIRED=NO \
-  CODE_SIGNING_ALLOWED=NO \
-  archive
-
-# Package the .app into an IPA manually
-mkdir -p build/ipa/Payload
-cp -R "build/QuickPizzaIos.xcarchive/Products/Applications/QuickPizzaIos.app" \
-  build/ipa/Payload/
-cd build/ipa && zip -r ../QuickPizzaIos.ipa Payload && cd ../..
-```
-
-### 2 — Upload to BrowserStack App Live
-
-```bash
-curl -u "<browserstack_user>:<browserstack_key>" \
-  -X POST "https://api-cloud.browserstack.com/app-live/upload" \
-  -F "file=@build/ipa/QuickPizzaIos.ipa"
-```
-
-The response includes an `app_url` (e.g. `bs://abc123...`). Share that URL or use
-the BrowserStack dashboard to launch a session on a real iPhone.
-
-### Backend for BrowserStack
-
-The real device cannot reach `localhost`. You have two options:
-
-**Option A — Use the Grafana-hosted backend:**
-
-Set `BASE_URL` in `Config.xcconfig` to the QuickPizza hosted instance URL
-(check with your team for the current URL).
-
-**Option B — Expose localhost with ngrok:**
-
-```bash
-brew install ngrok
-ngrok http 3333
-# Copy the https URL, e.g. https://abc123.ngrok.io
-```
-
-Then set:
-
-```
-BASE_URL = https:/$()/abc123.ngrok.io
-```
-
----
-
-## How Observability Works
-
-The app uses the [OpenTelemetry Swift SDK](https://github.com/open-telemetry/opentelemetry-swift)
-with the `URLSessionInstrumentation`, `Sessions`, and `MetricKitInstrumentation` libraries. The
-tested SDK version is pinned in the Xcode project's
-[`Package.resolved`](QuickPizzaIos.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved).
-
-SDK startup lives in the local
-[`grafana-opentelemetry-ios`](./grafana-opentelemetry-ios/README.md) package — an experimental
-Grafana reference kit that applies Grafana's iOS defaults and returns the upstream providers. App
-instrumentation keeps using standard OpenTelemetry APIs. See
-[`../docs/GRAFANA_OPENTELEMETRY_IOS.md`](../docs/GRAFANA_OPENTELEMETRY_IOS.md) for the package
-boundary, validation evidence, and open gates.
-
-The app sets one non-default option, `automaticRedirectProtection`. Trace context is injected
-before a redirect destination is known and `URLSession` carries custom headers across a `3xx`, so
-without it an API call redirected off the backend host would take `traceparent` there. The app's
-HTTP client is unchanged: the package filters those redirects itself.
-
-The local package configures automatic URLSession instrumentation with
-`semanticConvention: .stable`, emitting `http.request.method`, `http.response.status_code`, `url.full` and `server.*`
-attributes. Consumers of older traces may still encounter legacy keys such as
-`http.method`, `http.status_code` and `http.url`.
-
-Manual spans (`auth.login`, `pizza.get_recommendation`, and `pizza.rate`) use
-the internal span kind and record app-specific attributes. HTTP attributes
-are recorded on their automatically instrumented HTTP child spans.
-
-The pinned instrumentation still has upstream gaps for
-[default span names](https://github.com/open-telemetry/opentelemetry-swift/issues/1202),
-[HTTP error metadata](https://github.com/open-telemetry/opentelemetry-swift/issues/1203)
-and [implicit server ports](https://github.com/open-telemetry/opentelemetry-swift/issues/1204).
-Stable mode alone does not resolve these gaps.
-
-| Signal           | What is instrumented                                                                |
-| ---------------- | ----------------------------------------------------------------------------------- |
-| **Spans**        | Auto: `URLSession` calls except the collector host and port. Manual: `pizza.get_recommendation`, `auth.login`, `pizza.rate`. MetricKit: `MXMetricPayload` spans (Apple's daily aggregated CPU/memory/hangs/hitch data). |
-| **Logs**         | Auto: `session.start` / `session.end`, MetricKit `metrickit.diagnostic.{crash,hang,cpu_exception,disk_write_exception}`. Manual: app logs at `DEBUG`/`INFO`/`WARN`/`ERROR`, exception logs (`event_name=exception`), screen views (`event_name=app.screen.view`). |
-| **Resource**     | `service.name=quickpizza-ios`, `service.namespace=quickpizza`, `service.version`, `service.build`, `deployment.environment.name`, `device.id`, `device.model.identifier`, `os.*`, `telemetry.sdk.language=swift`, `telemetry.sdk.version`. |
-
-The session sampler and log processor add `session.id` and, when available, `session.previous_id` to
-individual spans and log records; these are not resource attributes.
-
-Configuration is read from `Config.xcconfig` at build time and injected into
-`BuildConfig.generated.swift` (auto-generated, gitignored). The `OTelService`
-initializes the SDK on app launch using these values.
-
-Runtime overrides for backend URL, OTLP endpoint, and credentials can be set
-from the **Debug → Config** screen without rebuilding. These are persisted in
-`UserDefaults` and applied on the next app launch via `RuntimeConfigHolder`.
-
-When `OTLP_ENDPOINT` is empty or rejected, OpenTelemetry is not initialized:
-application logs still reach OSLog, but there are no spans, session events, or
-MetricKit exports. A valid endpoint enables OTLP/HTTP export with disk buffering
-on by default; see the [buffering guarantees](grafana-opentelemetry-ios/README.md#disk-buffering).
-
-The in-app **Debug** tab additionally lets you simulate backend errors and latency, send test logs / events / handled exceptions, and trigger native crashes (MetricKit controls diagnostic availability, separately from its daily performance reports). See [`../docs/IOS_OBSERVABILITY_OTEL_GUIDE.md § 5`](../docs/IOS_OBSERVABILITY_OTEL_GUIDE.md#5-demo-workflow-customer-facing) for the full demo workflow.
-
----
+Results land in `Mobiles/e2e/results/ios-native/`. See the [mobile E2E README](../e2e/README.md).
 
 ## Troubleshooting
 
-**`xcodebuild` not found**
+**`xcodebuild` not found or license errors**
 
 ```bash
 sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
 sudo xcodebuild -license accept
+sudo xcodebuild -runFirstLaunch
 ```
 
-**Simulator not found**
+**No simulator found.** Download an iOS 26+ runtime in Xcode → Settings → Components, then check
+with `xcrun simctl list devices available`.
 
-```bash
-# Download an iOS runtime in Xcode > Settings > Platforms
-xcrun simctl list devices available
-```
+**Network error in the app.** Check the backend: `docker ps` and
+`curl http://localhost:3333/api/quotes`.
 
-**App launches but shows network error**
+**No data in Grafana.**
 
-- Make sure the Docker backend is running: `docker ps`
-- Make sure it's on port 3333: `curl http://localhost:3333/api/quotes`
+- Watch the `sim-run.sh` log stream. `OTel not initialized: <reason>` means the endpoint was empty
+  or rejected. `OTel SDK: <message>` reports export failures such as a 404 or 401.
+- A wrong ingest URL does not fail the app or the e2e run. Only those log lines show it.
+- Check the endpoint rules above, and that a Debug → Config override or an active
+  `Mobiles/telemetry` setup is not replacing your `Config.xcconfig`.
+- For the legacy gateway, check `OTLP_INSTANCE_ID` and `OTLP_API_KEY`. Faro ingest needs neither.
 
-**Traces not appearing in Grafana**
+## Further reading
 
-- Double-check `OTLP_ENDPOINT` is the OTLP **base** URL, not a signal URL. A trailing slash is
-  fine — the reference kit normalises it — but an endpoint that already ends in `/v1/traces`,
-  `/v1/logs` or `/v1/metrics` is rejected at startup
-- For the legacy OTLP gateway, verify `OTLP_INSTANCE_ID` and `OTLP_API_KEY` in `Config.xcconfig`; Faro OTLP ingest needs neither
-- Check the Xcode console for `[OTel]` error messages
+- [iOS instrumentation guide](../docs/IOS_OBSERVABILITY_OTEL_GUIDE.md): what the app emits and how to reuse it
+- [`grafana-opentelemetry-ios` package](grafana-opentelemetry-ios/README.md): the startup package reference
+- [iOS app architecture](../docs/IOS_APP_ARCHITECTURE.md): code conventions
+- [Mobile observability overview](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md): all four apps side by side
+- [All mobile apps](../README.md)

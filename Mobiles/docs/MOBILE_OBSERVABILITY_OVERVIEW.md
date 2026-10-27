@@ -1,44 +1,9 @@
 # Mobile Observability Overview
 
-This document explains what each QuickPizza mobile demo app does, how it is
-instrumented, what telemetry it emits, and where that telemetry lands in
-Grafana Cloud.
-
-It is intended for two audiences:
-
-- **Demo presenters / SEs** — start with [§ At a glance](#at-a-glance) and
-  [§ Where the data lives](#where-the-data-lives).
-- **Engineers onboarding to the demo** — read on through
-  [§ Per-platform telemetry inventory](#per-platform-telemetry-inventory) and
-  [§ iOS vs Android native: what differs](#ios-vs-android-native-what-differs).
-
-> **Demo stack:** an internal Grafana Cloud stack used by the QuickPizza demo
-> team. The telemetry examples include a historical `gcx` inventory, with
-> Android last observed around 2026-04-24. App configuration and instrumentation
-> are checked against this repository; this is not a fresh cloud verification. The
-> stack-specific URLs and slugs in this doc are placeholders; substitute your
-> own when running these apps yourself. See
-> [§ How this was verified](#how-this-was-verified) for the exact queries.
-
----
-
-## Table of contents
-
-- [At a glance](#at-a-glance)
-- [What every QuickPizza mobile app does](#what-every-quickpizza-mobile-app-does)
-- [Where the data lives](#where-the-data-lives)
-- [Per-platform telemetry inventory](#per-platform-telemetry-inventory)
-  - [Flutter (Faro)](#flutter-faro)
-  - [React Native (Faro)](#react-native-faro)
-  - [iOS native (OpenTelemetry Swift)](#ios-native-opentelemetry-swift)
-  - [Android native (OpenTelemetry Android)](#android-native-opentelemetry-android)
-- [iOS vs Android native: what differs](#ios-vs-android-native-what-differs)
-- [Faro vs OpenTelemetry: side-by-side](#faro-vs-opentelemetry-side-by-side)
-- [The shared Debug screen](#the-shared-debug-screen)
-- [Known issues / open questions](#known-issues--open-questions)
-- [How this was verified](#how-this-was-verified)
-
----
+What each QuickPizza mobile app emits and where it lands in Grafana Cloud. The
+screens and workflows are the same in all four apps; see
+[FEATURES.md](../FEATURES.md). App IDs below come from the internal demo stack;
+yours will differ.
 
 ## At a glance
 
@@ -46,95 +11,51 @@ It is intended for two audiences:
 | --- | --- | --- | --- |
 | Flutter (Android + iOS) | `Mobiles/flutter/` | `faro` Dart SDK | `QuickPizza_Flutter` (app_id `69`) |
 | React Native (Android + iOS) | `Mobiles/react-native/` | `@grafana/faro-react-native` | `QuickPizza_ReactNative` (app_id `123`) |
-| iOS native (SwiftUI) | `Mobiles/ios/` | `opentelemetry-swift` | `quickpizza-ios` → `QuickPizza_iOS` (app_id `204`) |
-| Android native (Compose) | `Mobiles/android/` | `opentelemetry-android` (RUM agent) | `quickpizza-android` → `QuickPizza_Android` (app_id `182`) |
+| iOS native (SwiftUI) | `Mobiles/ios/` | `opentelemetry-swift` via the local Grafana package | `quickpizza-ios` → `QuickPizza_iOS` (app_id `204`) |
+| Android native (Compose) | `Mobiles/android/` | `opentelemetry-android` RUM agent via the local Grafana package | `quickpizza-android` → `QuickPizza_Android` (app_id `182`) |
 
-All four reach Grafana Cloud Frontend Observability through the Faro collector —
-the Faro apps post to `/collect/<appKey>`, the native apps post OTLP/HTTP to
-`/otlp/<appKey>`. See [§ Where the data lives](#where-the-data-lives) for the
-datasources and the legacy OTLP gateway alternative.
+The Faro apps post to the Faro collector at `/collect/<appKey>`; the native
+apps post OTLP/HTTP to `/otlp/<appKey>` on the same collector. Endpoint setup
+is in [Connect to Grafana Cloud](./CONNECT_GRAFANA_CLOUD.md).
 
-The native apps explicitly set `service.name` to `quickpizza-ios` /
-`quickpizza-android`. The registered Faro app names identify them in the
-Frontend Observability plugin; those names are distinct from the OTel service
-names used in the trace queries below.
-
-All four apps talk to the same QuickPizza backend (`/api/pizza`,
-`/api/ratings`, `/api/users/token/login`, …) and implement the same core
-flows: get a pizza recommendation, rate it, log in, view your profile, and a
-shared in-app **Debug** tab for triggering errors/crashes (see
-[§ The shared Debug screen](#the-shared-debug-screen)).
-
----
-
-## What every QuickPizza mobile app does
-
-The user-facing feature set is **the same across all four apps** by design,
-so that the four implementations can be compared apples-to-apples for
-observability demos. Required screens and workflows are documented in
-[`Mobiles/FEATURES.md`](../FEATURES.md).
-
-Common feature set:
-
-- **Home** — get a pizza recommendation; customize calories/toppings/tools.
-- **Login** — token auth (`default` / `12345678`).
-- **Profile** — list/clear ratings, sign out.
-- **About** — app metadata, SDK references.
-- **Debug** — shared cross-platform screen for runtime config overrides,
-  backend error/latency injection, client-side fault simulation, and
-  triggering test logs/exceptions/native crashes.
-
----
+The native apps set `service.name` to `quickpizza-ios` / `quickpizza-android`.
+The plugin lists them under their registered Faro app names; trace queries use
+the OTel service names. The iOS package strips the bundle-derived
+`service.name` so ingest can apply the registered identity, and the app sets it
+back so the legacy gateway path still has a service name.
 
 ## Where the data lives
 
-All four apps open in the Frontend Observability plugin at
-`/a/grafana-kowalski-app/apps/<faro-app-id>` on your Grafana Cloud stack.
+Each app opens in the Frontend Observability plugin at
+`/a/grafana-kowalski-app/apps/<faro-app-id>`. Underneath:
 
-Underlying datasources on whichever Grafana Cloud stack you target:
+- **Loki** (`grafanacloud-<stack>-logs`): Faro `event`, `log`, `measurement`,
+  and `exception` streams with `app_id` / `app_key` / `kind` labels. The
+  collector gives translated native OTel logs the same labels under the
+  registered app name. The plugin queries Loki by these labels.
+- **Tempo** (`grafanacloud-<stack>-traces`): spans from all four apps.
 
-- Faro signals → the stack's Loki datasource (`grafanacloud-<stack>-logs`).
-  Faro stores all four signal kinds (`event`, `log`, `measurement`,
-  `exception`) as Loki streams with `app_id` / `app_key` / `kind` labels.
-- Native OTel signals land in the same datasources. The collector translates
-  OTLP to Faro on ingest, so the Loki streams carry the same `app_id` /
-  `app_key` / `kind` labels as the Faro apps, under the registered app name
-  (`QuickPizza_Android` in the historical inventory). Spans still reach the
-  stack's Tempo datasource (`grafanacloud-<stack>-traces`).
-
-The Frontend Observability plugin queries Loki for Faro-shaped data, matched by
-those app labels.
-
-The Grafana Cloud OTLP gateway is a legacy alternative for the native apps
-([Connect to Grafana Cloud](./CONNECT_GRAFANA_CLOUD.md#alternative-the-otlp-gateway)).
-It bypasses the collector, so the data stays raw OTel: streams carry
-`service_name` / `service_namespace` only, keep the kebab-case `service.name`,
-and gain no app identity. The plugin cannot read them. The
-[Mobile OTel RUM dashboard](./MOBILE_OTEL_RUM_DASHBOARD.md) exists for that path.
-
----
+Data sent through the legacy OTLP gateway stays raw OTel without these labels,
+so the plugin cannot read it. See
+[Connect to Grafana Cloud](./CONNECT_GRAFANA_CLOUD.md#alternative-the-otlp-gateway).
 
 ## Per-platform telemetry inventory
 
-The tables combine the historical cloud inventory with the current app
-instrumentation, grouped by signal kind. They describe expected signal shapes,
-not a guarantee of delivery to a running stack. Anything labeled
-**(auto)** comes from the SDK or an SDK-bundled instrumentation; **(manual)**
-is code we wrote in `core/o11y/` or in the feature repositories.
+**(auto)** means the SDK or a bundled instrumentation emits it; **(manual)** is
+app code in `core/o11y/` or the feature repositories. The tables describe the
+expected signal shapes, not guaranteed delivery.
 
 ### Flutter (Faro)
 
 - **SDK:** `faro` Dart package; version pinned in [pubspec.yaml](../flutter/pubspec.yaml)
 - **Init:** `Mobiles/flutter/lib/bootstrap.dart` →
-  `core/o11y/faro/faro_init.dart` → `Faro` from `package:faro`
-- **Faro app:** registry name `QuickPizza_Flutter`, id `69`. The SDK is
-  configured in `Mobiles/flutter/lib/core/o11y/faro/faro_init.dart` to send
-  `app_name=QuickPizza_Flutter`, matching the React Native app
-  (`QuickPizza_ReactNative`).
+  `core/o11y/faro/faro_init.dart`, which sends `app_name=QuickPizza_Flutter`
+  with `enableCrashReporting: true`. The app root is wrapped in
+  `FaroAssetTracking` and `FaroUserInteractionWidget`.
 - **View names:** go_router paths such as `/`, `/about`, `/debug`, and
-  `/debug/config`. The root and shell navigators each register Faro's
-  navigation observer so bottom navigation tabs and full-screen routes use the
-  same path-based naming convention.
+  `/debug/config`. The root and shell navigators both register
+  `FaroNavigationObserver` (plus `DemoRumNavigatorObserver`), so tabs and
+  full-screen routes are named the same way.
 
 | Signal kind | Examples | Source |
 | --- | --- | --- |
@@ -143,197 +64,156 @@ is code we wrote in `core/o11y/` or in the feature repositories.
 | `exception` | type `API`, `UI`, `flutter_error` | manual via `core/o11y/errors/o11y_errors.dart` + Faro's global Flutter error handler installed by `faro.runApp` |
 | `measurement` | `app_memory`, `app_cpu_usage`, `app_refresh_rate`, `app_frames_rate`, `app_frozen_frame`, `app_startup` | auto, from Faro mobile metrics instrumentation |
 
-Resource attributes on every signal: `app_name`, `app_version`,
-`app_environment=production`, `sdk_name`, `sdk_version`, `user_id`,
-`user_username`, `session_id`, plus a rich `session_attr_*` block (Dart
-version, device brand/manufacturer/model/id, `device_is_physical`, OS,
-detailed OS string).
+Every signal carries `app_name`, `app_version`, `app_environment=production`,
+`sdk_name`, `sdk_version`, `user_id`, `user_username`, `session_id`, and a
+`session_attr_*` block (Dart version, device brand/manufacturer/model/id,
+`device_is_physical`, OS).
 
-The Debug screen triggers native crashes through a custom `MethodChannel`-based
-`NativeCrashService` (see `Mobiles/flutter/lib/features/debug/domain/`). Faro
-handles crash capture and reporting on the next launch.
-
-Flutter also creates manual business spans through
-[`o11y_traces.dart`](../flutter/lib/core/o11y/traces/o11y_traces.dart). Faro sends
-these to tracing; the companion DemoRum implementation only logs to the console.
+Manual business spans come from
+[`o11y_traces.dart`](../flutter/lib/core/o11y/traces/o11y_traces.dart); Faro
+sends them to tracing, and the companion DemoRum stand-in only logs them.
+Native crashes are triggered through a `MethodChannel`-based
+`NativeCrashService` (`lib/features/debug/domain/`); Faro's crash reporting
+sends them on the next launch.
 
 ### React Native (Faro)
 
 - **SDK:** `@grafana/faro-react-native` and `@grafana/faro-react-native-tracing`; versions pinned in [package.json](../react-native/package.json)
-- **Init:** `Mobiles/react-native/src/bootstrap.ts` →
-  `core/o11y/faroSdk.ts`
-- **Faro app:** registry name `QuickPizza_ReactNative`, id `123`
+- **Init:** one `initializeFaro({...})` call in `Mobiles/react-native/src/bootstrap.ts` (`src/core/o11y/faroSdk.ts` only re-exports the Faro APIs). Tracing, crash reporting, ANR tracking and vitals are config flags.
 
 | Signal kind | Examples | Source |
 | --- | --- | --- |
-| `event` | `faro.tracing.fetch` + `faro.tracing.xml-http-request` (HTTP auto via dual fetch+XHR interception), `view_changed`, `faro.user.action`, `app_lifecycle_changed`, `session_start`, `faro_initialized`, `pizza_requested` / `pizza_received` / `pizza_rated`, `login_screen_opened`, `user_logged_out`, `debug_custom_event` | mostly auto; pizza/login/debug events are manual via `src/core/o11y/o11yEvents.ts` |
+| `event` | `faro.tracing.fetch` + `faro.tracing.xml-http-request` (HTTP auto via dual fetch+XHR interception), `view_changed`, `faro.user.action`, `app_lifecycle_changed`, `session_start`, `faro_initialized` (manual, `bootstrap.ts`), `pizza_requested` / `pizza_received` / `pizza_rated`, `login_screen_opened`, `user_logged_out`, `debug_custom_event` | mostly auto; pizza/login/debug events are manual via `src/core/o11y/o11yEvents.ts` |
 | `log` | severity `debug` / `info` / `warn` / `error` | manual via `src/core/o11y/o11yLogs.ts` |
 | `exception` | type `crash` (native, e.g. `CRASH_NATIVE: Application crash (Native), status: 11`), `Error`, `PizzaRecommendationError`, `HandledDebugException` | crash auto via Faro CrashKit; others manual via `src/core/o11y/o11yErrors.ts` |
-| `measurement` | `app_memory`, `app_cpu_usage`, `app_frames_rate`, `app_frozen_frame`, `app_startup`, plus app-specific `pizza.recommendation`, `pizza.rating` | auto, plus custom via `src/core/o11y/o11yMetrics.ts` |
+| `measurement` | `app_memory`, `app_cpu_usage`, `app_frames_rate`, `app_frozen_frame`, `app_startup`, `anr` (Android only, `anrTracking`), plus app-specific `pizza.recommendation` (`pizza_id`, `calories`, `vegetarian` 0/1) and `pizza.rating` (`pizza_id`, `stars`) | auto, plus custom via `src/core/o11y/o11yMetrics.ts` |
 
-Resource attributes are similar to Flutter but **richer**: includes
-`device_battery_level`, `device_is_charging`, `device_carrier`,
-`device_memory_total`, `device_memory_used`, `device_type`, and
-`react_native_version`. RN sets `app_environment=development` in debug builds
-and `production` in release builds. Flutter's entry point sets `production`.
-
-Custom `pizza.recommendation` / `pizza.rating` measurements are unique to
-the RN app — Flutter doesn't currently emit business measurements.
+Attributes are like Flutter's plus `device_battery_level`,
+`device_is_charging`, `device_carrier`, `device_memory_total`,
+`device_memory_used`, `device_type`, and `react_native_version`.
+`app_environment` is `development` in debug builds and `production` in release
+builds. The custom `pizza.*` measurements are unique to React Native.
 
 ### iOS native (OpenTelemetry Swift)
 
-- **SDK:** `opentelemetry-swift` (`telemetry_sdk_language=swift`,
-  `telemetry_sdk_name=opentelemetry`); the tested version is pinned in the Xcode
-  project's `Package.resolved`
+- **SDK:** `opentelemetry-swift`; revision pinned in the package's
+  [`Package.swift`](../ios/grafana-opentelemetry-ios/Package.swift) (the app's `Package.resolved` records it)
 - **Init:** `Mobiles/ios/QuickPizzaIos/Bootstrap.swift` →
   `Core/O11y/OTelService.swift` → `GrafanaOtel.initialize(...)` from the local
-  [Grafana OpenTelemetry iOS](./GRAFANA_OPENTELEMETRY_IOS.md) package, which owns
-  SDK startup while app instrumentation stays on standard OTel APIs
-- **OTel service.name:** `quickpizza-ios`,
-  service.namespace `quickpizza`
+  [Grafana OpenTelemetry iOS](./GRAFANA_OPENTELEMETRY_IOS.md) package, which
+  owns SDK startup; app instrumentation uses standard OTel APIs
+- **OTel service:** `service.name=quickpizza-ios`, `service.namespace=quickpizza`
 
 | Signal | Examples | Source |
 | --- | --- | --- |
 | Spans (Tempo) | `HTTP GET` / `HTTP POST` (auto, `URLSessionInstrumentation`, stable HTTP attribute keys), `pizza.get_recommendation` / `auth.login` / `pizza.rate` (manual), `MXMetricPayload` (auto, MetricKit pre-aggregated 24h payloads) | manual via `Core/O11y/Tracer.swift`; HTTP auto via `URLSessionInstrumentation`; MetricKit auto via `MetricKitInstrumentation` |
 | Logs (Loki) | severity `INFO` / `DEBUG` / `WARN` / `ERROR`; `event_name=app.screen.view` (manual screen-view tracking), `session.start` / `session.end` (auto from Sessions instrumentation), `event_name=exception` for `logger.exception(...)`, MetricKit `metrickit.diagnostic.*` for crashes/hangs/CPU/disk-write exceptions | manual app logger + auto SDK |
-| Metrics | _none yet_ — there is no `MeterProvider` configured. MetricKit performance data is delivered as spans, not metrics. | — |
+| Metrics | None. No `MeterProvider` is configured; MetricKit performance data arrives as spans. | — |
 
-Resource attributes carry: `service.name`, `service.namespace`,
-`service.version`, `service.build`, `deployment.environment.name`, `os.name`,
-`os.version`, `os.description`, `device.id`, `device.model.identifier`
-(e.g. `iPhone16,1`), and `telemetry.sdk.{language, name, version}`. The
-session sampler and log processor add `session.id` and, when available,
-`session.previous_id` to individual spans and log records. The instrumentation scope is separate
-metadata, not a resource attribute.
+Resource attributes: `service.name`, `service.namespace`, `service.version`,
+`service.build`, `deployment.environment.name`, `os.name`, `os.version`,
+`os.description`, `device.id`, `device.model.identifier` (e.g. `iPhone16,1`),
+and `telemetry.sdk.{language, name, version}`. The session sampler and log
+processor add `session.id` and, when available, `session.previous_id` to each
+span and log record.
 
-**iOS does not auto-emit** `screen.view`, lifecycle spans (`AppStart` /
-`Paused` / `Stopped`), `app.jank`, or `device.crash` events. The iOS app
-**does** emit `app.screen.view` events manually via a `.trackScreenView()`
-view modifier.
+iOS does **not** auto-emit `screen.view`, lifecycle spans, `app.jank`, or
+`device.crash`. The app emits `app.screen.view` manually through a
+`.trackScreenView()` view modifier.
 
-The local iOS package buffers span and log batches to disk by default. Export
-is asynchronous, and both signals retry from disk across relaunch. Refer to the
-[package buffering notes](../ios/grafana-opentelemetry-ios/README.md#disk-buffering)
-for details.
-
-For deeper iOS detail see
-[`IOS_OBSERVABILITY_OTEL_GUIDE.md`](./IOS_OBSERVABILITY_OTEL_GUIDE.md).
+The package buffers spans and logs to disk and retries across relaunch; see
+[disk buffering](../ios/grafana-opentelemetry-ios/README.md#disk-buffering).
+More iOS detail: [IOS_OBSERVABILITY_OTEL_GUIDE.md](./IOS_OBSERVABILITY_OTEL_GUIDE.md).
 
 ### Android native (OpenTelemetry Android)
 
-- **SDK:** `opentelemetry-android` (`telemetry_sdk_language=java`) — version pinned in [`Mobiles/android/gradle/libs.versions.toml`](../android/gradle/libs.versions.toml)
+- **SDK:** `opentelemetry-android`; version pinned in [`libs.versions.toml`](../android/gradle/libs.versions.toml)
 - **Init:** `Mobiles/android/app/src/main/java/com/grafana/quickpizza/core/o11y/OTelService.kt`
-  → `GrafanaOtel.initialize(...)`, which delegates to
-  `OpenTelemetryRumInitializer.initialize(...)`
-- **OTel service.name:** `quickpizza-android`, service.namespace `quickpizza`
+  → `GrafanaOtel.initialize(...)` → `OpenTelemetryRumInitializer.initialize(...)`
+- **OTel service:** `service.name=quickpizza-android`, `service.namespace=quickpizza`
 - **Conventions:** the app sets `useLatestExperimentalSemanticConventions=false`,
-  preserving names such as `device.crash` and `screen.name`. These are app
-  configuration choices, not the SDK's latest defaults.
+  which keeps names such as `device.crash` and `screen.name`
 
 | Signal | Examples | Source |
 | --- | --- | --- |
 | Spans (Tempo) | `GET` (auto, OkHttp telemetry), `AppStart` / `Paused` / `Stopped` (auto, lifecycle instrumentation), `pizza.get_recommendation` / `auth.login` / `pizza.rate` (manual) | manual via `core/o11y/AppTracer.kt`; rest auto from RUM agent |
 | Logs (Loki) | `event_name=screen.view` (auto, Activity/Fragment), `event_name=app.navigation.complete` (SDK Compose navigation, after explicit setup), `event_name=app.jank` (auto, slow-rendering instrumentation), `session.start` (auto), `rum.sdk.init.{started, span.exporter, net.provider}` (auto SDK self-telemetry), `event_name=exception` (manual `logger.exception`), `event_name=device.crash` (auto, `CrashReporter`; force-flushed at crash time, delivered next launch when disk buffering is on), `event_name=device.anr` (auto ANR detection), `event_name=debug.test_event` (manual from Debug screen) | mostly auto; Compose navigation requires explicit setup; `exception` and `debug.*` are manual |
-| Metrics | Disabled by the local Grafana package with `disableMetrics()`; jank information is emitted as events. | — |
+| Metrics | Disabled by the local Grafana package (`disableMetrics()`); jank is emitted as events. | — |
 
-Resource attributes include `service.*`,
-`os.name`, `os.version`, `os.description`, `os.build_id`,
-`android.os.api_level`, `device.manufacturer`, `device.model.identifier`,
-`device.model.name`, `app.installation.id`, and
+Resource attributes: `service.*`, `os.name`, `os.version`, `os.description`,
+`os.build_id`, `android.os.api_level`, `device.manufacturer`,
+`device.model.identifier`, `device.model.name`, `app.installation.id`, and
 `telemetry.sdk.{language, name, version}`. Signal attributes include
-`network.connection.type` (e.g. `wifi`), `screen.name` (current Activity), and
-`session.id`. `MainActivity` attaches the SDK's Compose navigation instrumentation
-with `navController.withOpenTelemetry(rum)`. Its `app.navigation.complete` events
-carry `app.navigation.destination.name` (the route pattern) and use the scope
-`io.opentelemetry.android.instrumentation.compose.navigation`. App-owned business
-instrumentation uses the scope `com.grafana.quickpizza`.
+`network.connection.type` (e.g. `wifi`), `screen.name`, and `session.id`.
 
-Native C/C++ crashes have a separate demo-owned path:
+`MainActivity` attaches Compose navigation tracking with
+`navController.withOpenTelemetry(rum)`, imported from Kotlin package
+`io.opentelemetry.instrumentation.compose.navigation`. Its `app.navigation.complete` events
+carry `app.navigation.destination.name` (the route pattern) under instrumentation scope
+`io.opentelemetry.android.instrumentation.compose.navigation`. App business
+instrumentation uses scope `com.grafana.quickpizza`.
+
+Native C/C++ crashes use a separate demo-owned path:
 [`NativeExitCrashReporter`](../android/app/src/main/java/com/grafana/quickpizza/nativecrash/NativeExitCrashReporter.kt)
-replays `ApplicationExitInfo` on the next launch on Android 11 or later. This
-is distinct from the SDK's uncaught JVM exception reporter.
-
-> **Last verified in cloud:** ~2026-04-24. The inventory combines that
-> historical observation with the instrumentation registered in the repository.
-
----
+replays `ApplicationExitInfo` on the next launch on Android 11+.
 
 ## iOS vs Android native: what differs
-
-Both export OTel/HTTP to the same Grafana Cloud stack, but the SDKs do
-materially different amounts of work for you out of the box.
 
 | Concern | iOS (`opentelemetry-swift`) | Android (`opentelemetry-android`) |
 | --- | --- | --- |
 | Auto HTTP spans | Yes — `URLSessionInstrumentation` | Yes — OkHttp, via the `OkHttpTelemetry` `Call.Factory` wrapper plus the Byte Buddy `okhttp3-agent` |
 | Auto lifecycle spans | **No** | Yes — `AppStart`, `Paused`, `Stopped` |
-| Auto screen view events | **No** (we emit `app.screen.view` manually via a SwiftUI view modifier) | Activity/Fragment `screen.view`; Compose `app.navigation.complete` after explicit setup |
-| Auto crash capture | Via Apple **MetricKit** — OS-managed diagnostic delivery; separate from daily performance reports | Via OTel-Android `CrashReporter` — captured and force-flushed at crash time; delivered on next app launch while disk buffering is on |
-| Auto ANR / hang | Via MetricKit diagnostic reports | Yes — `event_name=device.anr` runtime |
+| Auto screen view events | **No** (manual `app.screen.view` via a SwiftUI view modifier) | Activity/Fragment `screen.view`; Compose `app.navigation.complete` after explicit setup |
+| Auto crash capture | Apple **MetricKit** — OS-managed diagnostic delivery, separate from daily performance reports | OTel-Android `CrashReporter` — force-flushed at crash time, delivered on next launch while disk buffering is on |
+| Auto ANR / hang | MetricKit diagnostic reports | Yes — `event_name=device.anr` at runtime |
 | Auto slow-frame / jank | **No** (MetricKit hitch metrics arrive as `MXMetricPayload` spans) | Yes — `event_name=app.jank` |
-| Auto session lifecycle | Yes — `Sessions` library (`session.start` / `session.end` log records, `session.id` on spans and logs, plus `session.previous_id` when available) | Yes — emits `session.start`; `session.id` on every signal |
-| Network class attribute | _Not exposed_ | Yes — `network.connection.type` (e.g. `wifi`) |
+| Auto session lifecycle | Yes — `Sessions` library (`session.start` / `session.end`, `session.id` on spans and logs, `session.previous_id` when available) | Yes — `session.start`; `session.id` on every signal |
+| Network class attribute | Not exposed | `network.connection.type` (e.g. `wifi`) |
 | Compose / SwiftUI nav attrs | Manual events carry `app.screen.name` | SDK navigation events carry `app.navigation.destination.name` |
 | Device hardware attrs | `device.id`, `device.model.identifier` | `device.manufacturer`, `device.model.identifier`, `device.model.name`, `android.os.api_level`, `app.installation.id` |
-| Performance / Apple-specific | `MXMetricPayload` spans (CPU, memory, hangs, hitch ratios — daily) | `app.jank` events, `rum.sdk.init.*` self-telemetry |
-| Custom OTel Metrics API | Not configured | Export explicitly disabled by local package |
-
-The Android demo enables automatic lifecycle, Activity/Fragment screen, jank,
-and ANR instrumentation, and explicitly attaches SDK Compose navigation tracking.
-The iOS demo uses `MetricKitInstrumentation` for OS-level diagnostics and emits
-manual SwiftUI screen events. Both apps add manual business events.
-
----
+| Performance | `MXMetricPayload` spans (CPU, memory, hangs, hitch ratios — daily) | `app.jank` events, `rum.sdk.init.*` self-telemetry |
+| OTel Metrics API | Not configured | Export disabled by the local package |
 
 ## Faro vs OpenTelemetry: side-by-side
 
 | | Faro (Flutter, RN) | OpenTelemetry (iOS, Android) |
 | --- | --- | --- |
 | Wire format | Faro JSON → Faro collector `/collect/<appKey>` | OTLP/HTTP → Faro collector `/otlp/<appKey>`, translated to Faro on ingest |
-| Signal model | Four Loki signal kinds: `event`, `log`, `measurement`, `exception`; trace payloads go to Tempo. | Two kinds we use today: spans (Tempo) + log records (Loki). |
-| Auto HTTP | Faro fetch/XHR instrumentation emits HTTP events and tracing data; trace/span IDs correlate them | Native HTTP client wrappers emit OTel spans |
-| Auto user actions | `event_name=faro.user.action` (Flutter + RN) | _None_ |
-| Auto perf metrics | `app_memory`, `app_cpu_usage`, `app_frames_rate`, `app_frozen_frame`, `app_startup` (both) | _None on iOS_; `app.jank` events on Android |
+| Signal model | Four Loki kinds: `event`, `log`, `measurement`, `exception`; traces go to Tempo | Spans (Tempo) + log records (Loki) |
+| Auto HTTP | Faro fetch/XHR instrumentation emits HTTP events and tracing data, correlated by trace/span IDs | Native HTTP client wrappers emit OTel spans |
+| Auto user actions | `event_name=faro.user.action` | None |
+| Auto perf metrics | `app_memory`, `app_cpu_usage`, `app_frames_rate`, `app_frozen_frame`, `app_startup` | None on iOS; `app.jank` events on Android |
 | Crashes | Native crash → `kind=exception, type=crash` (FaroCrashKit) | iOS: MetricKit diagnostics; Android: SDK JVM crash reporting plus demo-owned native crash replay |
-| Where to query | Frontend Observability plugin (Loki under the hood) | Same — the collector stamps the app labels the plugin needs |
-| Where to view | Frontend Observability plugin (per-app drilldown UI) | Same. On the legacy OTLP gateway path the plugin cannot read the data; use the [Mobile OTel RUM dashboard](./MOBILE_OTEL_RUM_DASHBOARD.md) |
-| User context | `user_id` / `user_username` (Faro auto when set via SDK) | Not yet attached on every signal — `user.id` is the current OTel user identifier; tracked in [#48](https://github.com/grafana/mobile-o11y-demo/issues/48) / [`OTEL_MOBILE_MATURITY.md` § M-001](./OTEL_MOBILE_MATURITY.md#m-001--no-first-class-user-context-enduserid-on-mobile-sdks) |
-
----
+| Where to view | Frontend Observability plugin | Same (the collector adds the app labels). Legacy gateway data: [Mobile OTel RUM dashboard](./MOBILE_OTEL_RUM_DASHBOARD.md) |
+| User context | `user_id` / `user_username` (Faro auto when set via SDK) | Not on every signal yet; see [M-001](./OTEL_MOBILE_MATURITY.md#m-001--no-first-class-user-context-enduserid-on-mobile-sdks) / [#48](https://github.com/grafana/mobile-o11y-demo/issues/48) |
 
 ## The shared Debug screen
 
-All four apps now have a feature-aligned **Debug** tab that lets demo
-presenters trigger telemetry on demand. The screen has the same five
-sections everywhere:
+Every app has a **Debug** tab for triggering telemetry on demand, with the same
+five sections:
 
-1. **Config entry card** — opens a sub-screen for runtime overrides of
-   `BASE_URL`, OTLP endpoint / Faro collector URL, and credentials.
-   Overrides persist to local storage and apply on next launch (a
-   "Restart required" banner shows when the active config differs from
-   the saved one).
-2. **Error simulation** — toggles that propagate to the QuickPizza
-   backend via headers (`x-error-record-recommendation`,
-   `x-delay-record-recommendation`, `x-error-get-ingredients`,
-   `x-delay-get-ingredients`) plus client-side faults
-   (`useV2PizzaSchema`, `skipAuthDepInTools`).
-3. **Quick signals** — buttons to send a debug log, an error log, and a
-   custom event end-to-end through the SDK.
-4. **Handled exception** — throws inside a `try/catch` and reports it via
-   the appropriate API (`o11yErrors.reportError` for Faro,
-   `logger.exception(...)` for OTel).
-5. **Native crash** — terminates the app via a real native crash so we
-   can exercise the crash-reporting path.
+1. **Config** — sub-screen for runtime overrides of `BASE_URL`, the Faro
+   collector URL or OTLP endpoint, and credentials. Overrides persist locally
+   and apply on next launch; a "Restart required" banner shows until then.
+2. **Error simulation** — backend toggles sent as headers
+   (`x-error-record-recommendation`, `x-delay-record-recommendation`,
+   `x-error-get-ingredients`, `x-delay-get-ingredients`), plus client-side
+   faults: parse the recommendation with a fake v2 schema, and load tools
+   without the auth dependency.
+3. **Quick signals** — send a debug log, an error log, and a custom event.
+4. **Handled exception** — throws inside `try/catch` and reports it
+   (`o11yErrors.reportError` for Faro, `logger.exception(...)` for OTel).
+5. **Native crash** — crashes the app natively to exercise crash reporting.
 
 Per-platform extras:
 
-- **Android only:** an **OTel SDK section** with a `Disable disk
-  buffering` toggle (enable it and restart for ~1–6s telemetry latency at
-  the cost of offline resilience, vs the default ~30–45s buffered window) and an
-  **ANR card** that blocks the main thread for 10 s.
-- **iOS only:** the **Crash Reporting** card explains that MetricKit delivery
-  is controlled by Apple and may not appear immediately in Grafana Cloud.
-  Diagnostic delivery is separate from daily performance reports.
+- **Android:** an **OTel SDK** section with a `Disable disk buffering` toggle
+  (after restart, export latency drops from the default ~30–45 s to ~1–6 s, at
+  the cost of offline resilience) and an **ANR** card that blocks the main
+  thread for 10 s.
+- **iOS:** a **Crash Reporting** card noting that Apple controls MetricKit
+  delivery, so diagnostics may not appear in Grafana Cloud right away.
+- **React Native:** client toggles for random frozen frames and memory stress.
 
 Code:
 
@@ -342,33 +222,14 @@ Code:
 - iOS — `Mobiles/ios/QuickPizzaIos/Features/Debug/Presentation/DebugView.swift`
 - Android — `Mobiles/android/app/src/main/java/com/grafana/quickpizza/features/debug/DebugScreen.kt`
 
----
+OTel SDK gaps (user context, metrics, screen spans) are tracked in
+[OTEL_MOBILE_MATURITY.md](./OTEL_MOBILE_MATURITY.md).
 
-## Known issues / open questions
+## Querying the data
 
-**SDK-level gaps** (missing capabilities, awkward APIs — candidates for
-upstream contribution) are tracked separately in
-[`OTEL_MOBILE_MATURITY.md`](./OTEL_MOBILE_MATURITY.md). Currently logged
-there:
-
-- `M-001` — No app-wide user context (`user.id`) configured in the mobile OTel
-  SDKs (tracked in [#48](https://github.com/grafana/mobile-o11y-demo/issues/48)).
-- `M-002` — No OTel metrics export in the native demos.
-- `M-003` — Android RUM agent processor extensibility (needs verification).
-- `M-004` — Screen / view transitions not captured as spans (iOS has no
-  automatic SwiftUI screen tracking configured; Android Compose routes emit
-  SDK `app.navigation.complete` log events).
-
----
-
-## How this was verified
-
-The original cloud inventory used `gcx` against the demo stack. The
-2026-09-17 documentation review checks repository code, dependency manifests,
-and dashboard JSON; it does not repeat those cloud queries. To verify your
-own deployment, substitute your context, datasource identifiers, and app IDs
-in the examples below. The raw OTel log query targets the OTLP gateway path;
-for Faro ingest use the app-label queries.
+Example `gcx` queries. Substitute your context, data source names, and app IDs.
+The raw OTel log query applies to the legacy gateway path; for Faro ingest use
+the app-label queries.
 
 ```bash
 gcx config use-context "<your-stack-context>"
@@ -377,28 +238,27 @@ gcx config use-context "<your-stack-context>"
 gcx frontend apps list -o json \
   | tail -n +2 | jq -r '.[] | select(.spec.name | test("QuickPizza"; "i")) | "\(.spec.id)\t\(.spec.name)"'
 
-# Faro signal kinds, last 7 days, for app_id=69 (Flutter) / 123 (RN)
+# Signal kinds per day for one app (e.g. app_id=69 Flutter, 123 RN)
 gcx logs query -d grafanacloud-logs \
   'sum by (kind) (count_over_time({app_id="69"}[24h]))' \
   --since 168h --step 24h -o json
 
-# Faro top events
+# Top events
 gcx logs query -d grafanacloud-logs \
   'topk(30, sum by (event_name) (count_over_time({app_id="69", kind="event"} | logfmt event_name [24h])))' \
   --since 168h --step 24h -o json
 
-# OTel spans for native apps
+# Native app spans
 gcx traces query -d grafanacloud-traces \
   '{resource.service.name="quickpizza-ios"}' --since 168h --limit 200 -o json
 gcx traces query -d grafanacloud-traces \
   '{resource.service.name="quickpizza-android"}' --since 720h --limit 200 -o json
 
-# OTel log event_names (Android RUM agent emits a lot of these)
+# Raw OTel log event names (gateway path)
 gcx logs query -d grafanacloud-logs \
   'sum by (event_name) (count_over_time({service_name="quickpizza-android"}[24h]))' \
   --since 720h --step 24h -o json
 ```
 
-For deeper investigations against any of these apps, the `debug-faro-app`
-Claude skill (Faro side) and `gcx skills install debug-with-grafana` (general
-OTel side) both apply.
+For deeper investigation, the `debug-faro-app` Claude skill (Faro side) and
+`gcx skills install debug-with-grafana` (OTel side) both apply.

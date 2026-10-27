@@ -1,295 +1,186 @@
 # iOS OpenTelemetry Instrumentation Guide (QuickPizza)
 
-This guide explains how the QuickPizza iOS app is instrumented today with OpenTelemetry Swift, what data it emits, and how to apply the same approach in your own app.
+What the QuickPizza iOS app emits, how it is wired, and how to reuse the approach in your own app.
+To run the app and connect it to Grafana Cloud, see the [iOS README](../ios/README.md). For all
+four apps side by side, see [MOBILE_OBSERVABILITY_OVERVIEW.md](./MOBILE_OBSERVABILITY_OVERVIEW.md).
 
-Audience:
-- Demo teams who need to explain the telemetry model to customers
-- iOS engineers who want to copy this setup
+## 1. Architecture
 
-> For a cross-platform comparison covering the Flutter, React Native, and Android demo apps as well, see [`MOBILE_OBSERVABILITY_OVERVIEW.md`](./MOBILE_OBSERVABILITY_OVERVIEW.md).
+Telemetry starts once at launch:
 
-## 1. High-level architecture
-
-Telemetry is initialized once at app startup:
-
-- `Bootstrap.initialize()` resolves and initializes `OTelService`
+- `Bootstrap.initialize()` resolves and starts `OTelService`.
 - `OTelService` calls `GrafanaOtel.initialize(...)` from the local
-  [Grafana OpenTelemetry iOS](./GRAFANA_OPENTELEMETRY_IOS.md) package, which registers the
-  global OTel providers and installs the instrumentations
-- Feature repositories use injected `Tracing` and `Logging` abstractions
+  [`grafana-opentelemetry-ios`](../ios/grafana-opentelemetry-ios/README.md) package, which registers
+  the global providers and installs the instrumentations.
+- Features use the injected `Tracing` and `Logging` abstractions, built on standard OTel APIs.
 
-Key files:
-- `Mobiles/ios/QuickPizzaIos/Bootstrap.swift`
-- `Mobiles/ios/QuickPizzaIos/Core/O11y/OTelService.swift`
-- `Mobiles/ios/grafana-opentelemetry-ios/Sources/GrafanaOpenTelemetryIOS/GrafanaOtel.swift`
-- `Mobiles/ios/QuickPizzaIos/Core/O11y/Tracer.swift`
-- `Mobiles/ios/QuickPizzaIos/Core/O11y/Logger.swift`
+Key files, under `Mobiles/ios/QuickPizzaIos/`:
 
-## 2. Which telemetry signals are emitted
+- `Bootstrap.swift`
+- `Core/O11y/OTelService.swift`, `Tracer.swift`, `Logger.swift`, `AppEvents.swift`
+- `Core/O11y/Config/OTelConfig.swift` (resolved OTel settings)
+- `Core/O11y/Exporters/OSLogSpanExporter.swift` (debug-only span echo to OSLog)
+- `Core/Config/ConfigService.swift` (build-time values), `RuntimeConfig.swift` (Debug overrides)
 
-QuickPizza iOS emits:
+## 2. Signals
 
-1. Traces
-- Manual spans around key business operations (login, recommendation, rating)
-- Auto HTTP client spans via `URLSessionInstrumentation`
-- MetricKit payload spans (pre-aggregated Apple performance data)
+| Signal | What is emitted |
+| --- | --- |
+| **Spans** | Auto: `URLSession` calls, except to the collector host and port. Manual: `auth.login`, `pizza.get_recommendation`, `pizza.rate`. MetricKit: `MXMetricPayload` spans (Apple's daily aggregated CPU, memory, hang and hitch data). |
+| **Logs** | Auto: `session.start` / `session.end`; MetricKit `metrickit.diagnostic.{crash,hang,cpu_exception,disk_write_exception}` (plus `app_launch` where the OS supplies it). Manual: app logs at debug/info/warning/error, exceptions (`event_name=exception`), screen views (`event_name=app.screen.view`). |
+| **Metrics** | None. No `MeterProvider` is registered, because Faro OTLP ingest does not accept metrics. MetricKit performance data arrives as spans. |
 
-2. Logs
-- Application logs (`debug`, `info`, `warning`, `error`)
-- Exception logs via custom `logger.exception(...)`
-- Session lifecycle logs (`session.start`, `session.end`) from Sessions instrumentation
-- MetricKit diagnostics logs (including crashes/hangs)
+## 3. What is collected
 
-3. Metrics
-- No custom OTel Metrics API instrumentation yet
-- MetricKit performance data is represented as spans (SDK design)
+### Resource
 
-## 3. What data is collected
+Set by `OTelService` from `ConfigService`:
 
-### 3.1 Resource attributes (all telemetry)
+- `service.name=quickpizza-ios`, `service.namespace=quickpizza`
+- `service.version` (app version), `service.build` (bundle build number)
+- `deployment.environment.name`, hard-coded to `production`
 
-Passed to the reference kit by `OTelService`, which builds them from `ConfigService`:
-- `service.name` (default `quickpizza-ios`)
-- `service.namespace` (`quickpizza`)
-- `service.version` (app version)
-- `service.build` (bundle build number)
-- `deployment.environment.name` (`production`)
+Added by upstream's default resource: `device.id`, `device.model.identifier`, `os.*`,
+`telemetry.sdk.language=swift`, `telemetry.sdk.version`.
 
-### 3.2 Sessions
+Frontend Observability shows the app under the name registered for its app key (`QuickPizza_iOS`).
+QuickPizza still sets `service.name` through `resourceAttributes`, because it also supports the
+legacy OTLP gateway, where `service.name` and `service.namespace` are the only identity labels.
 
-Configured through `GrafanaOtelConfiguration` and applied by the reference kit:
-- Session timeout: 15 minutes without a span or log
-- Maximum lifetime: 4 hours; each cold start creates a new session
-- Span enrichment: `SessionTraceSampler(sessionManager:)`, installed as the tracer provider's sampler
-- Log enrichment: `SessionSamplingLogRecordProcessor(nextProcessor:sessionManager:)`, in front of the log exporter
-- Session events: `SessionEventInstrumentation.install()`
+### Sessions
 
-Both pipelines share one explicitly registered `SessionManager`. The package does not
-install `SessionSpanProcessor` or `SessionLogRecordProcessor`.
+Package defaults: 15 minutes without a span or log ends a session, 4 hours maximum, and each cold
+start begins a new session. Spans and logs carry `session.id`, `session.previous_id` (when
+available) and `session.sampling_decision`. These are signal attributes, not resource attributes.
 
-Attributes added to spans and log records include:
-- `session.id`
-- `session.previous_id` (when available)
-- `session.sampling_decision`
+The Faro collector rejects a request with a signal missing `session.id` when session management
+is on, so keep the session pipeline. Wiring details: package README,
+[Sessions](../ios/grafana-opentelemetry-ios/README.md#sessions).
 
-When the Faro collector runs with session management on, it rejects an OTLP request that
-carries a signal without `session.id`, so keep the session pipeline for the Faro collector path.
+### Manual spans
 
-### 3.3 Manual traces
-
-Examples:
-- `auth.login` span
-- `pizza.get_recommendation` span
-- `pizza.rate` span
-
-These spans use the internal span kind and record domain attributes such as
-`pizza.id`, `pizza.name`, `pizza.stars`, and `auth.result`. They do not record HTTP
+`auth.login`, `pizza.get_recommendation` and `pizza.rate` use the internal span kind and record
+domain attributes (`pizza.id`, `pizza.name`, `pizza.stars`, `auth.result`). They carry no HTTP
 status. Query `http.response.status_code` on their automatic HTTP child spans.
 
-### 3.4 Auto HTTP spans
+### Automatic HTTP spans
 
-`URLSessionInstrumentation` is enabled globally with stable HTTP attributes:
-`http.request.method`, `http.response.status_code`, and `url.full`. Recorded URLs
-exclude query strings, fragments, and embedded credentials.
+Stable semantic conventions: `http.request.method`, `http.response.status_code`, `url.full`,
+`server.*`. Older traces may still have legacy `http.method`, `http.status_code` and `http.url`.
+Recorded URLs have query strings, fragments and credentials removed.
 
-The collector host and port are excluded to avoid exporter self-tracing loops.
-Trace context is injected only for the configured backend host, and the app enables
-`automaticRedirectProtection` to remove it from redirects to other hosts.
+The collector host and port are excluded, so the exporter does not trace itself. `traceparent` goes
+only to the backend host, derived from `BASE_URL`. The app enables `automaticRedirectProtection`,
+so a redirect off the backend host loses the trace context.
 
-### 3.5 Application logs and exception logs
+### Logs and exceptions
 
-App logger is a composite:
-- OSLog (Xcode/device console)
-- OpenTelemetry logger provider
+The logger writes to both OSLog (Xcode console) and OTel.
 
-`logger.error(...)` emits error logs and sets OTel semantic attributes when an `Error` exists:
-- `error.type`
-- `error.message`
+- `logger.error(...)` adds `error.type` and `error.message` when an `Error` is passed.
+- `logger.exception(...)` emits `event_name=exception` with `exception.type`,
+  `exception.message`, `exception.stacktrace` (current thread) and `error.type`.
 
-`logger.exception(...)` emits an exception-style log with:
-- `eventName = "exception"`
-- `exception.type`
-- `exception.message`
-- `exception.stacktrace` (current thread call stack)
-- `error.type`
+Screen views are app-owned: `.trackScreenView()` in `AppEvents.swift` emits `app.screen.view`.
+Nothing upstream does this.
 
-### 3.6 Crash and hang diagnostics (MetricKit)
+### MetricKit
 
-`MetricKitInstrumentation` is registered and retained by the reference kit's runtime handle (required because `MXMetricManager` keeps weak references).
+QuickPizza keeps the package's default MetricKit instrumentation on. Crash and hang logs carry
+`exception.type`, `exception.message` and `exception.stacktrace`.
 
-It sends:
-- Metric payloads as spans (windowed/aggregated)
-- Diagnostic entries as logs:
-  - `metrickit.diagnostic.crash`
-  - `metrickit.diagnostic.hang`
-  - `metrickit.diagnostic.cpu_exception`
-  - `metrickit.diagnostic.disk_write_exception`
-  - `metrickit.diagnostic.app_launch` (platform/version dependent)
+Delivery model:
 
-Crash/hang log attributes include OTel exception semantic fields such as:
-- `exception.type`
-- `exception.message`
-- `exception.stacktrace`
+- Performance metrics cover a daily window.
+- Diagnostics are delivered separately. [Apple documents immediate diagnostic delivery on iOS 15 and
+  later](https://developer.apple.com/documentation/metrickit), but a deliberate crash does not
+  guarantee an immediate report. Relaunch the app so it can receive payloads, and allow for the
+  export queue.
 
-Important delivery model:
-- Performance metrics cover a daily reporting window.
-- Diagnostics have a separate delivery path: [Apple documents immediate diagnostic
-  delivery on iOS 15 and later](https://developer.apple.com/documentation/metrickit).
-  They are not tied to the daily metric report.
-- This integration exports diagnostics when MetricKit supplies them; a deliberate
-  crash is not a guarantee of an immediate report in Grafana. Relaunch the app to
-  let it receive available payloads, and allow for the OTLP export queue.
+## 4. Export behavior
 
-## 4. Export model (where telemetry goes)
+- The package appends `/v1/traces` and `/v1/logs` to `OTLP_ENDPOINT`. Only traces and logs are sent.
+- Disk buffering is on. Allow tens of seconds for normal export. Batches retry from disk and
+  survive relaunch. See [disk buffering](../ios/grafana-opentelemetry-ios/README.md#disk-buffering).
+- If `OTLP_ENDPOINT` is empty or invalid, **OpenTelemetry is not started at all**:
+  - `OTelService` logs `OTel not initialized: <reason>`, and startup logs it again as a warning.
+  - App logs still reach OSLog.
+  - Nothing on the OTel side runs: no spans, logs, session events or MetricKit exports, and no
+    debug-only `OSLogSpanExporter` output. That exporter is app code: `OTelService` wraps it in a
+    `SimpleSpanProcessor` under `#if DEBUG` and passes it via `additionalSpanProcessors`.
+- Export failures (404, 401, timeouts) are logged as `OTel SDK: <message>`. The app and the e2e run
+  otherwise look the same whether or not data arrives.
 
-Configured via `Config.xcconfig` values that are generated into `BuildConfig` at build time.
+Endpoint setup and credentials: [iOS README](../ios/README.md#send-telemetry-to-grafana-cloud).
 
-Destination: the Faro collector's OTLP route for the app registered in Frontend
-Observability, `https://faro-collector-<region>.grafana.net/otlp/<appKey>`. The collector
-translates OTLP to Faro on ingest. See
-[Connect to Grafana Cloud](./CONNECT_GRAFANA_CLOUD.md#opentelemetry-apps-ios-native-android-native)
-for finding the URL, and for the legacy OTLP gateway alternative.
+## 5. Demo workflow
 
-Inputs:
-- `OTLP_ENDPOINT` — the OTLP base URL above
-- `OTLP_INSTANCE_ID` and `OTLP_API_KEY` — legacy OTLP gateway only. When both are set
-  they are combined into an `Authorization: Basic ...` header. Leave both empty for Faro
-  OTLP ingest: the app key in the path identifies the app, and no header is sent
+The iOS Debug tab matches the other apps (shared description in
+[MOBILE_OBSERVABILITY_OVERVIEW.md](./MOBILE_OBSERVABILITY_OVERVIEW.md)). iOS specifics:
 
-Behavior:
-- If `OTLP_ENDPOINT` is set: the reference kit appends the signal paths, so traces go to
-  `/v1/traces` and logs to `/v1/logs` beneath the configured base URL (OTLP HTTP)
-- Only traces and logs are exported. No `MeterProvider` is registered, because Faro OTLP
-  ingest does not accept metrics
-- Disk buffering is enabled by default. Allow tens of seconds for normal export;
-  trace and log batches are retried from disk and survive relaunch. See the
-  [package buffering notes](../ios/grafana-opentelemetry-ios/README.md#disk-buffering).
-- If `OTLP_ENDPOINT` is empty or not a valid URL: **OpenTelemetry is not initialized at all.** The
-  reference kit requires a valid endpoint, so there is no "installed but not exporting" state
-  - `OTelService` logs the specific reason, and app startup logs it again as a warning
-  - app logs still reach the Xcode console through `ConsoleLogger`, because the app's logger fans
-    out to OSLog as well as OTel
-  - everything on the OTel side produces nothing: no spans, no log records, no session events, no
-    MetricKit diagnostics, and no debug `OSLogSpanExporter` output — that exporter reaches the SDK
-    through the kit, so it goes with it
+- **Config:** overrides for backend URL, OTLP endpoint, instance ID and API key. Saved to
+  `UserDefaults`, applied on next launch via `RuntimeConfigHolder`.
+- **Error simulation:** backend headers (`x-error-record-recommendation`,
+  `x-delay-record-recommendation`, `x-error-get-ingredients`, `x-delay-get-ingredients`) and client
+  faults (`useV2PizzaSchema`, `skipAuthDepInTools`).
+- **Quick signals:** debug log, error log, custom event (`event_name=debug.test_event`).
+- **Handled exception:** `logger.exception(...)`.
+- **Crash:** `fatalError` and force-unwrap-nil variants. Receipt depends on MetricKit; the app has
+  no immediate crash-upload handler.
 
-Related files:
-- `Mobiles/ios/Config.xcconfig.example`
-- `Mobiles/ios/Scripts/generate-config.sh`
-- `Mobiles/ios/QuickPizzaIos/Core/Config/ConfigService.swift`
+Code: `Features/Debug/Presentation/DebugView.swift`, `DebugViewModel.swift`.
 
-## 5. Demo workflow (customer-facing)
+What to expect:
 
-The Debug tab is feature-aligned with the other QuickPizza mobile apps and exposes:
+1. With Faro OTLP ingest, look in Frontend Observability; allow tens of seconds for buffered
+   events. With the legacy gateway, query Loki with `service_name="quickpizza-ios"`.
+2. After a crash, relaunch and check for MetricKit diagnostics. A crash button or a successful
+   export attempt does not prove a report arrived.
 
-- **Config** — runtime overrides for backend URL, OTLP endpoint, OTLP instance ID, OTLP API key. Persisted in `UserDefaults` and applied on next launch via `RuntimeConfigHolder`.
-- **Error simulation** — backend header toggles (`x-error-record-recommendation`, `x-delay-record-recommendation`, `x-error-get-ingredients`, `x-delay-get-ingredients`) and client-side faults (`useV2PizzaSchema`, `skipAuthDepInTools`).
-- **Quick Signals** — `Send Debug Log`, `Send Error Log`, `Send Custom Event` (emits `event_name=debug.test_event`).
-- **Handled Exception** — calls `logger.exception(...)`, which emits a log record with `event_name=exception` and OTel `exception.{type, message, stacktrace}` semantic attributes.
-- **Crash Reporting** — `Crash (fatalError)` and `Crash (force-unwrap nil)` variants. Both terminate the app to exercise MetricKit. Receipt of a diagnostic depends on MetricKit; the app does not install an immediate crash-upload handler.
+## 6. Applying this in your own app
 
-Files:
-- `Mobiles/ios/QuickPizzaIos/Features/Debug/Presentation/DebugView.swift`
-- `Mobiles/ios/QuickPizzaIos/Features/Debug/Presentation/DebugViewModel.swift`
+Use the package rather than wiring upstream pieces yourself. It is unpublished, so add it as a local
+Swift package (Xcode: **File → Add Package Dependencies… → Add Local…**, pick
+`Mobiles/ios/grafana-opentelemetry-ios`) and link the `GrafanaOpenTelemetryIOS` product. To import
+`OpenTelemetryApi` / `OpenTelemetrySdk` yourself, also add `opentelemetry-swift` at the package's
+pinned revision, as QuickPizza does. The
+[package README](../ios/grafana-opentelemetry-ios/README.md#usage) has the initialization sample,
+requirements and rules.
 
-Expected outcome on the demo stack:
-1. With Faro OTLP ingest, inspect the configured app in Frontend Observability. Allow tens of seconds for buffered logs, custom events, and handled exceptions to export. With the legacy OTLP gateway, inspect Loki using `service_name="quickpizza-ios"`.
-2. After a manual crash, relaunch and check for MetricKit diagnostics. Daily performance metrics and diagnostic delivery follow different schedules; neither a crash button nor a successful export attempt proves a report arrived.
+QuickPizza-specific lessons:
 
-## 6. How to apply this in your own iOS app
+- Register the app in Frontend Observability and use
+  `https://faro-collector-<region>.grafana.net/otlp/<appKey>` with no `Authorization` header.
+- Faro ingest names the app from the registered app key; `service.name` is needed only for the
+  OTLP gateway.
+- Skip `initialize` when there is no endpoint. There is no installed-but-not-exporting mode.
+- Derive `firstPartyHosts` from your backend URL so they cannot drift apart (see `OTelService`).
+- Add a logging facade whose `error` and `exception` map to `error.*` / `exception.*`
+  (see `Core/O11y/Logger.swift`).
+- Emit screen views yourself.
+- Add a non-production debug screen for handled exceptions and intentional crashes.
+- Validate end to end: check the data in Frontend Observability and watch `diagnosticsHandler` for
+  4xx responses. Check MetricKit diagnostics separately from daily metrics.
 
-QuickPizza does not wire the upstream OpenTelemetry Swift pieces itself. It calls the local
-[Grafana OpenTelemetry iOS](../ios/grafana-opentelemetry-ios/README.md) package, which builds the
-providers, exporters, session pipeline, `URLSession` tracing and MetricKit in the order upstream
-requires. The package is an unpublished spike, so today you consume it as a local Swift package,
-as QuickPizza does. The `opentelemetry-swift` revision it pins, and its iOS 15 floor, are in
-the package README.
+## 7. Known limitations
 
-Use this checklist:
-
-1. Register the app in Frontend Observability and get its OTLP endpoint
-- `https://faro-collector-<region>.grafana.net/otlp/<appKey>` (see
-  [Connect to Grafana Cloud](./CONNECT_GRAFANA_CLOUD.md#opentelemetry-apps-ios-native-android-native))
-- No `Authorization` header is needed for this route
-
-2. Add the package
-- Add `grafana-opentelemetry-ios` as a local package and link the `GrafanaOpenTelemetryIOS` product
-- It brings in the upstream OTLP HTTP exporter, `Sessions`, `URLSessionInstrumentation` and
-  `MetricKitInstrumentation` products
-
-3. Initialize once, on the main thread, early in app startup
-
-```swift
-import GrafanaOpenTelemetryIOS
-
-let runtime = try GrafanaOtel.initialize(
-    configuration: try GrafanaOtelConfiguration(
-        // OTLP base URL; the package appends /v1/traces and /v1/logs.
-        otlpEndpoint: URL(string: "https://faro-collector-<region>.grafana.net/otlp/<appKey>")!,
-        // Only these hosts receive traceparent. Exact host match, no default.
-        firstPartyHosts: ["api.my-app.example"],
-        serviceVersion: "1.4.0",
-        deploymentEnvironment: "production"
-    ),
-    experimental: GrafanaOtelExperimentalOptions(
-        // Strips trace context from redirects to other hosts on delegate-less URLSessions.
-        automaticRedirectProtection: true,
-        // Surfaces export failures such as a 404 or 401 ingest URL.
-        diagnosticsHandler: { message in print("OTel: \(message)") }
-    )
-)
-```
-
-- Do not set `service.name` for Faro OTLP ingest: the package removes the bundle-derived one
-  so the collector applies the registered app name. QuickPizza sets `service.name` and
-  `service.namespace` through `resourceAttributes` only because it also supports the legacy
-  OTLP gateway, where they are the only identity labels
-- There is no "installed but not exporting" mode: skip `initialize` when you have no endpoint
-- Sessions (15-minute inactivity, 4-hour maximum, `session.id` on every span and log), stable
-  HTTP attributes, URL sanitizing, collector exclusion, MetricKit, and disk buffering are
-  package defaults
-
-4. Instrument with standard OpenTelemetry APIs
-- Tracers and loggers come from `OpenTelemetry.instance` (or `runtime.openTelemetry`)
-- Add a logging facade with `error` and `exception` APIs that map to OTel semantic
-  attributes (`error.*`, `exception.*`); see `Core/O11y/Logger.swift`
-- Emit screen views yourself; nothing upstream does (QuickPizza's `.trackScreenView()`)
-
-5. Add test hooks
-- Non-prod debug screen/action for exception + intentional crash
-
-6. Validate end-to-end
-- Verify the app shows traces and logs in Frontend Observability. The exporters are
-  fire-and-forget, so check the diagnostics handler for 4xx responses
-- Verify MetricKit diagnostic receipt separately from daily performance metrics
-
-## 7. Known limitations and nuances
-
-- MetricKit controls diagnostic availability; daily metric windows do not define diagnostic delivery timing.
-- `session.previous_id` is not a guaranteed 1:1 crash-to-session mapping in all delayed-delivery scenarios.
-- QuickPizza keeps the package's default MetricKit instrumentation on. Delayed diagnostics are
-  stamped with the session active when they are delivered, not the session that crashed; the
-  [session validation notes](../ios/session-validation/README.md#metrickit-boundary) disable
-  MetricKit for that reason.
-- `logger.exception(...)` and MetricKit crash logs are both logs, but represent different sources:
-  - `logger.exception`: app-triggered exception event now
-  - MetricKit crash log: OS-reported diagnostic event later
-
-## 8. Current QuickPizza iOS instrumentation inventory
-
-Implemented now:
-- OTel traces (manual + URLSession auto)
-- OTel logs (app logs + exception logs)
-- Session enrichment on spans/logs
-- MetricKit crash/hang/diagnostic ingestion
-- Debug tab for exception and crash testing
-
-Not yet implemented:
-- Custom OTel Metrics API instrumentation
-- Crash dedup strategy in app code
-- Explicit crash-to-session linkage strategy beyond default session attributes
+- MetricKit controls diagnostic delivery; the daily metric window does not.
+- Delayed MetricKit diagnostics get the session active when they are delivered, not the session
+  that crashed, so `session.previous_id` is not a reliable crash-to-session link. The
+  [session validation probe](../ios/session-validation/README.md#metrickit-boundary) disables
+  MetricKit for that reason; QuickPizza leaves it on.
+- `logger.exception` and MetricKit crash logs are both logs from different sources: an
+  app-reported exception now versus an OS-reported diagnostic later. There is no dedup.
+- No custom OTel metrics.
+- The pinned instrumentation has open upstream gaps for
+  [default span names](https://github.com/open-telemetry/opentelemetry-swift/issues/1202),
+  [HTTP error metadata](https://github.com/open-telemetry/opentelemetry-swift/issues/1203) and
+  [implicit server ports](https://github.com/open-telemetry/opentelemetry-swift/issues/1204).
+  Stable semantic conventions do not fix these.
+- Package-level limitations (no background flush, no backoff, signal-based session inactivity):
+  [package README](../ios/grafana-opentelemetry-ios/README.md#known-limitations).
 
 ---
 
-If you are presenting this to customers, the main talking point is:
-"We combine app traces and logs with OS-level diagnostics and daily performance reports from MetricKit, all through standard OTLP signals."
+Presenter talking point: "We combine app traces and logs with OS-level diagnostics and daily
+performance reports from MetricKit, all through standard OTLP signals."

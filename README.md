@@ -348,67 +348,21 @@ To enable [Grafana Cloud Frontend Observability](https://grafana.com/docs/grafan
 
 ## Mobile Apps
 
-This repository includes four native and cross-platform implementations of
-QuickPizza for mobile observability demonstrations. Each app talks to the
-same QuickPizza backend and implements the same screens — what differs is
-the telemetry SDK and where the data lands in Grafana Cloud.
-
-> **👉 Start at [`Mobiles/README.md`](./Mobiles/README.md)** — it lists the
-> supported platforms, walks through getting a demo running (backend + an app),
-> and links out to the per-platform and observability docs. The rest of this
-> section only covers the backend image naming that's specific to this repo.
+This repository also contains four QuickPizza mobile apps (Flutter, React
+Native, native iOS, native Android) for mobile observability demos. They share
+the same screens and backend and differ in their telemetry SDK. Start at
+[`Mobiles/README.md`](./Mobiles/README.md).
 
 ### Backend Docker image (mobile vs k6/web)
 
-This fork publishes a separate GHCR image so releases here do not overwrite the
-upstream QuickPizza image used by k6 and web workshops:
+This repository publishes a separate GHCR image so its releases do not
+overwrite the upstream QuickPizza image used by k6 and web workshops:
 
 | Use case | Image |
 | --- | --- |
 | k6 tests, example workflows, compose defaults | `ghcr.io/grafana/quickpizza-local` (upstream) |
 | Mobile demos, mobile CI, releases from this repo | `ghcr.io/grafana/quickpizza-mobile-local` |
 
-For local **mobile** work, build the image from this checkout and select it for
-Docker Compose (compose defaults stay on upstream `quickpizza-local` for k6 compatibility):
-
-```bash
-docker build -t quickpizza-mobile-local:development .
-export QUICKPIZZA_IMAGE=quickpizza-mobile-local:development
-docker compose -f compose.grafana-cloud.microservices.yaml up -d
-```
-
-Or run that local image as a single container (no compose):
-
-```bash
-docker run --rm -it -p 3333:3333 quickpizza-mobile-local:development
-```
-
-### Supported platforms
-
-| Platform | Location | SDK | Telemetry destination |
-| --- | --- | --- | --- |
-| Flutter (Android & iOS) | `Mobiles/flutter/` | Grafana Faro (`faro` Dart SDK) | Frontend Observability plugin |
-| React Native (Android & iOS) | `Mobiles/react-native/` | Grafana Faro (`@grafana/faro-react-native`) | Frontend Observability plugin |
-| iOS native (Swift / SwiftUI) | `Mobiles/ios/` | `opentelemetry-swift` | OTLP/HTTP → Faro collector → Frontend Observability plugin |
-| Android native (Kotlin / Compose) | `Mobiles/android/` | `opentelemetry-android` RUM agent | OTLP/HTTP → Faro collector → Frontend Observability plugin |
-
-Native OTLP ingest requires a collector with the `/otlp/<appKey>` route enabled.
-The alternative Grafana Cloud OTLP gateway sends raw telemetry to Tempo and Loki
-for the custom dashboard. Refer to [Connect to Grafana Cloud](./Mobiles/docs/CONNECT_GRAFANA_CLOUD.md)
-for route availability and configuration.
-
-### Demo app version variation
-
-The mobile telemetry workflow varies app versions for demo data so Mobile O11y
-can show a small app-version distribution instead of a single flat version.
-Flutter resolves this at runtime when `CI_DEMO_VERSIONING=true`. React Native
-resolves the Faro-reported app version at bundle time. Native Android and
-native iOS resolve the version during the CI build and bake it into
-`versionName` / `MARKETING_VERSION`, so their installed app metadata and
-emitted telemetry use the same version for that run.
-
-Per-platform run guides, the observability deep-dive
-([`MOBILE_OBSERVABILITY_OVERVIEW.md`](./Mobiles/docs/MOBILE_OBSERVABILITY_OVERVIEW.md)),
-the shared feature spec ([`FEATURES.md`](./Mobiles/FEATURES.md)), and the
-Grafana Cloud connection steps are all linked from
-[`Mobiles/README.md`](./Mobiles/README.md).
+Compose files default to the upstream image. To run a compose environment with
+the mobile image, build it locally and set `QUICKPIZZA_IMAGE`, as described in
+[`Mobiles/README.md`](./Mobiles/README.md#step-1--start-the-backend).
