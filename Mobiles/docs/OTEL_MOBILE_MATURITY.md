@@ -148,8 +148,8 @@ RUM agent's default instrumentation.
 
 - **Status:** open
 - **Category:** missing-capability (with iOS/Android asymmetry)
-- **Severity:** low (workarounds exist; both apps emit `screen.view`-shaped
-  signals)
+- **Severity:** low (workarounds exist; both apps emit screen-view log
+  events: `app.screen.view` on iOS, `app.navigation.complete` on Android)
 - **SDKs affected:** the SwiftUI and Compose configurations used by these demos
 - **Demo apps affected:** iOS native, Android native
 - **First seen:** 2026-05-06
@@ -164,7 +164,9 @@ reconstructing durations from log timestamps.
 
 - iOS: no automatic SwiftUI screen spans are configured. The
   `.trackScreenView()` modifier emits `app.screen.view` log records.
-- Android: SDK screen detection covers Activities and Fragments.
+- Android: SDK screen detection covers Activities and Fragments, as `screen.name`
+  on spans (always `MainActivity` in this single-Activity app); it emits no
+  `screen.view` event.
   [`MainActivity.kt`](../android/app/src/main/java/com/grafana/quickpizza/MainActivity.kt)
   attaches Compose navigation tracking with `navController.withOpenTelemetry(rum)`,
   which emits `app.navigation.complete` log events with

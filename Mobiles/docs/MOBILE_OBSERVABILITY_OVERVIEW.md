@@ -117,7 +117,7 @@ and `telemetry.sdk.{language, name, version}`. The session sampler and log
 processor add `session.id` and, when available, `session.previous_id` to each
 span and log record.
 
-iOS does **not** auto-emit `screen.view`, lifecycle spans, `app.jank`, or
+iOS does **not** auto-emit screen events, lifecycle spans, `app.jank`, or
 `device.crash`. The app emits `app.screen.view` manually through a
 `.trackScreenView()` view modifier.
 
@@ -136,8 +136,8 @@ More iOS detail: [IOS_OBSERVABILITY_OTEL_GUIDE.md](./IOS_OBSERVABILITY_OTEL_GUID
 
 | Signal | Examples | Source |
 | --- | --- | --- |
-| Spans (Tempo) | `GET` (auto, OkHttp telemetry), `AppStart` / `Paused` / `Stopped` (auto, lifecycle instrumentation), `pizza.get_recommendation` / `auth.login` / `pizza.rate` (manual) | manual via `core/o11y/AppTracer.kt`; rest auto from RUM agent |
-| Logs (Loki) | `event_name=screen.view` (auto, Activity/Fragment), `event_name=app.navigation.complete` (SDK Compose navigation, after explicit setup), `event_name=app.jank` (auto, slow-rendering instrumentation), `session.start` (auto), `rum.sdk.init.{started, span.exporter, net.provider}` (auto SDK self-telemetry), `event_name=exception` (manual `logger.exception`), `event_name=device.crash` (auto, `CrashReporter`; force-flushed at crash time, delivered next launch when disk buffering is on), `event_name=device.anr` (auto ANR detection), `event_name=debug.test_event` (manual from Debug screen) | mostly auto; Compose navigation requires explicit setup; `exception` and `debug.*` are manual |
+| Spans (Tempo) | `GET` (auto, OkHttp telemetry), `AppStart` / `Created` / `Paused` / `Stopped` (auto, lifecycle instrumentation), `pizza.get_recommendation` / `auth.login` / `pizza.rate` (manual) | manual via `core/o11y/AppTracer.kt`; rest auto from RUM agent |
+| Logs (Loki) | `event_name=app.navigation.complete` (SDK Compose navigation, after explicit setup), `event_name=app.jank` (auto, slow-rendering instrumentation), `session.start` (auto), `rum.sdk.init.{started, span.exporter, net.provider}` (auto SDK self-telemetry), `event_name=exception` (manual `logger.exception`), `event_name=device.crash` (auto, `CrashReporter`; force-flushed at crash time, delivered next launch when disk buffering is on), `event_name=device.anr` (auto ANR detection), `event_name=debug.test_event` (manual from Debug screen) | mostly auto; Compose navigation requires explicit setup; `exception` and `debug.*` are manual |
 | Metrics | Disabled by the local Grafana package (`disableMetrics()`); jank is emitted as events. | — |
 
 Resource attributes: `service.*`, `os.name`, `os.version`, `os.description`,
@@ -153,6 +153,10 @@ carry `app.navigation.destination.name` (the route pattern) under instrumentatio
 `io.opentelemetry.android.instrumentation.compose.navigation`. App business
 instrumentation uses scope `com.grafana.quickpizza`.
 
+The RUM agent emits no `screen.view` event. With Faro OTLP ingest, the collector
+derives Faro `view_changed` events from the Activity lifecycle (`toView=MainActivity`)
+and from `app.navigation.complete` (`toView=home`, `login`, ...).
+
 Native C/C++ crashes use a separate demo-owned path:
 [`NativeExitCrashReporter`](../android/app/src/main/java/com/grafana/quickpizza/nativecrash/NativeExitCrashReporter.kt)
 replays `ApplicationExitInfo` on the next launch on Android 11+.
@@ -162,8 +166,8 @@ replays `ApplicationExitInfo` on the next launch on Android 11+.
 | Concern | iOS (`opentelemetry-swift`) | Android (`opentelemetry-android`) |
 | --- | --- | --- |
 | Auto HTTP spans | Yes — `URLSessionInstrumentation` | Yes — OkHttp, via the `OkHttpTelemetry` `Call.Factory` wrapper plus the Byte Buddy `okhttp3-agent` |
-| Auto lifecycle spans | **No** | Yes — `AppStart`, `Paused`, `Stopped` |
-| Auto screen view events | **No** (manual `app.screen.view` via a SwiftUI view modifier) | Activity/Fragment `screen.view`; Compose `app.navigation.complete` after explicit setup |
+| Auto lifecycle spans | **No** | Yes — `AppStart`, `Created`, `Paused`, `Stopped` |
+| Auto screen view events | **No** (manual `app.screen.view` via a SwiftUI view modifier) | **No** `screen.view` event. Spans carry `screen.name` (the Activity, `MainActivity`); Compose `app.navigation.complete` after explicit setup |
 | Auto crash capture | Apple **MetricKit** — OS-managed diagnostic delivery, separate from daily performance reports | OTel-Android `CrashReporter` — force-flushed at crash time, delivered on next launch while disk buffering is on |
 | Auto ANR / hang | MetricKit diagnostic reports | Yes — `event_name=device.anr` at runtime |
 | Auto slow-frame / jank | **No** (MetricKit hitch metrics arrive as `MXMetricPayload` spans) | Yes — `event_name=app.jank` |
@@ -248,11 +252,12 @@ gcx logs query -d grafanacloud-logs \
   'topk(30, sum by (event_name) (count_over_time({app_id="69", kind="event"} | logfmt event_name [24h])))' \
   --since 168h --step 24h -o json
 
-# Native app spans
+# Native app spans (Faro ingest names the service after the registered app)
 gcx traces query -d grafanacloud-traces \
-  '{resource.service.name="quickpizza-ios"}' --since 168h --limit 200 -o json
+  '{resource.service.name="QuickPizza_iOS"}' --since 168h --limit 200 -o json
 gcx traces query -d grafanacloud-traces \
-  '{resource.service.name="quickpizza-android"}' --since 720h --limit 200 -o json
+  '{resource.service.name="QuickPizza_Android"}' --since 168h --limit 200 -o json
+# Legacy gateway path: the app's own service.name (quickpizza-ios / quickpizza-android)
 
 # Raw OTel log event names (gateway path)
 gcx logs query -d grafanacloud-logs \

@@ -12,7 +12,7 @@ it shows up in Frontend Observability as `QuickPizza_ReactNative`.
 ## Prerequisites
 
 - Node.js 24.5+ and Yarn 4 through Corepack (both pinned in
-  [`package.json`](package.json)).
+  [`package.json`](package.json)). With nvm: `nvm install 24 && nvm use 24`.
 - The [React Native environment](https://reactnative.dev/docs/set-up-your-environment)
   for Android (Android Studio, SDK, an AVD) and/or iOS (Xcode, CocoaPods).
 - Android: **JDK 17**. This project's Gradle 8.13 rejects the JDK 25 that recent
@@ -33,6 +33,9 @@ yarn install --immutable
 cp config.json.example config.json   # gitignored
 cd ios && bundle install && bundle exec pod install && cd ..   # iOS only; Gemfile pins CocoaPods
 ```
+
+CocoaPods needs a UTF-8 locale. If `pod install` fails with an encoding error,
+run `export LANG=en_US.UTF-8` first.
 
 Edit `config.json`:
 

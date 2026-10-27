@@ -59,11 +59,11 @@ CI builds an offline bundle into the APK instead, so it needs no Metro.
 ## Results
 
 Results land in `Mobiles/e2e/results/<app>/` (`<app>-handled-exception/` or
-`<app>-diagnostics/` for the other flows). Every run is archived; open the
-highest-numbered report:
+`<app>-diagnostics/` for the other flows). Each run replaces the previous
+results; the script prints the report path when it finishes:
 
 ```text
-Mobiles/e2e/results/<app>/arbigent-result/arbigent-result-<N>/visual_report.html
+Mobiles/e2e/results/<app>/arbigent-result/arbigent-result-1/visual_report.html
 ```
 
 Results are not split by platform: copy them before switching between Android

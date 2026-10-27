@@ -19,8 +19,10 @@ up in Frontend Observability as `QuickPizza_Flutter`.
 - Android: Android Studio with SDK Platform-Tools, Emulator and Command-line
   Tools, plus at least one AVD. The compile SDK follows your Flutter SDK
   (`flutter.compileSdkVersion`).
-- Android: **JDK 17**. This project's Gradle 8.14 rejects the JDK 25 that recent
-  Android Studio versions bundle (`Unsupported class file major version 69`).
+- Android: **JDK 17**. This project's Gradle 8.14 does not run on the JDK 25 that
+  recent Android Studio versions bundle; Flutter reports a Java/Gradle
+  incompatibility. Point Flutter at a JDK 17 with `flutter config --jdk-dir`
+  (below). The setting is global to your Flutter SDK.
 - iOS (macOS only): Xcode with an iOS simulator runtime. The deployment target is
   iOS 15.0.
 

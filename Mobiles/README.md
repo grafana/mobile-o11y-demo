@@ -54,18 +54,18 @@ Each platform README has the toolchain prerequisites and full steps. From the
 repository root:
 
 - **iOS native** (Xcode): `cp Mobiles/ios/Config.xcconfig.example Mobiles/ios/Config.xcconfig && bash Mobiles/ios/Scripts/sim-run.sh`
-- **Android native** (Android Studio + emulator): `cp Mobiles/android/config.json.example Mobiles/android/app/src/main/res/raw/config.json && (cd Mobiles/android && ./gradlew installDebug)`
+- **Android native** (Android Studio + emulator): `cp Mobiles/android/config.json.example Mobiles/android/app/src/main/res/raw/config.json && (cd Mobiles/android && ./gradlew installDebug) && adb shell am start -n com.grafana.quickpizza.android/com.grafana.quickpizza.MainActivity`
 - **Flutter** (Flutter SDK + Xcode or Android Studio): see [flutter/README.md](./flutter/README.md)
 - **React Native** (Node 24.5+, Yarn, CocoaPods for iOS): see [react-native/README.md](./react-native/README.md)
 
 ## Shared basics
 
-- **Login:** `default` / `12345678`. This shared account cannot delete ratings;
-  use the seeded `studio-user` / `k6studiorocks` account to demo **Clear Ratings**.
-- **Backend URL:** leave `BASE_URL` empty on emulators and simulators. The apps
-  resolve to `http://10.0.2.2:3333` on the Android emulator and
-  `http://localhost:3333` on the iOS simulator. For a physical device, follow
-  the platform README.
+- **Login:** tap the Profile icon on Home, then use `default` / `12345678`.
+  This shared account cannot delete ratings; use the seeded `studio-user` /
+  `k6studiorocks` account to demo **Clear Ratings**.
+- **Backend URL:** the default `BASE_URL` works on emulators and simulators:
+  `http://10.0.2.2:3333` on the Android emulator and `http://localhost:3333` on
+  the iOS simulator. For a physical device, follow the platform README.
 - **Debug tab:** every app has an in-app Debug screen to override config,
   inject backend errors and latency, and trigger logs, handled exceptions, and
   native crashes. Use it to generate telemetry during a demo. See
