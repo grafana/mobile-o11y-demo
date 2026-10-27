@@ -201,9 +201,9 @@ the RN app — Flutter doesn't currently emit business measurements.
 Resource attributes carry: `service.name`, `service.namespace`,
 `service.version`, `service.build`, `deployment.environment.name`, `os.name`,
 `os.version`, `os.description`, `device.id`, `device.model.identifier`
-(e.g. `iPhone16,1`), and `telemetry.sdk.{language, name, version}`. Session
-processors add `session.id` and, when available, `session.previous_id` to
-individual spans and log records. The instrumentation scope is separate
+(e.g. `iPhone16,1`), and `telemetry.sdk.{language, name, version}`. The
+session sampler and log processor add `session.id` and, when available,
+`session.previous_id` to individual spans and log records. The instrumentation scope is separate
 metadata, not a resource attribute.
 
 **iOS does not auto-emit** `screen.view`, lifecycle spans (`AppStart` /
@@ -211,10 +211,10 @@ metadata, not a resource attribute.
 **does** emit `app.screen.view` events manually via a `.trackScreenView()`
 view modifier.
 
-The local iOS package buffers spans and pre-export log batches to disk by
-default. Export is asynchronous. Spans have durable retries; log retries after
-the first export attempt are in memory only. Refer to the
-[package buffering limitations](./GRAFANA_OPENTELEMETRY_IOS.md) for details.
+The local iOS package buffers span and log batches to disk by default. Export
+is asynchronous, and both signals retry from disk across relaunch. Refer to the
+[package buffering notes](../ios/grafana-opentelemetry-ios/README.md#disk-buffering)
+for details.
 
 For deeper iOS detail see
 [`IOS_OBSERVABILITY_OTEL_GUIDE.md`](./IOS_OBSERVABILITY_OTEL_GUIDE.md).
@@ -265,7 +265,7 @@ materially different amounts of work for you out of the box.
 
 | Concern | iOS (`opentelemetry-swift`) | Android (`opentelemetry-android`) |
 | --- | --- | --- |
-| Auto HTTP spans | Yes — `URLSessionInstrumentation` | Yes — OkHttp `Call.Factory` wrapper |
+| Auto HTTP spans | Yes — `URLSessionInstrumentation` | Yes — OkHttp, via the `OkHttpTelemetry` `Call.Factory` wrapper plus the Byte Buddy `okhttp3-agent` |
 | Auto lifecycle spans | **No** | Yes — `AppStart`, `Paused`, `Stopped` |
 | Auto screen view events | **No** (we emit `app.screen.view` manually via a SwiftUI view modifier) | Activity/Fragment `screen.view`; Compose `app.navigation.complete` after explicit setup |
 | Auto crash capture | Via Apple **MetricKit** — OS-managed diagnostic delivery; separate from daily performance reports | Via OTel-Android `CrashReporter` — captured and force-flushed at crash time; delivered on next app launch while disk buffering is on |

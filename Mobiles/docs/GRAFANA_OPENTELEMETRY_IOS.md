@@ -2,6 +2,14 @@
 
 **Status:** Experimental local package. It is not published or supported for production use.
 
+> **Current pin and session wiring.** This note records the spike's `2.6.0` decision. The package
+> now pins the merged `opentelemetry-swift` #1218 revision for session validation, which raises the
+> floor to iOS 15 and `swift-tools-version:6.2`. It wires sessions through `SessionTraceSampler` and
+> `SessionSamplingLogRecordProcessor` instead of `SessionSpanProcessor` /
+> `SessionLogRecordProcessor`. The [package README](../ios/grafana-opentelemetry-ios/README.md) and
+> [session validation notes](../ios/session-validation/README.md) describe the current state; where
+> they differ from the sections below, they win.
+
 This package follows the composition direction: customers keep instrumenting through standard
 OpenTelemetry APIs, and a Grafana package adds setup, defaults and Grafana-specific instrumentation
 around the upstream SDK without introducing a Grafana telemetry API.
@@ -116,10 +124,10 @@ loudly. This is the part of the package with the least upstream guidance:
    device and OS resource providers block on the main queue, so building the resource under the lock
    would let a main-thread status read deadlock against a background initializer.
 2. The diagnostics handler, so failures in later steps are observable at all.
-3. The session manager. `SessionSpanProcessor()` and `SessionLogRecordProcessor(nextProcessor:)`
-   resolve `SessionManagerProvider.getInstance()` in their initializers, and that call *lazily
-   creates* a default manager with a 30-minute timeout if nothing has registered one. Registering
-   afterwards does not repair a processor that already captured the default.
+3. The session manager, created from the configured timeouts, registered, and passed explicitly
+   to `SessionTraceSampler` and `SessionSamplingLogRecordProcessor`. Anything that instead resolves
+   `SessionManagerProvider.getInstance()` before registration *lazily creates* a default manager
+   with a 30-minute timeout, and registering afterwards does not repair it.
 4. Everything that can fail: both disk-buffering directories, the exporters, and both pipelines.
    None of the remaining steps throw, so a failure can never leave a globally registered provider
    with a live batch worker that no runtime handle can flush or shut down.

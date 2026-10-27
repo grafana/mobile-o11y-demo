@@ -60,13 +60,20 @@ Passed to the reference kit by `OTelService`, which builds them from `ConfigServ
 Configured through `GrafanaOtelConfiguration` and applied by the reference kit:
 - Session timeout: 15 minutes without a span or log
 - Maximum lifetime: 4 hours; each cold start creates a new session
-- Span enrichment: `SessionSpanProcessor()`
-- Log enrichment: `SessionLogRecordProcessor(...)`
+- Span enrichment: `SessionTraceSampler(sessionManager:)`, installed as the tracer provider's sampler
+- Log enrichment: `SessionSamplingLogRecordProcessor(nextProcessor:sessionManager:)`, in front of the log exporter
 - Session events: `SessionEventInstrumentation.install()`
 
-Attributes added by session processors include:
+Both pipelines share one explicitly registered `SessionManager`. The package does not
+install `SessionSpanProcessor` or `SessionLogRecordProcessor`.
+
+Attributes added to spans and log records include:
 - `session.id`
 - `session.previous_id` (when available)
+- `session.sampling_decision`
+
+When the Faro collector runs with session management on, it rejects an OTLP request that
+carries a signal without `session.id`, so keep the session pipeline for the Faro collector path.
 
 ### 3.3 Manual traces
 
@@ -137,17 +144,26 @@ Important delivery model:
 
 Configured via `Config.xcconfig` values that are generated into `BuildConfig` at build time.
 
+Destination: the Faro collector's OTLP route for the app registered in Frontend
+Observability, `https://faro-collector-<region>.grafana.net/otlp/<appKey>`. The collector
+translates OTLP to Faro on ingest. See
+[Connect to Grafana Cloud](./CONNECT_GRAFANA_CLOUD.md#opentelemetry-apps-ios-native-android-native)
+for finding the URL, and for the legacy OTLP gateway alternative.
+
 Inputs:
-- `OTLP_ENDPOINT`
-- `OTLP_INSTANCE_ID` and `OTLP_API_KEY` (combined into an `Authorization: Basic ...`
-  header when both are set; leave both empty for Faro OTLP ingest)
+- `OTLP_ENDPOINT` — the OTLP base URL above
+- `OTLP_INSTANCE_ID` and `OTLP_API_KEY` — legacy OTLP gateway only. When both are set
+  they are combined into an `Authorization: Basic ...` header. Leave both empty for Faro
+  OTLP ingest: the app key in the path identifies the app, and no header is sent
 
 Behavior:
 - If `OTLP_ENDPOINT` is set: the reference kit appends the signal paths, so traces go to
   `/v1/traces` and logs to `/v1/logs` beneath the configured base URL (OTLP HTTP)
+- Only traces and logs are exported. No `MeterProvider` is registered, because Faro OTLP
+  ingest does not accept metrics
 - Disk buffering is enabled by default. Allow tens of seconds for normal export;
-  trace batches survive relaunch, but logs have durable storage only until their
-  first export attempt. See the [package buffering limitations](../ios/grafana-opentelemetry-ios/README.md#disk-buffering).
+  trace and log batches are retried from disk and survive relaunch. See the
+  [package buffering notes](../ios/grafana-opentelemetry-ios/README.md#disk-buffering).
 - If `OTLP_ENDPOINT` is empty or not a valid URL: **OpenTelemetry is not initialized at all.** The
   reference kit requires a valid endpoint, so there is no "installed but not exporting" state
   - `OTelService` logs the specific reason, and app startup logs it again as a warning
@@ -182,46 +198,79 @@ Expected outcome on the demo stack:
 
 ## 6. How to apply this in your own iOS app
 
+QuickPizza does not wire the upstream OpenTelemetry Swift pieces itself. It calls the local
+[Grafana OpenTelemetry iOS](../ios/grafana-opentelemetry-ios/README.md) package, which builds the
+providers, exporters, session pipeline, `URLSession` tracing and MetricKit in the order upstream
+requires. The package is an unpublished spike, so today you consume it as a local Swift package,
+as QuickPizza does. The `opentelemetry-swift` revision it pins, and its iOS 15 floor, are in
+the package README.
+
 Use this checklist:
 
-1. Add OpenTelemetry Swift packages
-- Core SDK + OTLP HTTP exporters
-- `URLSessionInstrumentation`
-- `Sessions`
-- `MetricKitInstrumentation`
+1. Register the app in Frontend Observability and get its OTLP endpoint
+- `https://faro-collector-<region>.grafana.net/otlp/<appKey>` (see
+  [Connect to Grafana Cloud](./CONNECT_GRAFANA_CLOUD.md#opentelemetry-apps-ios-native-android-native))
+- No `Authorization` header is needed for this route
 
-2. Initialize once at app startup
-- Register tracer and logger providers
-- Set resource attributes (`service.*`, environment)
+2. Add the package
+- Add `grafana-opentelemetry-ios` as a local package and link the `GrafanaOpenTelemetryIOS` product
+- It brings in the upstream OTLP HTTP exporter, `Sessions`, `URLSessionInstrumentation` and
+  `MetricKitInstrumentation` products
 
-3. Enable session processors
-- `SessionSpanProcessor`
-- `SessionLogRecordProcessor`
-- `SessionEventInstrumentation.install()`
+3. Initialize once, on the main thread, early in app startup
 
-4. Enable URLSession auto tracing
-- Use stable HTTP attributes and sanitize recorded URLs
-- Exclude your collector host and port
-- Restrict trace-context injection to your backend hosts and protect redirects
+```swift
+import GrafanaOpenTelemetryIOS
 
-5. Add structured app logging facade
-- Include `error` and optional `exception` API
-- Map to OTel semantic attributes (`error.*`, `exception.*`)
+let runtime = try GrafanaOtel.initialize(
+    configuration: try GrafanaOtelConfiguration(
+        // OTLP base URL; the package appends /v1/traces and /v1/logs.
+        otlpEndpoint: URL(string: "https://faro-collector-<region>.grafana.net/otlp/<appKey>")!,
+        // Only these hosts receive traceparent. Exact host match, no default.
+        firstPartyHosts: ["api.my-app.example"],
+        serviceVersion: "1.4.0",
+        deploymentEnvironment: "production"
+    ),
+    experimental: GrafanaOtelExperimentalOptions(
+        // Strips trace context from redirects to other hosts on delegate-less URLSessions.
+        automaticRedirectProtection: true,
+        // Surfaces export failures such as a 404 or 401 ingest URL.
+        diagnosticsHandler: { message in print("OTel: \(message)") }
+    )
+)
+```
 
-6. Register MetricKit instrumentation
-- Keep a strong reference to instrumentation instance
+- Do not set `service.name` for Faro OTLP ingest: the package removes the bundle-derived one
+  so the collector applies the registered app name. QuickPizza sets `service.name` and
+  `service.namespace` through `resourceAttributes` only because it also supports the legacy
+  OTLP gateway, where they are the only identity labels
+- There is no "installed but not exporting" mode: skip `initialize` when you have no endpoint
+- Sessions (15-minute inactivity, 4-hour maximum, `session.id` on every span and log), stable
+  HTTP attributes, URL sanitizing, collector exclusion, MetricKit, and disk buffering are
+  package defaults
 
-7. Add test hooks
+4. Instrument with standard OpenTelemetry APIs
+- Tracers and loggers come from `OpenTelemetry.instance` (or `runtime.openTelemetry`)
+- Add a logging facade with `error` and `exception` APIs that map to OTel semantic
+  attributes (`error.*`, `exception.*`); see `Core/O11y/Logger.swift`
+- Emit screen views yourself; nothing upstream does (QuickPizza's `.trackScreenView()`)
+
+5. Add test hooks
 - Non-prod debug screen/action for exception + intentional crash
 
-8. Validate end-to-end
-- Verify traces and logs in backend
+6. Validate end-to-end
+- Verify the app shows traces and logs in Frontend Observability. The exporters are
+  fire-and-forget, so check the diagnostics handler for 4xx responses
 - Verify MetricKit diagnostic receipt separately from daily performance metrics
 
 ## 7. Known limitations and nuances
 
 - MetricKit controls diagnostic availability; daily metric windows do not define diagnostic delivery timing.
 - `session.previous_id` is not a guaranteed 1:1 crash-to-session mapping in all delayed-delivery scenarios.
+- QuickPizza keeps the package's default MetricKit instrumentation on. Delayed diagnostics are
+  stamped with the session active when they are delivered, not the session that crashed; the
+  [session validation notes](../ios/session-validation/README.md#metrickit-boundary) disable
+  MetricKit for that reason.
 - `logger.exception(...)` and MetricKit crash logs are both logs, but represent different sources:
   - `logger.exception`: app-triggered exception event now
   - MetricKit crash log: OS-reported diagnostic event later

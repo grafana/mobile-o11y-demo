@@ -19,16 +19,42 @@ OpenTelemetry APIs.
   `com.android.tools:desugar_jdk_libs` (the demo uses `2.1.4`).
 - With Android Gradle Plugin 8.3 or newer, set
   `android.useFullClasspathForDexingTransform=true` in `gradle.properties`.
-- Automatic OkHttp spans remain application-owned. The QuickPizza app applies the Byte Buddy plugin
-  and the upstream `okhttp3-agent`; this library does not add them.
+- Automatic OkHttp spans remain application-owned; this library does not add them. QuickPizza
+  wraps its client with `OkHttpTelemetry.create(openTelemetry).createCallFactory(client)` from
+  `okhttp3-library` / `opentelemetry-okhttp-3.0`, and also applies the Byte Buddy plugin with the
+  upstream `okhttp3-agent`.
+
+QuickPizza's dependencies, with versions in
+[`gradle/libs.versions.toml`](../gradle/libs.versions.toml):
+
+```kotlin
+plugins {
+    id("net.bytebuddy.byte-buddy-gradle-plugin")
+}
+
+dependencies {
+    implementation(platform("io.opentelemetry.android:opentelemetry-android-bom:1.7.0-alpha"))
+    implementation(project(":grafana-opentelemetry-android"))
+    implementation("io.opentelemetry:opentelemetry-sdk")
+    implementation("io.opentelemetry.android.instrumentation:compose-navigation:1.7.0-alpha")
+    implementation("io.opentelemetry.android.instrumentation:okhttp3-library:1.7.0-alpha")
+    implementation("io.opentelemetry.instrumentation:opentelemetry-okhttp-3.0")
+    byteBuddy("io.opentelemetry.android.instrumentation:okhttp3-agent:1.7.0-alpha")
+}
+```
+
+The library itself depends on `io.opentelemetry.android:android-agent` through the same BOM.
 
 ```kotlin
 val rum = GrafanaOtel.initialize(
     application = this,
     configuration = GrafanaOtelConfiguration(
+        // Faro OTLP ingest: https://faro-collector-<region>.grafana.net/otlp/<appKey>.
+        // OTLP base URL; the agent appends /v1/traces and /v1/logs. No auth header needed.
         otlpEndpoint = "https://collector.example/otlp/app-key",
         serviceName = "my-android-app",
         serviceVersion = BuildConfig.VERSION_NAME,
+        // Optional: headers = mapOf(...), resourceAttributes = Attributes.of(...)
     ),
 )
 

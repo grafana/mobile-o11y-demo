@@ -236,7 +236,8 @@ lifetime, with `session.id` stamped on spans and log records.
 - Disk buffering of OTLP exports for offline resilience (toggle off via
   the Debug screen).
 
-The app separately wires auto OkHttp tracing through a `Call.Factory` wrapper.
+The app separately wires auto OkHttp tracing: `AppModule` wraps the client with the
+`OkHttpTelemetry` `Call.Factory`, and the build also applies the Byte Buddy `okhttp3-agent`.
 
 Compose navigation also requires explicit setup: `MainActivity` calls
 `navController.withOpenTelemetry(rum)` to attach the SDK's `compose-navigation`

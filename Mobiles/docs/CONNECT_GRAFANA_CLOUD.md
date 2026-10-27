@@ -114,9 +114,11 @@ On the demo stack these are registered as `QuickPizza_Android` and
 | iOS native | `Mobiles/ios/Config.xcconfig` (`OTLP_ENDPOINT`, `OTLP_INSTANCE_ID`, `OTLP_API_KEY`) — see [iOS README](../ios/README.md) |
 | Android native | `Mobiles/android/app/src/main/res/raw/config.json` (same three keys) — see [Android README](../android/README.md) |
 
-Use the OTLP base URL **without** a trailing slash or `/v1/traces` suffix — the
-signal paths (`/v1/traces`, `/v1/logs`) get appended for you: the iOS app builds
-them itself, and on Android the OpenTelemetry SDK exporter handles them.
+Use the OTLP base URL **without** a `/v1/traces` or `/v1/logs` suffix — the
+signal paths get appended for you by the local Grafana OpenTelemetry package on
+each platform (iOS appends them itself; Android passes the URL to the
+`opentelemetry-android` agent as its export base URL). The iOS package rejects
+an endpoint that already ends in a signal path.
 
 ### View the data
 
@@ -174,8 +176,8 @@ After export, traces appear in **Explore → Tempo** (filter by
   the Debug → Config overrides) and you relaunched the app.
 - Faro: confirm the collector URL is complete (includes the `/collect/<token>`
   path).
-- OTel: confirm the endpoint is OTLP/**HTTP** (not gRPC) and has no trailing
-  slash. For Faro OTLP ingest, confirm the URL ends with `/otlp/<appKey>`. For
+- OTel: confirm the endpoint is OTLP/**HTTP** (not gRPC) and is the base URL,
+  not a `/v1/...` signal URL. For Faro OTLP ingest, confirm the URL ends with `/otlp/<appKey>`. For
   the OTLP gateway, confirm the token allows `logs:write` + `traces:write`.
 - Use the in-app **Debug** tab to emit a test log / handled exception and
   confirm it arrives.

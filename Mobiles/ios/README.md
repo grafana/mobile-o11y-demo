@@ -1,7 +1,7 @@
 # QuickPizza iOS Demo App
 
 A native SwiftUI app that demonstrates mobile observability using OpenTelemetry.
-It connects to the QuickPizza backend and sends traces/logs to an OTLP collector
+It connects to the QuickPizza backend and sends traces/logs over OTLP/HTTP to the Faro collector
 (any Grafana Cloud stack you configure — see [Sending Telemetry to Grafana Cloud](#sending-telemetry-to-grafana-cloud)).
 
 > **New here?** Start at [`../README.md`](../README.md) for the overview of all
@@ -304,7 +304,7 @@ Stable mode alone does not resolve these gaps.
 | **Logs**         | Auto: `session.start` / `session.end`, MetricKit `metrickit.diagnostic.{crash,hang,cpu_exception,disk_write_exception}`. Manual: app logs at `DEBUG`/`INFO`/`WARN`/`ERROR`, exception logs (`event_name=exception`), screen views (`event_name=app.screen.view`). |
 | **Resource**     | `service.name=quickpizza-ios`, `service.namespace=quickpizza`, `service.version`, `service.build`, `deployment.environment.name`, `device.id`, `device.model.identifier`, `os.*`, `telemetry.sdk.language=swift`, `telemetry.sdk.version`. |
 
-Session processors add `session.id` and, when available, `session.previous_id` to
+The session sampler and log processor add `session.id` and, when available, `session.previous_id` to
 individual spans and log records; these are not resource attributes.
 
 Configuration is read from `Config.xcconfig` at build time and injected into
