@@ -24,7 +24,8 @@ The script:
 - prints `df -h /data` and warns above 90 % usage.
 
 Each `adb` call runs under GNU `timeout`. On macOS, install Coreutils and put its
-`gnubin` directory on `PATH`. Without it, every `adb` step is silently skipped.
+`gnubin` directory on `PATH`. Without it, every `adb` step fails but the script
+still prints its "cleared" lines, and the storage check prints `Unable to check storage`.
 On non-rooted images, the protected directories reject deletion and the script
 ignores the errors, so a "cleared" message does not guarantee the space was freed.
 
@@ -53,5 +54,6 @@ In Android Studio, open **Device Manager**, edit the AVD, and under **Show
 Advanced Settings → Memory and Storage** set **Internal Storage** to 4096 MB or
 more. Restart the emulator. Alternatively, create a new AVD with that setting.
 
-After fixing storage, rebuild with `yarn start --reset-cache` and `yarn android`
-from `Mobiles/react-native/`.
+After fixing storage, reinstall the app: `./gradlew installDebug` from
+`Mobiles/android/`, or `yarn start --reset-cache` and `yarn android` from
+`Mobiles/react-native/`.

@@ -47,6 +47,8 @@ OTLP_API_KEY =
 - On a physical device, `localhost` is the phone. Use `BASE_URL = http:/$()/<your-mac-ip>:3333`
   (ATS does not apply to IP addresses) and allow the Local Network prompt on first launch, or use
   an HTTPS tunnel such as ngrok (see [BrowserStack](#real-device-on-browserstack-optional)).
+  The project is signed with Grafana's development team; for your own iPhone, pick your team (and,
+  if needed, a unique bundle id) in Xcode under **QuickPizzaIos → Signing & Capabilities**.
 - An empty `OTLP_ENDPOINT` means OpenTelemetry is not started at all. The app still runs and
   logs to OSLog only.
 
@@ -120,6 +122,10 @@ package. The in-app **Debug** tab injects backend errors and latency, sends test
 exceptions, and triggers crashes.
 
 Details: [iOS instrumentation guide](../docs/IOS_OBSERVABILITY_OTEL_GUIDE.md).
+
+**Symbols:** there is no dSYM upload. `faro-cli` uploads only JavaScript source maps and Android
+symbols, so MetricKit crash and hang stack traces arrive unsymbolicated. Release builds produce a
+dSYM (`dwarf-with-dsym`) if you need to symbolicate frames by hand, for example with `atos`.
 
 ## Real device on BrowserStack (optional)
 

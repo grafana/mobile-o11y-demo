@@ -119,7 +119,9 @@ Validated on simulators against local receivers and a local Faro collector (Sept
 2026): Debug and Release export of both signals, the resource and session attributes on the wire,
 client-side `traceparent` matching the exported spans, buffered replay of traces and logs across a
 kill and relaunch without duplicates, and the backup exclusion on the queue directory. Hosted ingest
-was not validated then. The automated part (sessions and buffered replay) is reproducible with
+was not validated then. On October 27, 2026, a Debug build on a simulator exported to a hosted Faro
+collector: spans, logs, screen views, the custom event and a handled exception arrived under
+`QuickPizza_iOS`. Frontend Observability product paths were not checked. The automated part (sessions and buffered replay) is reproducible with
 [session validation](../ios/session-validation/README.md); the other checks were manual and their
 logs are not kept in this repo.
 

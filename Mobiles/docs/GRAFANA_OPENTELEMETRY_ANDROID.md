@@ -82,9 +82,32 @@ All runs used ARM64 emulators. Environment-specific stack identifiers are kept o
 | Sep 9 (OTel Android 1.7.0) | Debug and minified release, API 35 | Local OTLP | 17 library and 7 app tests, library lint and both builds passed. Pizza trace connected end to end. `RuntimeException` delivered after restart with the original session ID, no duplicate. Release kept all 10 instrumentation providers and the OkHttp HTTP sender (5 service descriptors vs 10 in debug). |
 | Sep 9 | Minified release, API 35 | Local OTLP | SIGSEGV replayed once as `device.crash` (`reason=CRASH_NATIVE`) after narrow keep rules for two `unobfuscate()` methods in `app/proguard-rules.pro`. No blanket OTel keep rule. |
 | Sep 9 | Minified release, API 23 | Local OTLP | Cold start passed. Export blocked by `usesCleartextTraffic=false`; no API 23 export pass claimed. |
+| Oct 27 | Debug, API 35 | Hosted Faro collector | Login, recommendations, rating, Debug logs, custom event and handled exception arrived in Tempo and Loki under `QuickPizza_Android`, with `view_changed` derived by ingest. |
 
 The Sep 9 runs are local OTLP checks, not a fresh Faro collector acceptance test. App lint reports
 six API-level errors in `NativeExitCrashReporter`; library lint passes.
+
+To re-check a minified release after a dependency bump, build it (`./gradlew :app:assembleRelease`
+from `Mobiles/android`) and confirm R8 kept the ServiceLoader entries. The names come from the
+build's own mapping, since R8 renames them:
+
+```bash
+APK=app/build/outputs/apk/release/app-release.apk
+MAP=app/build/outputs/mapping/release/mapping.txt
+svc() { sed -n "s/^$1 -> \(.*\):\$/\1/p" "$MAP"; }
+INSTRUMENTATION=$(svc 'io\.opentelemetry\.android\.instrumentation\.AndroidInstrumentation')
+OKHTTP_SENDER=$(svc 'io\.opentelemetry\.exporter\.sender\.okhttp\.internal\.OkHttpHttpSenderProvider')
+
+# Instrumentation providers kept (10 on OTel Android 1.7.0)
+unzip -p "$APK" "META-INF/services/$INSTRUMENTATION" | wc -l
+# The OkHttp OTLP sender must appear in one service descriptor
+for f in $(zipinfo -1 "$APK" | grep '^META-INF/services/'); do
+  unzip -p "$APK" "$f" | grep -Fxq "$OKHTTP_SENDER" && echo "$f -> $OKHTTP_SENDER"
+done
+```
+
+An empty variable means the class is missing from the mapping. Then install the release build and
+confirm logs and traces still export.
 
 ## Gate checklist
 

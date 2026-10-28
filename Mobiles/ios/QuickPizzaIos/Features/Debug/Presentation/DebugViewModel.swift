@@ -146,8 +146,8 @@ class DebugViewModel {
         showAction("Sent handled exception")
     }
 
-    /// Crashes the app via `fatalError`. The OTel crash reporter persists
-    /// the crash to disk; the exporter delivers it on the next app launch.
+    /// Crashes the app via `fatalError`. The crash report comes from MetricKit,
+    /// which delivers it on a later launch at a time the OS chooses.
     func triggerCrashFatalError() -> Never {
         logger.error(
             "Debug tab is about to trigger a fatalError crash",

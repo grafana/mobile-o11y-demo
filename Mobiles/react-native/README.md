@@ -55,7 +55,8 @@ overrides win over `config.json` from the next launch.
 
 - **iOS:** set `BASE_URL` to your machine's LAN IP, for example
   `http://192.168.1.100:3333`. Local-network HTTP is allowed
-  (`NSAllowsLocalNetworking`).
+  (`NSAllowsLocalNetworking`). Pick your signing team in
+  `ios/QuickPizza.xcworkspace` under **QuickPizza → Signing & Capabilities**.
 - **Android:** cleartext HTTP is only allowed to `10.0.2.2`, `10.0.3.2`,
   `localhost` and `127.0.0.1`
   ([`network_security_config.xml`](android/app/src/main/res/xml/network_security_config.xml)),

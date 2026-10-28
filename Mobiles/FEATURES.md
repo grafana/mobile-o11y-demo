@@ -159,7 +159,7 @@ All four apps must cover, at minimum:
 |---|---|
 | Business spans / events | `pizza.get_recommendation`, `pizza.rate`, `auth.login` (manual) |
 | Auto HTTP signals | one span / `faro.tracing.fetch` event per outgoing request |
-| Logs | Structured app logs at `debug` / `info` / `warn` / `error` |
+| Logs | Structured app logs at `debug` / `info` / `warn` / `error` (Flutter's logger has no `info` level) |
 | Exceptions | Both handled (`logger.exception(...)` / `o11yErrors.reportError`) and unhandled (global error handler / native crash reporter) paths |
 | Sessions | Session ID stamped on all telemetry, 15-minute inactivity timeout |
 
@@ -168,7 +168,7 @@ resource attributes:
 
 - `service.name = quickpizza-ios` / `quickpizza-android`
 - `service.namespace = quickpizza`
-- `service.version = <bundleVersion / versionName>`
+- `service.version` = `CFBundleShortVersionString` on iOS, `versionName` on Android
 
 The full per-platform inventory is in
 [MOBILE_OBSERVABILITY_OVERVIEW.md](./docs/MOBILE_OBSERVABILITY_OVERVIEW.md).

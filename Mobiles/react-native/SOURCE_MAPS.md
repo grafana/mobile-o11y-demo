@@ -72,9 +72,15 @@ On Android a failed upload fails the build, but missing credentials, map or
 bundle-id file skip the upload silently, so a green build does not prove an upload.
 Unset `FARO_BUNDLE_ID` before an Android release build; an iOS-style value is not
 a valid Android release identity and fails the build. On iOS it only logs a warning; a
-`[Faro] Skipping composed source map upload` line means a `FARO_*` var is
-missing, the map is missing, or the upload is disabled. Set
-`FARO_SKIP_SOURCEMAP_UPLOAD=1` to skip the upload while iterating.
+`[Faro] Skipping composed source map upload` line names the reason: not a Release
+build, upload disabled, `@grafana/faro-metro-plugin` not installed, map missing, or a
+`FARO_*` var missing. The iOS script also reads `ios/.xcode.env.local`, so the exports
+can live there. Set `FARO_SKIP_SOURCEMAP_UPLOAD=1` to skip the upload while iterating.
+
+To port the iOS upload to another React Native app, add a user-defined build setting
+`SOURCEMAP_FILE = $(DERIVED_FILE_DIR)/main.jsbundle.map` to the app target's Release
+configuration (Xcode: **Build Settings → + → Add User-Defined Setting**) and run
+`pod install`. Without it the composed map is not written where the upload looks for it.
 
 To re-upload manually (Android example):
 

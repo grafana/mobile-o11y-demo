@@ -87,6 +87,10 @@ flutter devices
 flutter run -d "<device-id>" --dart-define-from-file=config.json
 ```
 
+A physical iPhone needs code signing: open `ios/Runner.xcworkspace` in Xcode, pick your team
+under **Runner → Signing & Capabilities**, and change the bundle id
+(`com.example.flutterMobileO11yDemo`) if Xcode reports it as unavailable.
+
 To start a simulator yourself on Xcode 27, where `open -a Simulator` no longer
 works, use `../scripts/open-simulator.sh`. For an Android emulator, use
 `flutter emulators --launch "<emulator-id>"`.
@@ -182,6 +186,10 @@ dart run flutter_native_splash:create    # assets/splash.png
 
 **Versioning:** bump `version` in `pubspec.yaml` for significant changes. Faro
 reports it as the app version.
+
+**Symbols:** the app is not built with `--obfuscate` or `--split-debug-info`, so
+Dart stack traces arrive readable. The repo has no Flutter symbol upload; if you
+add obfuscation, keep the split debug info to read the traces yourself.
 
 ### AI-assisted testing with MCP
 

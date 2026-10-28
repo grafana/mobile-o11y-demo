@@ -71,7 +71,8 @@ Vault needs literal values: see [GitHub Actions](README.md#github-actions).
    workflow manually; check both Android and iOS jobs
    and Cloud delivery. Revoke the old token after verification.
 
-Changing Cloud destinations alone needs no app rebuild. CI loads Vault afresh
+Changing Cloud destinations alone needs no app rebuild, as long as the local
+listener addresses stay the same (same `--port-offset`). CI loads Vault afresh
 on each run. Never commit the JSON or upload generated configs/logs.
 
 ## Backend scope
