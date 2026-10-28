@@ -1,0 +1,56 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "schedule": ["before 5am on Monday", "before 5am on Wednesday", "before 5am on Friday"],
+  "semanticCommits": "enabled",
+  "separateMajorMinor": true,
+  "separateMultipleMajor": true,
+  "prHourlyLimit": 2,
+  "prConcurrentLimit": 10,
+  "minimumReleaseAge": "3 days",
+  "internalChecksFilter": "strict",
+  "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"]
+  },
+  "includePaths": ["Mobiles/**", ".github/workflows/mobile_demo_telemetry*.yaml"],
+  "packageRules": [
+    {
+      "description": "Group GitHub Actions bumps into a single PR.",
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions"
+    },
+    {
+      "description": "Group the React Native app's npm bumps into a single PR, matching faro-react-native-sdk. react, react-native and their peers must move together.",
+      "matchManagers": ["npm"],
+      "matchFileNames": ["Mobiles/react-native/**"],
+      "groupName": "react-native npm-dependencies"
+    },
+    {
+      "description": "Collect patch-only bumps from the grouped managers into one low-risk PR, matching the SDK repos.",
+      "matchManagers": ["github-actions", "npm"],
+      "matchUpdateTypes": ["patch"],
+      "groupName": "patch updates"
+    },
+    {
+      "description": "Keep Faro SDK bumps in their own PR. The demo exists to exercise the latest Faro release, so these must not hide inside a large group.",
+      "matchPackageNames": ["@grafana/faro-*"],
+      "groupName": "faro"
+    },
+    {
+      "description": "Renovate cannot resolve this plugin marker on the maven datasource, matching faro-flutter-sdk. The Flutter SDK supplies it.",
+      "matchPackageNames": [
+        "dev.flutter.flutter-plugin-loader:dev.flutter.flutter-plugin-loader.gradle.plugin"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Match yarn's npmMinimalAgeGate (10080 minutes = 7 days) in Mobiles/react-native/.yarnrc.yml. @grafana/* is in npmPreapprovedPackages there, so it keeps the org default. Placed last so it overrides the org preset. Keep in sync with that .yarnrc.yml, otherwise yarn refuses to lock the proposed version (YN0016).",
+      "matchDatasources": ["npm"],
+      "matchFileNames": ["Mobiles/react-native/**"],
+      "matchPackageNames": ["!@grafana/*"],
+      "minimumReleaseAge": "7 days"
+    }
+  ]
+}
