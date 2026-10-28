@@ -44,7 +44,9 @@ OTLP_API_KEY =
 
 - `/$()/` escapes `://` in xcconfig files. Leave it in.
 - Keep the `KEY = value` spacing. `Scripts/generate-config.sh` only reads lines in that form.
-- On a physical device, `localhost` is the phone. Use `BASE_URL = http:/$()/<your-mac-ip>:3333`.
+- On a physical device, `localhost` is the phone. Use `BASE_URL = http:/$()/<your-mac-ip>:3333`
+  (ATS does not apply to IP addresses) and allow the Local Network prompt on first launch, or use
+  an HTTPS tunnel such as ngrok (see [BrowserStack](#real-device-on-browserstack-optional)).
 - An empty `OTLP_ENDPOINT` means OpenTelemetry is not started at all. The app still runs and
   logs to OSLog only.
 
