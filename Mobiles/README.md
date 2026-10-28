@@ -35,13 +35,17 @@ export QUICKPIZZA_IMAGE=quickpizza-mobile-local:development
 docker compose -f compose.grafana-cloud.microservices.yaml up -d
 ```
 
+The standalone container keeps its database in memory, so restarting it resets
+users and ratings. With Compose, run `docker compose -f <file> down -v` first.
+
 To send telemetry to two stacks at once, use
 [dual-stack telemetry](#optional-dual-stack-telemetry) instead of this step.
 
 ### Step 2 — Connect to Grafana Cloud
 
-- **Flutter / React Native:** `FARO_COLLECTOR_URL` is **required**. These apps
-  throw at startup without it, even for a local-only demo.
+- **Flutter / React Native:** a collector URL (`FARO_COLLECTOR_URL` or its
+  per-platform variant) is **required**. These apps throw at startup without
+  one, even for a local-only demo.
 - **iOS / Android native:** optional. With the OTLP fields empty the apps run,
   but OpenTelemetry is not initialized and sends nothing.
 

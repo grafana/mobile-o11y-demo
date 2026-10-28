@@ -43,7 +43,8 @@ Set by `OTelService` from `ConfigService`:
 Added by upstream's default resource: `device.id`, `device.model.identifier`, `os.*`,
 `telemetry.sdk.language=swift`, `telemetry.sdk.version`.
 
-Frontend Observability shows the app under the name registered for its app key (`QuickPizza_iOS`).
+With Faro ingest, the collector replaces `service.name` with the name registered for the app key
+(`QuickPizza_iOS`), also in Tempo and Loki queries.
 QuickPizza still sets `service.name` through `resourceAttributes`, because it also supports the
 legacy OTLP gateway, where `service.name` and `service.namespace` are the only identity labels.
 
@@ -86,8 +87,9 @@ Nothing upstream does this.
 
 ### MetricKit
 
-QuickPizza keeps the package's default MetricKit instrumentation on. Crash and hang logs carry
-`exception.type`, `exception.message` and `exception.stacktrace`.
+QuickPizza keeps the package's default MetricKit instrumentation on. Crash logs carry
+`exception.type`, `exception.message` and `exception.stacktrace`; hang logs carry
+`exception.stacktrace` and the hang duration.
 
 Delivery model:
 
@@ -173,11 +175,9 @@ QuickPizza-specific lessons:
   app-reported exception now versus an OS-reported diagnostic later. There is no dedup.
 - No custom OTel metrics.
 - The pinned instrumentation has open upstream gaps for
-  [default span names](https://github.com/open-telemetry/opentelemetry-swift/issues/1202),
   [HTTP error metadata](https://github.com/open-telemetry/opentelemetry-swift/issues/1203) and
   [implicit server ports](https://github.com/open-telemetry/opentelemetry-swift/issues/1204).
-  Stable semantic conventions do not fix these.
-- Package-level limitations (no background flush, no backoff, signal-based session inactivity):
+- Package-level limitations (no background flush, no `Retry-After` handling, signal-based session inactivity):
   [package README](../ios/grafana-opentelemetry-ios/README.md#known-limitations).
 
 ---

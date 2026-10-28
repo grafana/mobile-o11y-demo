@@ -9,7 +9,7 @@ brings it back.
 ## Prerequisites
 
 - `OPENAI_API_KEY` exported.
-- `unzip`, `wget` or `curl`, Node.js 24.5+, npm 11.10+.
+- `unzip`, `curl`, Node.js 24.5+, npm 11.10+.
 - QuickPizza backend answering `http://localhost:3333/ready` (see
   [Mobiles/README.md](../README.md)). `QUICKPIZZA_BACKEND_URL` changes only this
   probe, not the app's backend address.
@@ -19,7 +19,7 @@ brings it back.
   native app; `Mobiles/scripts/open-simulator.sh <udid>` boots a simulator.
 
 The runner does not boot devices or install apps. It fails fast if the
-emulator, simulator or installed app is missing.
+emulator or simulator is missing (on iOS, also the installed app).
 
 ## Run
 
@@ -39,8 +39,8 @@ export OPENAI_API_KEY='sk-...'
 
 `--flow=basic` is the default. `--flow=handled-exception` triggers a handled
 exception from the Debug tab; `--flow=diagnostics` does that and then crashes
-the app on purpose and relaunches it. A failed run is retried up to 3 times with
-a 45 s pause, so failures take a while.
+the app on purpose and relaunches it. A run gets up to 3 attempts with a 45 s
+pause between them, so failures take a while.
 
 ### React Native on Android
 

@@ -59,7 +59,7 @@ Edit `config.json`:
 
 | Key | Value |
 | --- | --- |
-| `FARO_COLLECTOR_URL` | **Required.** Your Faro collector URL, ending in `/collect/<appKey>`. The app throws at startup when it is empty. |
+| `FARO_COLLECTOR_URL` | **Required** unless a platform key below or a saved Debug → Config URL is set. Your Faro collector URL, ending in `/collect/<appKey>`. The app throws at startup when no URL is set. |
 | `FARO_COLLECTOR_URL_IOS`, `FARO_COLLECTOR_URL_ANDROID` | Optional. Override `FARO_COLLECTOR_URL` on one platform, for example to send each platform to its own Frontend Observability app. |
 | `BASE_URL` | Backend URL. Leave empty on emulators and simulators (`http://10.0.2.2:3333` on Android, `http://localhost:3333` on iOS, using `PORT`). On a physical device, use your machine's LAN IP, for example `http://192.168.1.100:3333`. |
 | `PORT` | Backend port when `BASE_URL` is empty. Defaults to `3333`. |
@@ -131,7 +131,7 @@ await startDemoRum(appRunner: () async {
 - **Config** ([`faro_init.dart`](lib/core/o11y/faro/faro_init.dart)):
   `appName: 'QuickPizza_Flutter'`; `apiKey` is the `<appKey>` parsed from the
   collector URL, so you set only the URL; `enableCrashReporting: true` (native
-  crashes are sent on the next launch); `sampling: SamplingRate(...)`, from
+  crashes are sent on the next launch; on Android this needs API 30+); `sampling: SamplingRate(...)`, from
   Debug → Config (default `1.0`); CPU, memory, refresh-rate and ANR vitals.
 - **Offline:** an `OfflineTransport` caches signals for up to 3 days and sends
   them when the device is back online.
@@ -151,8 +151,8 @@ the only real instrumentation.
   console as `[DemoRum]` logs.
 - It installs chained `FlutterError.onError` and `PlatformDispatcher.onError`
   handlers (saving and calling the previous handler), so both SDKs see every Dart
-  error. Its HTTP wrapper, `DemoRumHttpClient`, is an `http.Client` decorator
-  in `api_client.dart` that forwards requests on top of Faro's `HttpOverrides`.
+  error. Its HTTP wrapper, `DemoRumHttpClient` (in `demo_rum.dart`, used by
+  `api_client.dart`), is an `http.Client` decorator that forwards requests on top of Faro's `HttpOverrides`.
   Its spans run their callbacks, so behavior never changes.
 - Nesting is `startDemoRum` → `startFaro` → `runApp`. Both SDKs chain error
   handlers, so the order only decides which runs first.

@@ -96,8 +96,8 @@ Docs (read these instead of restating them here):
 
 | App | SDK | Endpoint (config key) | Faro app (id) | Config file |
 | --- | --- | --- | --- | --- |
-| `Mobiles/flutter/` | Faro Flutter SDK | `/collect/<appKey>` (`FARO_COLLECTOR_URL`, required) | `QuickPizza_Flutter` (69) | `config.json` |
-| `Mobiles/react-native/` | Faro React Native SDK | `/collect/<appKey>` (`FARO_COLLECTOR_URL`, required) | `QuickPizza_ReactNative` (123) | `config.json` |
+| `Mobiles/flutter/` | Faro Flutter SDK | `/collect/<appKey>` (`FARO_COLLECTOR_URL` or per-platform key, required) | `QuickPizza_Flutter` (69) | `config.json` |
+| `Mobiles/react-native/` | Faro React Native SDK | `/collect/<appKey>` (`FARO_COLLECTOR_URL` or per-platform key, required) | `QuickPizza_ReactNative` (123) | `config.json` |
 | `Mobiles/ios/` | `opentelemetry-swift` via the local `grafana-opentelemetry-ios` package | `/otlp/<appKey>` (`OTLP_ENDPOINT`, no auth) | `QuickPizza_iOS` (204) | `Config.xcconfig` |
 | `Mobiles/android/` | `opentelemetry-android` RUM agent via the local `grafana-opentelemetry-android` library | `/otlp/<appKey>` (`OTLP_ENDPOINT`, no auth) | `QuickPizza_Android` (182) | `app/src/main/res/raw/config.json` |
 

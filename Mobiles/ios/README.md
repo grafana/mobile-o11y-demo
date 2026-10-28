@@ -1,8 +1,8 @@
 # QuickPizza iOS Demo App
 
 A native SwiftUI app that sends OpenTelemetry traces and logs over OTLP/HTTP to the Faro
-collector. Frontend Observability shows them under the name registered for the app key in the
-endpoint (`QuickPizza_iOS` on the demo stack).
+collector. Frontend Observability, Tempo and Loki show them under the name registered for the
+app key in the endpoint (`QuickPizza_iOS` on the demo stack).
 
 ## Prerequisites
 

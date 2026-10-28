@@ -19,8 +19,10 @@ apps post OTLP/HTTP to `/otlp/<appKey>` on the same collector. Endpoint setup
 is in [Connect to Grafana Cloud](./CONNECT_GRAFANA_CLOUD.md).
 
 The native apps set `service.name` to `quickpizza-ios` / `quickpizza-android`.
-The plugin lists them under their registered Faro app names; trace queries use
-the OTel service names. The iOS package strips the bundle-derived
+With Faro ingest, the collector replaces the service name with the registered
+app name (`QuickPizza_iOS` / `QuickPizza_Android`), in the plugin and in Tempo
+and Loki queries. The app's own `service.name` is kept only on the legacy
+gateway path. The iOS package strips the bundle-derived
 `service.name` so ingest can apply the registered identity, and the app sets it
 back so the legacy gateway path still has a service name.
 
@@ -60,12 +62,13 @@ expected signal shapes, not guaranteed delivery.
 | Signal kind | Examples | Source |
 | --- | --- | --- |
 | `event` | `faro.tracing.fetch` (HTTP auto), `user_interaction`, `view_changed`, `app_lifecycle_changed`, `session_start`, `faro.user.action`, `pizza_requested`, `pizza_received`, `pizza_rated`, `login_screen_opened`, `user_logged_out` | mostly auto; `pizza_*` and `login_*` are manual via `core/o11y/events/o11y_events.dart` |
-| `log` | severity `debug` / `warn` / `error` | manual via `core/o11y/loggers/o11y_logger.dart` (`MultiO11yLogger` → `ConsoleO11yLogger` + `FaroO11yLogger`) |
-| `exception` | type `API`, `UI`, `flutter_error` | manual via `core/o11y/errors/o11y_errors.dart` + Faro's global Flutter error handler installed by `faro.runApp` |
-| `measurement` | `app_memory`, `app_cpu_usage`, `app_refresh_rate`, `app_frames_rate`, `app_frozen_frame`, `app_startup` | auto, from Faro mobile metrics instrumentation |
+| `log` | severity `debug` / `warn` / `error` | manual via `core/o11y/loggers/o11y_logger.dart` (`CompositeO11yLogger` → console, Faro and DemoRum loggers) |
+| `exception` | type `API`, `UI`, `flutter_error`, `crash` (native, next launch) | manual via `core/o11y/errors/o11y_errors.dart` + Faro's global Flutter error handler installed by `faro.runApp` |
+| `measurement` | `app_memory`, `app_cpu_usage`, `app_refresh_rate`, `app_frames_rate`, `app_frozen_frame`, `app_startup`, `anr` (Android only), plus app-specific `pizza.rating` and `api.request.duration` | vitals auto from Faro; app-specific via `core/o11y/metrics/o11y_metrics.dart` |
 
 Every signal carries `app_name`, `app_version`, `app_environment=production`,
-`sdk_name`, `sdk_version`, `user_id`, `user_username`, `session_id`, and a
+`sdk_name`, `sdk_version`, `session_id`, `user_id` / `user_username` (while
+logged in), and a
 `session_attr_*` block (Dart version, device brand/manufacturer/model/id,
 `device_is_physical`, OS).
 
@@ -74,7 +77,7 @@ Manual business spans come from
 sends them to tracing, and the companion DemoRum stand-in only logs them.
 Native crashes are triggered through a `MethodChannel`-based
 `NativeCrashService` (`lib/features/debug/domain/`); Faro's crash reporting
-sends them on the next launch.
+sends them on the next launch (on Android this needs API 30+).
 
 ### React Native (Faro)
 
@@ -84,15 +87,15 @@ sends them on the next launch.
 | Signal kind | Examples | Source |
 | --- | --- | --- |
 | `event` | `faro.tracing.fetch` + `faro.tracing.xml-http-request` (HTTP auto via dual fetch+XHR interception), `view_changed`, `faro.user.action`, `app_lifecycle_changed`, `session_start`, `faro_initialized` (manual, `bootstrap.ts`), `pizza_requested` / `pizza_received` / `pizza_rated`, `login_screen_opened`, `user_logged_out`, `debug_custom_event` | mostly auto; pizza/login/debug events are manual via `src/core/o11y/o11yEvents.ts` |
-| `log` | severity `debug` / `info` / `warn` / `error` | manual via `src/core/o11y/o11yLogs.ts` |
-| `exception` | type `crash` (native, e.g. `CRASH_NATIVE: Application crash (Native), status: 11`), `Error`, `PizzaRecommendationError`, `HandledDebugException` | crash auto via Faro CrashKit; others manual via `src/core/o11y/o11yErrors.ts` |
+| `log` | severity `debug` / `info` / `warn` / `error` | manual via `src/core/o11y/o11yLogs.ts`, plus console capture from Faro |
+| `exception` | type `crash` (native, e.g. `CRASH_NATIVE: Application crash (Native), status: 11`), `Error`, `PizzaRecommendationError`, `HandledDebugException` | crash auto via Faro CrashKit (Android: API 30+); uncaught JS errors auto; others manual via `src/core/o11y/o11yErrors.ts` |
 | `measurement` | `app_memory`, `app_cpu_usage`, `app_frames_rate`, `app_frozen_frame`, `app_startup`, `anr` (Android only, `anrTracking`), plus app-specific `pizza.recommendation` (`pizza_id`, `calories`, `vegetarian` 0/1) and `pizza.rating` (`pizza_id`, `stars`) | auto, plus custom via `src/core/o11y/o11yMetrics.ts` |
 
 Attributes are like Flutter's plus `device_battery_level`,
 `device_is_charging`, `device_carrier`, `device_memory_total`,
 `device_memory_used`, `device_type`, and `react_native_version`.
 `app_environment` is `development` in debug builds and `production` in release
-builds. The custom `pizza.*` measurements are unique to React Native.
+builds. `pizza.recommendation` is a React Native-only custom measurement.
 
 ### iOS native (OpenTelemetry Swift)
 
@@ -106,7 +109,7 @@ builds. The custom `pizza.*` measurements are unique to React Native.
 
 | Signal | Examples | Source |
 | --- | --- | --- |
-| Spans (Tempo) | `HTTP GET` / `HTTP POST` (auto, `URLSessionInstrumentation`, stable HTTP attribute keys), `pizza.get_recommendation` / `auth.login` / `pizza.rate` (manual), `MXMetricPayload` (auto, MetricKit pre-aggregated 24h payloads) | manual via `Core/O11y/Tracer.swift`; HTTP auto via `URLSessionInstrumentation`; MetricKit auto via `MetricKitInstrumentation` |
+| Spans (Tempo) | `GET` / `POST` (auto, `URLSessionInstrumentation`, stable HTTP conventions), `pizza.get_recommendation` / `auth.login` / `pizza.rate` (manual), `MXMetricPayload` (auto, MetricKit pre-aggregated 24h payloads) | manual via `Core/O11y/Tracer.swift`; HTTP auto via `URLSessionInstrumentation`; MetricKit auto via `MetricKitInstrumentation` |
 | Logs (Loki) | severity `INFO` / `DEBUG` / `WARN` / `ERROR`; `event_name=app.screen.view` (manual screen-view tracking), `session.start` / `session.end` (auto from Sessions instrumentation), `event_name=exception` for `logger.exception(...)`, MetricKit `metrickit.diagnostic.*` for crashes/hangs/CPU/disk-write exceptions | manual app logger + auto SDK |
 | Metrics | None. No `MeterProvider` is configured; MetricKit performance data arrives as spans. | — |
 
@@ -172,7 +175,7 @@ replays `ApplicationExitInfo` on the next launch on Android 11+.
 | Auto ANR / hang | MetricKit diagnostic reports | Yes — `event_name=device.anr` at runtime |
 | Auto slow-frame / jank | **No** (MetricKit hitch metrics arrive as `MXMetricPayload` spans) | Yes — `event_name=app.jank` |
 | Auto session lifecycle | Yes — `Sessions` library (`session.start` / `session.end`, `session.id` on spans and logs, `session.previous_id` when available) | Yes — `session.start`; `session.id` on every signal |
-| Network class attribute | Not exposed | `network.connection.type` (e.g. `wifi`) |
+| Network class attribute | `network.connection.type` on HTTP spans | `network.connection.type` (e.g. `wifi`) |
 | Compose / SwiftUI nav attrs | Manual events carry `app.screen.name` | SDK navigation events carry `app.navigation.destination.name` |
 | Device hardware attrs | `device.id`, `device.model.identifier` | `device.manufacturer`, `device.model.identifier`, `device.model.name`, `android.os.api_level`, `app.installation.id` |
 | Performance | `MXMetricPayload` spans (CPU, memory, hangs, hitch ratios — daily) | `app.jank` events, `rum.sdk.init.*` self-telemetry |
@@ -184,12 +187,12 @@ replays `ApplicationExitInfo` on the next launch on Android 11+.
 | --- | --- | --- |
 | Wire format | Faro JSON → Faro collector `/collect/<appKey>` | OTLP/HTTP → Faro collector `/otlp/<appKey>`, translated to Faro on ingest |
 | Signal model | Four Loki kinds: `event`, `log`, `measurement`, `exception`; traces go to Tempo | Spans (Tempo) + log records (Loki) |
-| Auto HTTP | Faro fetch/XHR instrumentation emits HTTP events and tracing data, correlated by trace/span IDs | Native HTTP client wrappers emit OTel spans |
+| Auto HTTP | Faro HTTP instrumentation (fetch/XHR on RN, `HttpOverrides` on Flutter) emits HTTP events and tracing data, correlated by trace/span IDs | Native HTTP client wrappers emit OTel spans |
 | Auto user actions | `event_name=faro.user.action` | None |
-| Auto perf metrics | `app_memory`, `app_cpu_usage`, `app_frames_rate`, `app_frozen_frame`, `app_startup` | None on iOS; `app.jank` events on Android |
-| Crashes | Native crash → `kind=exception, type=crash` (FaroCrashKit) | iOS: MetricKit diagnostics; Android: SDK JVM crash reporting plus demo-owned native crash replay |
+| Auto perf metrics | `app_memory`, `app_cpu_usage`, `app_refresh_rate`, `app_frames_rate`, `app_frozen_frame`, `app_startup` | None on iOS; `app.jank` events on Android |
+| Crashes | Native crash → `kind=exception, type=crash` on next launch (Android: API 30+) | iOS: MetricKit diagnostics; Android: SDK JVM crash reporting plus demo-owned native crash replay |
 | Where to view | Frontend Observability plugin | Same (the collector adds the app labels). Legacy gateway data: [Mobile OTel RUM dashboard](./MOBILE_OTEL_RUM_DASHBOARD.md) |
-| User context | `user_id` / `user_username` (Faro auto when set via SDK) | Not on every signal yet; see [M-001](./OTEL_MOBILE_MATURITY.md#m-001--no-first-class-user-context-enduserid-on-mobile-sdks) / [#48](https://github.com/grafana/mobile-o11y-demo/issues/48) |
+| User context | `user_id` / `user_username` while a user is set | Not on every signal yet; see [M-001](./OTEL_MOBILE_MATURITY.md#m-001--no-first-class-user-context-enduserid-on-mobile-sdks) / [#48](https://github.com/grafana/mobile-o11y-demo/issues/48) |
 
 ## The shared Debug screen
 
@@ -240,7 +243,7 @@ gcx config use-context "<your-stack-context>"
 
 # Faro app discovery
 gcx frontend apps list -o json \
-  | tail -n +2 | jq -r '.[] | select(.spec.name | test("QuickPizza"; "i")) | "\(.spec.id)\t\(.spec.name)"'
+  | jq -r '.[] | select(.spec.name | test("QuickPizza"; "i")) | "\(.spec.id)\t\(.spec.name)"'
 
 # Signal kinds per day for one app (e.g. app_id=69 Flutter, 123 RN)
 gcx logs query -d grafanacloud-logs \

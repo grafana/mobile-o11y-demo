@@ -49,7 +49,7 @@ Run from `Mobiles/react-native/`. `ENABLE_FARO_PAYLOAD_DIAGNOSTICS=true` makes
 the app log `[Faro diagnostics]` payloads, which you need for verification.
 
 ```bash
-export FARO_SOURCEMAP_ENDPOINT="https://<your-stack>.grafana.net/api/v1"
+export FARO_SOURCEMAP_ENDPOINT="https://faro-api-<region>.grafana.net/faro/api/v1"
 export FARO_SOURCEMAP_APP_ID="<app-id>"
 export FARO_SOURCEMAP_STACK_ID="<stack-id>"
 export FARO_SOURCEMAP_API_KEY="<token>"
@@ -68,7 +68,10 @@ Composed map paths:
 - Android: `android/app/build/generated/sourcemaps/react/release/index.android.bundle.map`
 - iOS: `$(DERIVED_FILE_DIR)/main.jsbundle.map` (under `~/Library/Developer/Xcode/DerivedData`)
 
-On Android a failed upload fails the build. On iOS it only logs a warning; a
+On Android a failed upload fails the build, but missing credentials, map or
+bundle-id file skip the upload silently, so a green build does not prove an upload.
+Unset `FARO_BUNDLE_ID` before an Android release build; an iOS-style value is not
+a valid Android release identity and fails the build. On iOS it only logs a warning; a
 `[Faro] Skipping composed source map upload` line means a `FARO_*` var is
 missing, the map is missing, or the upload is disabled. Set
 `FARO_SKIP_SOURCEMAP_UPLOAD=1` to skip the upload while iterating.

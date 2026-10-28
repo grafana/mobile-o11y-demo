@@ -65,7 +65,7 @@ screen-view events, its instrumentation scope, and opting into automatic redirec
   evicted; backups would keep full payloads). Caller directories are left alone. Batches drop to
   128 records under the 256 KiB persistence cap. `requeueOnFailure: false` for both signals so the
   disk queue is the only retry. The runtime drains the persistence exporters itself on flush and
-  gates them through an owned `exportCondition` on shutdown. Cost: about 4.75 s plus a 1–20 s
+  gates them through an owned `exportCondition` on shutdown. Cost: about 5.25 s plus a 1–20 s
   export cycle; `.disabled` stays available.
 
 ## Alignment with the iOS field guide
@@ -119,7 +119,9 @@ Validated on simulators against local receivers and a local Faro collector (Sept
 2026): Debug and Release export of both signals, the resource and session attributes on the wire,
 client-side `traceparent` matching the exported spans, buffered replay of traces and logs across a
 kill and relaunch without duplicates, and the backup exclusion on the queue directory. Hosted ingest
-was not validated. Current evidence and reproduction: [session validation](../ios/session-validation/README.md).
+was not validated then. The automated part (sessions and buffered replay) is reproducible with
+[session validation](../ios/session-validation/README.md); the other checks were manual and their
+logs are not kept in this repo.
 
 Done: the package builds and is consumed by the demo; config validation, mapping, propagation,
 redirect, persistence and initialization have unit coverage; app instrumentation compiles unchanged.
@@ -136,7 +138,7 @@ Open:
 - [ ] Add public-API stability checking before a versioned release.
 - [ ] Add background and termination flush hooks, and an export-health path beyond the diagnostics
   callback. `forceFlush` blocks on synchronous export, so a hook cannot call it on the main thread.
-- [ ] Automate retry across process termination and relaunch (runtime-validated only).
+- [x] Automate retry across process termination and relaunch (session validation harness).
 - [ ] Confirm the buffering latency is acceptable for live demos.
 - [ ] Decide whether to strip `device.id`. Upstream sends `identifierForVendor`, ingest keeps it on
   traces, and shipping it requires an App Privacy device-identifier declaration.

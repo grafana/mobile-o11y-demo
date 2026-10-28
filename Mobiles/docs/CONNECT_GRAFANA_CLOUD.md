@@ -41,7 +41,9 @@ Put the collector URL, unchanged, in the app's `config.json` as
 | Flutter | `Mobiles/flutter/config.json` (from `config.json.example`) — see [Flutter README](../flutter/README.md) |
 | React Native | `Mobiles/react-native/config.json` (from `config.json.example`) — see [React Native README](../react-native/README.md) |
 
-The URL is required. These apps throw at startup when it is empty.
+A URL is required (`FARO_COLLECTOR_URL`, or `FARO_COLLECTOR_URL_IOS` /
+`FARO_COLLECTOR_URL_ANDROID` per platform). These apps throw at startup when
+none is set.
 
 ## OpenTelemetry apps (iOS native, Android native)
 

@@ -41,7 +41,7 @@ Edit `config.json`:
 
 | Key | Value |
 | --- | --- |
-| `FARO_COLLECTOR_URL` | **Required.** Your Faro collector URL, ending in `/collect/<appKey>`. When empty, the app fails at launch (red-screen error in debug builds), even with a Debug override. |
+| `FARO_COLLECTOR_URL` | **Required** unless the platform key below is set. Your Faro collector URL, ending in `/collect/<appKey>`. When no URL is set, the app fails at launch (red-screen error in debug builds), even with a Debug override. |
 | `FARO_COLLECTOR_URL_IOS` / `FARO_COLLECTOR_URL_ANDROID` | Optional per-platform URL; wins over `FARO_COLLECTOR_URL` on that platform. |
 | `BASE_URL` | Backend URL. Leave empty on emulators and simulators (`http://10.0.2.2` on Android, `http://localhost` on iOS). |
 | `PORT` | Backend port when `BASE_URL` is empty. Defaults to `3333`. |
@@ -72,10 +72,11 @@ yarn android          # or ./scripts/run-android.sh, which boots an emulator if 
 yarn ios              # or ./scripts/run-ios.sh
 ```
 
-The helper scripts don't start Metro; run `yarn start` first.
+`yarn android` / `yarn ios` start Metro if it is not already running.
 `yarn android` sets up `adb reverse` for Metro's port 8081 itself.
-The helper scripts use the [dual-stack telemetry](../telemetry/README.md) config
-when it is active, and `config.json` otherwise.
+While [dual-stack telemetry](../telemetry/README.md) is active, Metro bundles its
+config instead of `config.json` (`metro.config.js` switches on every start), so
+edits to `config.json` are ignored.
 
 ## How Faro is initialized
 
@@ -116,7 +117,7 @@ const faro = await initializeFaro({
 - Use the in-app **Debug** tab to generate telemetry: test logs, the
   `debug_custom_event` custom event, handled and unhandled exceptions, backend
   error injection, and native crashes. Native crashes arrive on the next launch
-  as `kind=exception, type=crash`. See
+  as `kind=exception, type=crash` (on Android, API 30+ only). See
   [the shared Debug screen](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md#the-shared-debug-screen).
 - The app name `QuickPizza_ReactNative` is set in
   [`src/bootstrap.ts`](src/bootstrap.ts).

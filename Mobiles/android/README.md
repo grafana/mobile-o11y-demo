@@ -42,7 +42,7 @@ the legacy OTLP gateway alternative, are in
 | `OTLP_ENDPOINT` | OTLP/HTTP base URL, without `/v1/traces` or `/v1/logs`. Empty disables export. |
 | `OTLP_INSTANCE_ID` | Numeric OTLP gateway instance ID. Legacy gateway only; leave empty for Faro. |
 | `OTLP_API_KEY` | Grafana Cloud access token, combined with the instance ID into `Authorization: Basic`. Legacy gateway only. |
-| `BASE_URL` | QuickPizza backend URL. Empty resolves to `http://10.0.2.2:3333` on emulators. For devices, see [Run on a physical device](#run-on-a-physical-device). |
+| `BASE_URL` | QuickPizza backend URL. Empty resolves to `http://10.0.2.2:3333` (the emulator's host). For devices, see [Run on a physical device](#run-on-a-physical-device). |
 
 All four fields can be overridden from **Debug → Config** without a rebuild. Overrides persist and
 apply after you restart the app.
@@ -54,7 +54,8 @@ apply after you restart the app.
 > the runtime file.
 
 Precedence: **Debug → Config** override > that alternate file > `res/raw/config.json`. Overrides
-survive `installDebug`; clear the app data to reset them.
+survive `installDebug`; reset them with **Reset All** on the Debug tab or **Use defaults** on the
+Config screen.
 
 ## Run on an emulator
 
@@ -99,7 +100,7 @@ Android adds:
 - **ANR**: blocks the main thread for 10 s; the agent reports `device.anr`.
 - **Crash (RuntimeException)** and **Crash (NPE)**: the agent's `CrashReporter` writes
   `device.crash` and flushes before the process dies. With buffering on, it ships on the next launch.
-- **NDK crash (SIGSEGV)**: on API 30 and newer, the app-owned `NativeExitCrashReporter` replays the
+- **NDK crash (C++ / tombstone)** → **SIGSEGV (null dereference)**: on API 30 and newer, the app-owned `NativeExitCrashReporter` replays the
   native exit as `device.crash` after relaunch.
 
 ## Observability
@@ -147,8 +148,8 @@ Other points specific to this app:
 ## Release build and symbols
 
 Release builds use R8 and `ndk.debugSymbolLevel = FULL`. The `com.grafana.faro.android-symbols`
-Gradle plugin, wired in `app/build.gradle.kts`, uploads `mapping.txt` and
-`native-debug-symbols.zip` after `assembleRelease`, `bundleRelease` or `installRelease`.
+Gradle plugin, wired in `app/build.gradle.kts`, uploads the R8 mapping and
+native debug symbols after `assembleRelease`, `bundleRelease` or `installRelease`.
 
 Each release is identified by `applicationId@versionCode@versionName`, by default
 `com.grafana.quickpizza.android@1@1.0.0` (`versionName` comes from the `quickpizzaDemoVersionName`
@@ -167,14 +168,29 @@ skipped, and the build still succeeds. Set `faro { enabled = false }` to turn up
 
 ```bash
 cd Mobiles/android
-export FARO_SOURCEMAP_ENDPOINT="https://<your-stack>.grafana.net/api/v1"
+export FARO_SOURCEMAP_ENDPOINT="https://faro-api-<region>.grafana.net/faro/api/v1"
 export FARO_SOURCEMAP_APP_ID="<app-id>"
 export FARO_SOURCEMAP_STACK_ID="<stack-id>"
 export FARO_SOURCEMAP_API_KEY="<token>"
 ./gradlew installRelease
 ```
 
-To verify, look for `[Faro]` lines in the Gradle output, open the app, tap
+On release, `faroWriteBundleIdRelease` runs before the build and `faroUploadSymbolsRelease` after
+it. To check the inputs of a failed upload, look for `[Faro]` lines in the Gradle output and for the
+artifacts of the same build:
+
+```bash
+ls -l app/build/faro/bundle-id-release.txt
+ls -l app/build/outputs/mapping/release/mapping.txt
+ls -l app/build/outputs/native-debug-symbols/release/native-debug-symbols.zip
+```
+
+To retry outside Gradle, run
+[`faro-cli android upload`](https://github.com/grafana/faro-javascript-bundler-plugins/tree/main/packages/faro-cli)
+with the same `FARO_SOURCEMAP_*` variables and `--application-id` / `--version-code` /
+`--version-name` matching `bundle-id-release.txt`.
+
+To verify, open the app, tap
 **Debug → Crash (RuntimeException)** and relaunch. The crash in Frontend Observability should show
 real Kotlin file names, not obfuscated ones like `a5.r0`.
 

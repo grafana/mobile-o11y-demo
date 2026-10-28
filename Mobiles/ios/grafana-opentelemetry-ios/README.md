@@ -244,7 +244,7 @@ package sets `isExcludedFromBackupKey` on it, because the queue holds full paylo
 `.enabled(storageURL:)` uses a directory you own. The package creates it and its two signal
 subdirectories but does **not** change its backup policy. Set `isExcludedFromBackupKey` yourself.
 
-Latency: records become readable after about 4.75 s, then export on an adaptive 1–20 s cycle. Pass
+Latency: records become readable after about 5.25 s, then export on an adaptive 1–20 s cycle. Pass
 `.disabled` for prompt delivery, at the cost of losing whatever is queued at termination.
 
 ## Trace-context propagation
@@ -302,16 +302,18 @@ Both apply the same host policy, so a redirect that stays on the list keeps its 
 
 ## Known limitations
 
-Properties of the pinned upstream, not of this package's configuration:
+Properties of the pinned upstream and of this package's instrumentation choices:
 
 - **No lifecycle or screen-view instrumentation.** App start, foreground/background, `screen.view`
   and jank stay app-owned.
-- **Crashes and hangs are MetricKit-only.** [Apple documents immediate diagnostic delivery on
+- **Crashes and hangs are MetricKit-only.** The package does not link upstream's KSCrash-based
+  `Crash` product. [Apple documents immediate diagnostic delivery on
   iOS 15+](https://developer.apple.com/documentation/metrickit), separately from daily metric
   reports. No signal handler, no crash replay, no guaranteed report for a deliberate crash.
 - **MetricKit diagnostics get the session active at delivery**, not the one that crashed. See the
   [MetricKit boundary](../session-validation/README.md#metrickit-boundary).
-- **No backoff and no delivery signal to the app.** No `Retry-After` handling. A wrong ingest URL
+- **No `Retry-After` handling and no delivery signal to the app.** Retries use upstream's adaptive
+  1–20 s export delay. A wrong ingest URL
   looks like a working one from inside the app; only `diagnosticsHandler` shows the 404 or 401.
 - **No flush on background or termination.** Call `GrafanaOtelRuntime.forceFlush()` from your own
   hooks, but **not on the main thread**: it blocks on synchronous export, up to the 10 s transport
@@ -327,8 +329,8 @@ Properties of the pinned upstream, not of this package's configuration:
   background HTTP, so "15 minutes" means no span and no log, not Faro's user-interaction rule.
 - **`URLSession` instrumentation cannot be uninstalled**, and one configuration wins per process.
   Use `customizeURLSession`; a second instance would chain swizzles and double-instrument.
-- **Disk-buffer retry across relaunch has no automated test.** It is runtime-validated for both
-  signals.
+- **Disk-buffer retry across relaunch** is covered by the
+  [session validation harness](../session-validation/README.md) (failed export, kill, replay on relaunch).
 
 ## Tests
 

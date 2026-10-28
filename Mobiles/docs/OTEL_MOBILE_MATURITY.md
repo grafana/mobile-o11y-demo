@@ -6,8 +6,7 @@ apps. Each entry is concrete and reproducible, so it can become an upstream
 issue or PR instead of a fork, and so "is OTel mobile mature enough?" gets an
 honest answer.
 
-This file covers OTel only; Faro SDK quirks live in the Flutter and React
-Native READMEs. Entries describe this demo's pinned configuration; an open
+This file covers OTel only. Entries describe this demo's pinned configuration; an open
 entry does not prove every current upstream SDK lacks the capability.
 
 ## Entries
@@ -86,9 +85,8 @@ configuration, not proof that the underlying SDKs lack a Metrics API.
 
 **Workaround in this demo**
 
-Flutter and React Native send Faro performance measurements as Loki records;
-React Native adds custom `pizza.recommendation` and `pizza.rating`
-measurements. These aggregate with LogQL but are not Prometheus metrics. iOS
+Flutter and React Native send Faro performance measurements as Loki records,
+plus custom ones such as `pizza.rating`. These aggregate with LogQL but are not Prometheus metrics. iOS
 sends MetricKit data as spans; Android emits jank events.
 
 **Before adding metrics**
