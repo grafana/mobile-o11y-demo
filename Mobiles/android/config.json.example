@@ -1,11 +1,11 @@
 {
-  "_comment": "Copy this file to app/src/main/res/raw/config.json and fill in your values.",
+  "_comment": "Copy this file to app/src/main/res/raw/config.json (gitignored). Debug -> Config can override every field at runtime; overrides apply after an app restart.",
   "OTLP_ENDPOINT": "",
-  "_OTLP_ENDPOINT_comment": "Faro OTLP ingest URL, e.g. https://faro-collector-<region>.grafana.net/otlp/<appKey>. The app key in the path identifies the app, so leave OTLP_INSTANCE_ID and OTLP_API_KEY empty. The app then appears in Frontend Observability. Native mobile OTLP ingestion must be enabled on your stack; use the app-specific endpoint from its setup page. Legacy option: the Grafana Cloud OTLP gateway at https://otlp-gateway-<regionSlug>.grafana.net/otlp with both credentials filled in — that path keeps the data as raw OTel, so the app does NOT appear in Frontend Observability (query Tempo/Loki or the Mobile OTel RUM dashboard instead).",
+  "_OTLP_ENDPOINT_comment": "OTLP/HTTP base URL without /v1/*. Empty disables export. For Frontend Observability use your Faro collector's https://faro-collector-<region>.grafana.net/otlp/<appKey> and leave OTLP_INSTANCE_ID and OTLP_API_KEY empty; native OTLP ingest must be enabled on the stack. Legacy: the OTLP gateway https://otlp-gateway-<regionSlug>.grafana.net/otlp with both credentials set keeps data as raw OTel in Tempo/Loki, not visible in Frontend Observability. See ../docs/CONNECT_GRAFANA_CLOUD.md.",
   "OTLP_INSTANCE_ID": "",
-  "_OTLP_INSTANCE_ID_comment": "Grafana Cloud OTLP gateway instance ID (numeric). Leave empty for the Faro OTLP ingest URL.",
+  "_OTLP_INSTANCE_ID_comment": "Numeric OTLP gateway instance ID. Legacy gateway only; leave empty for Faro.",
   "OTLP_API_KEY": "",
-  "_OTLP_API_KEY_comment": "Grafana Cloud access token (e.g. glc_xxxxxxxx). Combined with the instance ID, the app will compute Authorization: Basic <base64(instanceId:apiKey)>. Leave empty for the Faro OTLP ingest URL.",
+  "_OTLP_API_KEY_comment": "Grafana Cloud access token (glc_...), combined with the instance ID into Authorization: Basic. Legacy gateway only; leave empty for Faro.",
   "BASE_URL": "",
-  "_BASE_URL_comment": "Leave empty for emulator (uses http://10.0.2.2:3333 automatically). For physical devices, set to your machine's IP e.g. http://192.168.1.100:3333"
+  "_BASE_URL_comment": "Leave empty on emulators (uses http://10.0.2.2:3333). On a device (API 24+), run adb reverse tcp:3333 tcp:3333 and use http://127.0.0.1:3333, or use an HTTPS backend. HTTP to a LAN IP is blocked; API 23 needs HTTPS."
 }

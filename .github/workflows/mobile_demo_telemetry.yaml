@@ -350,35 +350,26 @@ jobs:
             adb shell settings put global transition_animation_scale 0 || true
             adb shell settings put global animator_duration_scale 0 || true
 
-            # Devices use localhost:3333; refresh this between apps in case
-            # ADB state changes during test cleanup.
-            echo "Setting up ADB reverse port forwarding..."
-            adb reverse --remove tcp:3333 || true
-            adb reverse tcp:3333 tcp:3333
+            # The apps are built with an empty BASE_URL, so they reach the
+            # host backend at http://10.0.2.2:3333; no adb reverse is needed.
 
             echo "==> Flutter APK: install and E2E"
             adb install -r apk/flutter/app-debug.apk
             bash Mobiles/e2e/run_e2e_tests.sh --app=flutter --platform=android
             sleep 30 # Allow normal SDK export before stopping the app.
             adb shell am force-stop com.example.flutter_mobile_o11y_demo || true
-            adb reverse --remove tcp:3333 || true
-            adb reverse tcp:3333 tcp:3333
 
             echo "==> React Native APK: install and E2E"
             adb install -r apk/react-native/app-debug.apk
             bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=android
             sleep 30 # Allow normal SDK export before stopping the app.
             adb shell am force-stop com.grafana.quickpizza.rn || true
-            adb reverse --remove tcp:3333 || true
-            adb reverse tcp:3333 tcp:3333
 
             echo "==> Android Native APK: install and E2E"
             adb install -r apk/android-native/app-debug.apk
             bash Mobiles/e2e/run_e2e_tests.sh --app=android-native --platform=android
             sleep 30 # Allow normal SDK export before stopping the app.
             adb shell am force-stop com.grafana.quickpizza.android || true
-            adb reverse --remove tcp:3333 || true
-            adb reverse tcp:3333 tcp:3333
 
             # android-emulator-runner executes script lines individually, so
             # keep diagnostics gating as one-line commands instead of a

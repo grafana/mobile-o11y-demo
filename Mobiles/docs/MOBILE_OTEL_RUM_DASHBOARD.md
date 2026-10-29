@@ -1,166 +1,85 @@
 # Mobile OTel RUM Dashboard
 
-This guide explains how to import and configure the reusable Mobile OTel RUM
-dashboard for native Android and iOS apps that send OpenTelemetry logs and
-traces to Grafana Cloud.
-
-This dashboard reads the **OTLP gateway** path: apps send OTLP/HTTP straight to
-Grafana Cloud, which lands raw OTel in Loki and Tempo. The dashboard queries
-those two data sources.
-
-The gateway path is the legacy option. It keeps the data as raw OTel, so the
-streams carry no app identity and the Frontend Observability plugin cannot read
-them — this dashboard is how you query them.
-
-The preferred path sends OTLP to the Faro collector at `/otlp/<appKey>`, which
-translates it to Faro and puts the native apps in the Frontend Observability
-plugin next to the Flutter and React Native apps. See
-[Connect to Grafana Cloud](./CONNECT_GRAFANA_CLOUD.md) for both paths.
-
-## Dashboard Artifact
-
-The dashboard JSON lives at:
-
-```text
-Mobiles/dashboards/mobile-otel-rum-dashboard.json
-```
-
-It uses Grafana's dashboard resource format and a tabbed layout, so it requires
-Grafana 13 or later, where
-[dynamic dashboards are generally available](https://grafana.com/whats-new/2026-04-08-dynamic-dashboards-is-now-generally-available/).
+A reusable dashboard for native Android and iOS apps that send OpenTelemetry
+logs and traces through the **legacy OTLP gateway**. That path lands raw OTel
+in Loki and Tempo, which the Frontend Observability plugin cannot read; this
+dashboard queries it directly. For the preferred Faro collector path and the
+gateway setup, see [Connect to Grafana Cloud](./CONNECT_GRAFANA_CLOUD.md).
 
 ## Requirements
 
-- Grafana 13 or later.
-- A Grafana Cloud stack with OTLP gateway ingest enabled for logs and traces.
-- Native Android or iOS telemetry collected with the [OpenTelemetry Android SDK](https://github.com/open-telemetry/opentelemetry-android) or [OpenTelemetry Swift](https://github.com/open-telemetry/opentelemetry-swift), shaped like the QuickPizza demo apps.
-- A Loki data source named `grafanacloud-logs`.
-- A Tempo data source named `grafanacloud-traces`.
+- Grafana 13 or later. The JSON uses the dashboard resource format and a
+  tabbed layout
+  ([dynamic dashboards](https://grafana.com/whats-new/2026-04-08-dynamic-dashboards-is-now-generally-available/)).
+- A stack receiving native app logs and traces through the OTLP gateway,
+  shaped like the QuickPizza demo apps.
+- A Loki data source named `grafanacloud-logs` and a Tempo data source named
+  `grafanacloud-traces`. Your stack may use names such as
+  `grafanacloud-<stack>-logs`; update the references after import.
 
-These names are the references in the checked-in JSON. Your stack may use
-stack-specific names such as `grafanacloud-<stack>-logs`. Update the references
-to match your data sources after import.
+## Import the dashboard
 
-## Import the Dashboard
+1. Open your Grafana stack and go to **Dashboards**.
+2. Select **New** → **Import dashboard**.
+3. Upload or paste `Mobiles/dashboards/mobile-otel-rum-dashboard.json`.
+4. Save.
 
-1. Open your Grafana stack.
-2. Go to **Dashboards**.
-3. Select **New** and then **Import dashboard**.
-4. Upload or paste `Mobiles/dashboards/mobile-otel-rum-dashboard.json`.
-5. Save the dashboard.
+To manage it as code, push the JSON resource with `gcx` or Git Sync.
 
-If you manage Grafana resources as code, you can also push the JSON resource
-with `gcx` or Git Sync.
+## Configure mobile service names
 
-## Configure Mobile Service Names
-
-The dashboard uses a custom multi-value variable named `service_name`, labeled
-**Mobile service names**.
-
-Edit that variable and replace the demo values with the OpenTelemetry
-`service.name` values for your apps. For example:
+The custom multi-value variable `service_name` (**Mobile service names**)
+lists the OTel `service.name` values to show. It defaults to the demo values
+`quickpizza-android, quickpizza-ios`; replace them with your own, for example:
 
 ```text
 my-app-android, my-app-ios
 ```
 
-The default values (`quickpizza-android`, `quickpizza-ios`) are from the
-QuickPizza demo apps. Replace them after import unless you are viewing the demo
-stack.
-
-The list is intentionally manual. Grafana Cloud stacks often contain backend
-services in the same Loki and Tempo data sources, so automatic service
-discovery would include unrelated services.
-
-You can also type a service name directly into the dropdown because custom
-values are enabled.
+The list is manual because stacks usually hold backend services in the same
+data sources. You can also type a name into the dropdown.
 
 ## Select a session
 
-Select a row in **Sessions — click to select**, or enter an exact **Session ID**.
-The log detail panels filter by that value; leaving it blank does not mean
-"all sessions". The trace panel uses a session ID prefix match instead. The
-Overview panels aggregate across the selected services and time range.
+Select a row in **Sessions — click to select**, or enter an exact **Session
+ID**. Log detail panels filter on an exact match; leaving it blank does not
+mean "all sessions". The trace panel uses a session ID prefix match. Overview
+panels aggregate across the selected services and time range.
 
-The session list uses Android `rum.sdk.init.started` events and iOS
+The session list is built from Android `rum.sdk.init.started` and iOS
 `session.start` events. An Android session that starts after initialization
-can therefore have telemetry without a corresponding row in that list; enter
-its ID directly.
+can have telemetry but no row; enter its ID directly.
 
-## Expected Telemetry Shape
+## Telemetry the dashboard expects
 
-The dashboard expects the same broad telemetry contract used by the native
-QuickPizza demo apps.
+- Resource attributes `service.name`, `service.namespace`, `service.version`.
+  The dashboard does not filter on deployment environment.
+- `session.id` on signals, queried in Loki as `session_id`.
+- Android `device.crash` and `device.anr` events for the crash panels. Android
+  keeps these names by disabling the SDK's latest experimental semantic
+  conventions.
 
-The service and version views use these OpenTelemetry resource attributes:
+The full event inventory per platform is in
+[MOBILE_OBSERVABILITY_OVERVIEW.md](./MOBILE_OBSERVABILITY_OVERVIEW.md#per-platform-telemetry-inventory).
 
-```text
-service.name
-service.namespace
-service.version
-```
-
-The iOS demo also sets `deployment.environment.name=production`. The Android
-demo does not set a deployment environment. The checked-in dashboard does not
-filter on either environment key.
-
-Session-aware views expect session attributes to be present. In Grafana Cloud
-Loki queries, `session.id` is available as `session_id`.
-
-Android signals from `opentelemetry-android` include events such as:
-
-- `screen.view` (SDK Activity/Fragment instrumentation)
-- `app.navigation.complete` (SDK Compose navigation, after explicit setup;
-  `app.navigation.destination.name` contains the route pattern)
-- `app.jank`
-- `session.start`
-- `rum.sdk.init.*`
-- `exception`
-- `device.crash`
-- `device.anr`
-
-iOS signals from OpenTelemetry Swift plus the QuickPizza app instrumentation
-include:
-
-- `app.screen.view`
-- `session.start`
-- `exception`
-- MetricKit crash, hang, CPU, disk-write, and app-launch diagnostics
-- URLSession spans
-- manual business spans such as `pizza.get_recommendation`, `auth.login`, and
-  `pizza.rate`
-
-The **Crashes**, **Crash-Free Sessions**, and **ANRs** panels match Android's
-`device.crash` / `device.anr` events. They do not count iOS MetricKit diagnostic
-records. Those records appear in **Events** and **Session Timeline** when the
-selected session matches; do not interpret a zero crash count as proof that an
-iOS session had no crash. Android retains these event names by disabling the
-SDK's latest experimental semantic conventions.
-
-For platform-specific setup details, see:
-
-- [Android Native Setup Guide](./ANDROID_NATIVE_SETUP.md)
-- [iOS OpenTelemetry Instrumentation Guide](./IOS_OBSERVABILITY_OTEL_GUIDE.md)
+**Crashes**, **Crash-Free Sessions**, and **ANRs** count only Android events.
+iOS MetricKit diagnostics appear in **Events** and **Session Timeline** for the
+selected session, so a zero crash count does not prove an iOS session had no
+crash.
 
 ## Troubleshooting
 
 If the dashboard is empty:
 
-- Confirm that the selected time range contains recent telemetry.
-- Confirm that **Mobile service names** matches your app's `service.name`.
+- Check that the time range contains recent telemetry.
+- Check that **Mobile service names** matches your app's `service.name`.
 - Select a session for log detail panels. If its startup event is outside the
   time range, widen the range or enter the session ID directly.
-- Confirm that the app is exporting OTLP over HTTP to the correct Grafana Cloud
-  endpoint.
-- Confirm that the OTLP credentials allow `logs:write` and `traces:write`.
-- Confirm that the dashboard points at the correct Loki and Tempo data source
-  names.
+- Check that the app exports OTLP over HTTP to the gateway, with a token that
+  allows `logs:write` and `traces:write`.
+- Check that the dashboard points at the right Loki and Tempo data sources.
 
-For Android, use the Debug tab to emit a debug log, handled exception, ANR, or
-crash event. For iOS, use the Debug tab to emit logs and handled exceptions.
-MetricKit diagnostic delivery is controlled by Apple and is separate from
-daily performance metrics. SDK buffering and export also affect when records
-become queryable.
-
-The 2026-09-17 review checks this guide against the dashboard JSON and app
-instrumentation. It does not verify a dashboard import or live cloud queries.
+To generate data, use the Debug tab: on Android, a debug log, handled
+exception, ANR, or crash; on iOS, logs and handled exceptions. Apple controls
+MetricKit delivery, and SDK disk buffering delays export, so records can take
+a while to become queryable.

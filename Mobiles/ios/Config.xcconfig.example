@@ -5,12 +5,15 @@
 // 2. Fill in your values in Config.xcconfig
 // 3. Config.xcconfig is gitignored and will not be committed
 //
-// These values are injected into Info.plist at build time
-// and read by ConfigService from Bundle.main.infoDictionary
+// At build time Scripts/generate-config.sh reads these values into
+// QuickPizzaIos/Core/Config/BuildConfig.generated.swift, which ConfigService reads.
+// Keep the "KEY = value" spacing: the script only matches that form.
+// While Mobiles/telemetry/setup.py is active, its generated ios.xcconfig is used instead.
 
 // Base URL for the QuickPizza API
 // For simulator: http://localhost:3333
-// For physical device: http://YOUR_MACHINE_IP:3333 (e.g., http://192.168.1.100:3333)
+// For physical device: an HTTPS URL, e.g. from `ngrok http 3333`. ATS blocks plain
+// HTTP to IP addresses on iOS 17+; see README.md ("Create your config").
 // Note: Use /$()/ to escape the :// in URLs for xcconfig
 BASE_URL = http:/$()/localhost:3333
 

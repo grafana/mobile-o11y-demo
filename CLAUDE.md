@@ -6,23 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 QuickPizza is a demonstration web application that generates pizza recommendations. It's built with a Go backend and SvelteKit frontend, designed for k6 load testing workshops and observability demonstrations.
 
-The repository also contains **four QuickPizza mobile demo apps** under `Mobiles/` that demonstrate mobile observability against the same backend. The four apps share screens and workflows but use different SDKs:
-
-- `Mobiles/flutter/` and `Mobiles/react-native/` use the Grafana **Faro** SDKs and export to Grafana Cloud Frontend Observability.
-- `Mobiles/ios/` and `Mobiles/android/` use **OpenTelemetry** mobile SDKs and export over OTLP/HTTP to the same Faro collector, which translates OTLP to Faro on ingest. The `/otlp/<appKey>` route is available on production collectors. A legacy alternative targets the Grafana Cloud OTLP gateway, which keeps the data as raw OTel in Tempo + Loki — not readable by the Frontend Observability plugin, only by the "Android & iOS OTel RUM" custom dashboard.
-
-For a single source of truth on what each app emits, where it lands, and how the SDKs differ, see [`Mobiles/docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](./Mobiles/docs/MOBILE_OBSERVABILITY_OVERVIEW.md).
-
-### Mobile Apps Quick Reference
-
-- **Start here:** [`Mobiles/README.md`](./Mobiles/README.md) is the entry point — supported platforms, run-a-demo steps, and links to every deeper doc.
-- **Demo cloud stack:** internal Grafana Cloud stack — substitute your own (`<your-grafana-cloud-stack>.grafana.net`) when running outside Grafana Labs
-- **Backend (local, mobile):** build the image from this checkout (`docker build -t quickpizza-mobile-local:development .`), then `docker run --rm -d -p 3333:3333 quickpizza-mobile-local:development` (or `QUICKPIZZA_IMAGE=quickpizza-mobile-local:development` with compose; k6/upstream uses `quickpizza-local`). `ghcr.io/grafana/quickpizza-mobile-local` is only published on releases, so it may not be pullable.
-- **Shared feature spec:** [`Mobiles/FEATURES.md`](./Mobiles/FEATURES.md)
-- **Per-platform READMEs:** [`Mobiles/flutter/README.md`](./Mobiles/flutter/README.md), [`Mobiles/react-native/README.md`](./Mobiles/react-native/README.md), [`Mobiles/ios/README.md`](./Mobiles/ios/README.md), [`Mobiles/android/README.md`](./Mobiles/android/README.md)
-- **OTel mobile SDK gaps & contribution backlog:** [`Mobiles/docs/OTEL_MOBILE_MATURITY.md`](./Mobiles/docs/OTEL_MOBILE_MATURITY.md)
-- **iOS native run:** `cp Mobiles/ios/Config.xcconfig.example Mobiles/ios/Config.xcconfig` (fill in OTLP creds), then `bash Mobiles/ios/Scripts/sim-run.sh`
-- **Android native run:** `cp Mobiles/android/config.json.example Mobiles/android/app/src/main/res/raw/config.json` (fill in OTLP creds), then `cd Mobiles/android && ./gradlew installDebug`
+The repository also contains **four QuickPizza mobile demo apps** under `Mobiles/` that demonstrate mobile observability against the same backend. See [Mobile Apps](#mobile-apps-mobiles) below.
 
 ## Key Commands
 
@@ -101,51 +85,32 @@ Comprehensive observability built-in:
 
 ## Mobile Apps (`Mobiles/`)
 
-Four QuickPizza clients that demonstrate mobile observability against the
-same backend. They share screens, workflows, and a cross-platform Debug
-tab, but use different telemetry SDKs.
+Four QuickPizza clients that share screens, workflows, and an in-app **Debug** tab (config overrides, backend error/latency injection, test logs, handled exceptions, native crashes) but use different telemetry SDKs. All four send to the Grafana Cloud **Faro collector** and land in Frontend Observability.
 
-For a deep, gcx-verified, side-by-side breakdown of what each app emits,
-read [`Mobiles/docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](./Mobiles/docs/MOBILE_OBSERVABILITY_OVERVIEW.md).
+Docs (read these instead of restating them here):
 
-### Flutter (`Mobiles/flutter/`)
+- [`Mobiles/README.md`](./Mobiles/README.md): entry point; run the backend and an app.
+- [`Mobiles/docs/CONNECT_GRAFANA_CLOUD.md`](./Mobiles/docs/CONNECT_GRAFANA_CLOUD.md): collector URLs, config keys, legacy OTLP gateway.
+- [`Mobiles/docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](./Mobiles/docs/MOBILE_OBSERVABILITY_OVERVIEW.md): what each app emits and where it lands.
+- Per-platform READMEs under `Mobiles/<platform>/README.md`; SDK gaps in [`Mobiles/docs/OTEL_MOBILE_MATURITY.md`](./Mobiles/docs/OTEL_MOBILE_MATURITY.md).
 
-- **Stack:** Flutter/Dart, Riverpod, GoRouter, `faro` Dart SDK (`faro-mobile-flutter`). Version pinned in `Mobiles/flutter/pubspec.yaml`.
-- **Observability:** Faro emits `event` / `log` / `measurement` / `exception` signals; auto HTTP via `faro.tracing.fetch`; auto perf measurements (`app_memory`, `app_cpu_usage`, frame rates, `app_startup`); native crash reporting enabled through Faro (`enableCrashReporting: true`); `NativeCrashService` triggers intentional crashes for diagnostics.
-- **Where it lands:** Frontend Observability plugin (Faro app `QuickPizza_Flutter`, id `69`). SDK is configured to send `app_name=QuickPizza_Flutter` to match the registry; older telemetry may still carry the legacy `quickpizza-flutter` kebab-case name.
-- **Config:** `config.json` at project root — `BASE_URL`, `FARO_COLLECTOR_URL`.
-- **Build:** `flutter run --dart-define-from-file=config.json` or `./scripts/run-android.sh` / `./scripts/run-ios.sh`.
-- **Also runs a second, made-up "DemoRum" RUM SDK** alongside Faro purely to demo how two mobile RUM SDKs coexist in one app — this is intentional, not a mistake to "clean up". DemoRum is a local **no-op stand-in** (no third-party SDK, no network): every call is inert and echoes to the console (`[DemoRum]` logs), except it installs chained `FlutterError`/`PlatformDispatcher` error handlers and forwards HTTP so the demo is honest. Swap `core/o11y/demo_rum/sdk/demo_rum.dart` for a real vendor SDK to make it live. Details are local to `Mobiles/flutter/` (see its README and `core/o11y/{demo_rum,faro}/`).
+| App | SDK | Endpoint (config key) | Faro app (id) | Config file |
+| --- | --- | --- | --- | --- |
+| `Mobiles/flutter/` | Faro Flutter SDK | `/collect/<appKey>` (`FARO_COLLECTOR_URL` or per-platform key, required) | `QuickPizza_Flutter` (69) | `config.json` |
+| `Mobiles/react-native/` | Faro React Native SDK | `/collect/<appKey>` (`FARO_COLLECTOR_URL` or per-platform key, required) | `QuickPizza_ReactNative` (123) | `config.json` |
+| `Mobiles/ios/` | `opentelemetry-swift` via the local `grafana-opentelemetry-ios` package | `/otlp/<appKey>` (`OTLP_ENDPOINT`, no auth) | `QuickPizza_iOS` (204) | `Config.xcconfig` |
+| `Mobiles/android/` | `opentelemetry-android` RUM agent via the local `grafana-opentelemetry-android` library | `/otlp/<appKey>` (`OTLP_ENDPOINT`, no auth) | `QuickPizza_Android` (182) | `app/src/main/res/raw/config.json` |
 
-### React Native (`Mobiles/react-native/`)
+Gotchas worth knowing before changing mobile code or docs:
 
-- **Stack:** React Native 0.84.x, `@grafana/faro-react-native` + `@grafana/faro-react-native-tracing`. Versions pinned in `Mobiles/react-native/package.json`.
-- **Observability:** Faro signals as above, plus dual fetch + XMLHttpRequest auto tracing (`faro.tracing.fetch` + `faro.tracing.xml-http-request`), custom business measurements (`pizza.recommendation`, `pizza.rating`), native crash capture via Faro CrashKit (`type=crash`).
-- **Where it lands:** Frontend Observability plugin (Faro app `QuickPizza_ReactNative`, id `123`).
-- **Config:** `config.json` at `Mobiles/react-native/` — `BASE_URL`, `FARO_COLLECTOR_URL`.
-- **Build:** `yarn ios` / `yarn android`. Android needs JDK 17 (the Gradle version in `android/gradle/wrapper/gradle-wrapper.properties` rejects the JDK 25 that recent Android Studio versions bundle).
-
-### iOS native (`Mobiles/ios/`)
-
-- **Stack:** Swift, SwiftUI (iOS 26+), Swift Package Manager, `opentelemetry-swift`. Version pinned in the Xcode project's `Package.resolved`.
-- **Observability:** Manual spans (`pizza.get_recommendation`, `auth.login`, `pizza.rate`), auto HTTP via `URLSessionInstrumentation`, sessions via the `Sessions` library (15-min inactivity, `session.id` on spans and logs, plus `session.previous_id` when available), MetricKit crash/hang/CPU/disk-write diagnostics via `MetricKitInstrumentation` (delivered as logs + `MXMetricPayload` spans), manual `app.screen.view` events, OSLog + OTel dual logging.
-- **Where it lands:** OTLP/HTTP → Faro collector `/otlp/<appKey>` → Frontend Observability plugin (Faro app `QuickPizza_iOS`, id `204`). Legacy: point `OTLP_ENDPOINT` at the Grafana Cloud OTLP gateway to land raw OTel in Tempo + Loki — invisible to the plugin, read via the "Android & iOS OTel RUM" dashboard (and an iOS-specific dashboard).
-- **Config:** `Config.xcconfig` → auto-generates `BuildConfig.generated.swift` — `OTLP_ENDPOINT`, `OTLP_INSTANCE_ID`, `OTLP_API_KEY`. Runtime overrides via in-app Debug → Config.
-- **Build:** Xcode or `bash Mobiles/ios/Scripts/sim-run.sh`.
-- **Resource attrs:** `service.name=quickpizza-ios`, `service.namespace=quickpizza`, `service.version`, `service.build`, `deployment.environment.name`, `device.id`, `device.model.identifier`, `os.*`, `telemetry.sdk.{language=swift, version}`. Session processors attach `session.id` and, when available, `session.previous_id` to spans and logs.
-
-### Android native (`Mobiles/android/`)
-
-- **Stack:** Kotlin, Jetpack Compose, Hilt, OkHttp, `opentelemetry-android` (the OTel-Android **RUM agent**, alpha). Version pinned in `Mobiles/android/gradle/libs.versions.toml`.
-- **Observability:** Manual spans (`pizza.get_recommendation`, `auth.login`, `pizza.rate`), auto OkHttp HTTP spans, auto lifecycle spans (`AppStart`, `Paused`, `Stopped`), auto `screen.view` / `app.jank` events, auto `device.crash` (next launch) and `device.anr` (runtime) events, 15-min session tracking, OTLP disk buffering for offline resilience (toggleable via Debug screen), Compose navigation instrumentation (`app.navigation.complete`), opted in from `MainActivity`.
-- **Where it lands:** OTLP/HTTP → Faro collector `/otlp/<appKey>` → Frontend Observability plugin (Faro app `QuickPizza_Android`, id `182`). Legacy: point `OTLP_ENDPOINT` at the Grafana Cloud OTLP gateway to land raw OTel in Tempo + Loki — invisible to the plugin, read via the "Android & iOS OTel RUM" dashboard.
-- **Config:** `app/src/main/res/raw/config.json` — `BASE_URL` (default `http://10.0.2.2:3333` on emulators), `OTLP_ENDPOINT`, `OTLP_INSTANCE_ID`, `OTLP_API_KEY`. Runtime overrides via in-app Debug → Config.
-- **Build:** Android Studio or `cd Mobiles/android && ./gradlew installDebug`. Use Android Studio's bundled JDK (system JDK is often too old). This applies to native Android only; the React Native and Flutter apps need JDK 17 (see their `gradle-wrapper.properties`).
-- **Resource attrs:** `service.name=quickpizza-android`, `service.namespace=quickpizza`, `service.version`, `os.build_id`, `android.os.api_level`, `device.manufacturer`, `device.model.{identifier,name}`, `app.installation.id`, `telemetry.sdk.{language=java, version}`. Compose navigation events carry `app.navigation.destination.name`; navigation and network connection attributes are signal attributes, not resource attributes.
-
-### Shared Debug screen
-
-All four apps now expose an in-app **Debug** tab (Compose / SwiftUI / Flutter widgets / RN) for runtime config overrides, backend error/latency injection, client-side fault simulation, and triggering test logs / handled exceptions / native crashes. Code lives under each app's `features/debug/` directory (`Features/Debug/` on iOS). Android additionally exposes a `Disable disk buffering` toggle and an ANR card; iOS calls out the MetricKit delivery delay.
+- **Backend image:** mobile uses `quickpizza-mobile-local:development`, built from this checkout (`docker build -t quickpizza-mobile-local:development .`). Compose defaults to the upstream k6 image unless `QUICKPIZZA_IMAGE` is set. `ghcr.io/grafana/quickpizza-mobile-local` is only published on releases.
+- **Native apps without `OTLP_ENDPOINT`** run, but OpenTelemetry is not initialized. `OTLP_INSTANCE_ID` / `OTLP_API_KEY` are only for the legacy OTLP gateway, which keeps data as raw OTel in Tempo + Loki (invisible to the Frontend Observability plugin).
+- **Faro OTLP ingest** accepts traces and logs only (metrics are disabled in both native apps) and requires `session.id` on every signal.
+- **Flutter also runs "DemoRum"**, a made-up no-op second RUM SDK that shows two SDKs coexisting. It is intentional, not something to clean up. See `Mobiles/flutter/README.md`.
+- **iOS** emits no automatic screen or lifecycle events; `app.screen.view` is manual, and crashes/hangs come from MetricKit (delayed, OS-controlled).
+- **Android** emits no `screen.view` event. Screens appear as `screen.name` on spans (always `MainActivity`) and as Compose `app.navigation.complete` events; the collector derives Faro `view_changed` from both.
+- **JDK:** native Android uses Android Studio's bundled JDK; Flutter and React Native Android need JDK 17.
+- **Versions:** don't restate SDK versions here. They are pinned in `pubspec.yaml`, `package.json`, `Package.resolved` and `libs.versions.toml`.
 
 ### Telemetry CI (`.github/workflows/mobile_demo_telemetry.yaml`)
 
@@ -155,7 +120,6 @@ Runs every 2 h on `main`, on push, and via `workflow_dispatch`. Two jobs — And
 - **Three flows.** The basic pizza flow runs every time. Handled-exception runs every ~6 h (`schedule_bucket % 3`). Crash diagnostics runs every ~20 h (`% 10`), which suppresses the handled-exception flow on that run. `workflow_dispatch` runs the basic flow only, unless you pass `run_diagnostics=true`.
 - **A green run does not prove telemetry arrived.** The exporters are fire-and-forget and the e2e tests pass either way, so a wrong or 404 ingest URL still produces a green run. Confirm by querying the stack for the app.
 - **The `mobile-demo-telemetry` environment uses a branch allow-list.** You can dispatch from a feature branch and still get the Vault secrets, but only if the branch is listed: `gh api repos/grafana/mobile-o11y-demo/environments/mobile-demo-telemetry/deployment-branch-policies`.
-- **Do not restate SDK versions in this file.** Point at the manifest that holds the pin (`pubspec.yaml`, `package.json`, `Package.resolved`, `libs.versions.toml`). All four versions listed here had drifted before they were removed.
 
 ## Development Notes
 

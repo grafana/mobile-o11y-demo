@@ -303,7 +303,7 @@ check_backend() {
     if curl -fsS --connect-timeout 5 "$backend_ready" > /dev/null 2>&1; then
         print_step "Backend is reachable"
     else
-        print_error "QuickPizza backend not reachable at $backend_url. Ensure docker compose is up; for android emulators also run: adb reverse tcp:3333 tcp:3333"
+        print_error "QuickPizza backend not reachable at $backend_url. Start it first (see Mobiles/README.md, Step 1)."
     fi
 }
 
@@ -480,6 +480,7 @@ run_tests() {
         next_number=$(next_results_number)
         cp -r arbigent-result "arbigent-result-$next_number"
         rm -rf arbigent-result/*
+        REPORT_PATH="$RESULTS_DIR/arbigent-result/arbigent-result-$next_number/visual_report.html"
         print_step "Archived results to arbigent-result-$next_number"
         sleep 2
     fi
@@ -530,4 +531,6 @@ run_tests
 
 print_step "All tests completed successfully!"
 print_step "Results: $RESULTS_DIR/arbigent-result/"
-print_step "Open the HTML report: $RESULTS_DIR/arbigent-result/visual_report.html"
+if [ -n "${REPORT_PATH:-}" ]; then
+    print_step "Open the HTML report: $REPORT_PATH"
+fi

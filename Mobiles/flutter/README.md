@@ -1,327 +1,205 @@
-# QuickPizza Flutter Mobile App
+# QuickPizza Flutter app
 
-A Flutter mobile application that replicates the QuickPizza web application functionality. This app allows users to get pizza recommendations, rate pizzas, and manage their profile, and demonstrates Grafana Faro mobile telemetry. It also runs a second, made-up RUM SDK alongside Faro to show how two mobile RUM SDKs coexist in one app — see [Running a second RUM SDK alongside Faro](#running-a-second-rum-sdk-alongside-faro).
+The QuickPizza mobile app in Flutter, for Android and iOS, instrumented with the
+Grafana Faro Flutter SDK. It sends telemetry to a Faro collector, where it shows
+up in Frontend Observability as `QuickPizza_Flutter`.
 
-> **New here?** Start at [`../README.md`](../README.md) for the overview of all
-> four apps, the backend, and how to get a demo running. This page covers the
-> Flutter app specifically.
->
-> For a cross-platform comparison of what each app emits, see [`../docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md). The shared feature spec lives in [`../FEATURES.md`](../FEATURES.md).
+> **New here?** Start at [`../README.md`](../README.md) for the backend, login and
+> the other three apps. Screens and workflows are in [`../FEATURES.md`](../FEATURES.md);
+> what this app emits is in
+> [`../docs/MOBILE_OBSERVABILITY_OVERVIEW.md`](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md).
 
-## Features
+## Prerequisites
 
-- 🍕 Get pizza recommendations with one click
-- ⭐ Rate pizzas (Love it! or Pass)
-- 🔐 User login and profile management
-- ⚙️ Advanced options for customizing pizza recommendations:
-  - Max calories per slice
-  - Min/Max number of toppings
-  - Excluded tools
-  - Vegetarian option
-  - Custom pizza name
-- 📊 View your pizza ratings history
-- 🐛 In-app **Debug** tab for runtime config overrides, backend error/latency injection, client-side fault simulation, sending test logs/events, throwing handled and unhandled exceptions, and triggering native crashes (covers both Android and iOS via a `MethodChannel`-based `NativeCrashService`).
+- A Flutter SDK that bundles Dart 3.12 or later, the floor set by
+  [`pubspec.lock`](pubspec.lock). `flutter --version` prints the Dart version.
+- `python3` on your `PATH`, used by `scripts/run-*.sh`.
+- A running QuickPizza backend ([`../README.md`](../README.md#run-a-demo-in-3-steps)).
+- A Faro collector URL ([Connect to Grafana Cloud](../docs/CONNECT_GRAFANA_CLOUD.md)).
+- Android: Android Studio with SDK Platform-Tools, Emulator and Command-line
+  Tools, plus at least one AVD. The compile SDK follows your Flutter SDK
+  (`flutter.compileSdkVersion`).
+- Android: **JDK 17**. This project's Gradle 8.14 does not run on the JDK 25 that
+  recent Android Studio versions bundle; Flutter reports a Java/Gradle
+  incompatibility. Point Flutter at a JDK 17 with `flutter config --jdk-dir`
+  (below). The setting is global to your Flutter SDK.
+- iOS (macOS only): Xcode with an iOS simulator runtime. The deployment target is
+  iOS 15.0.
 
-## Setup
+One-time toolchain setup:
 
-### Prerequisites
+```bash
+# Android
+flutter config --jdk-dir <path-to-jdk-17>
+flutter config --android-sdk ~/Library/Android/sdk   # if flutter doctor can't find the SDK
+flutter doctor --android-licenses
 
-- Flutter SDK with Dart `>=3.12.0 <4.0.0`, as required by the dependencies in [`pubspec.lock`](pubspec.lock). The app's own constraint is `^3.10.1` in [`pubspec.yaml`](pubspec.yaml); the locked dependencies require a newer SDK. Check both versions with `flutter --version`.
-- QuickPizza backend running (default: `http://localhost:3333`)
-- JDK 17 for Android builds (same as CI). Recent Android Studio versions bundle JDK 25, which this project's Gradle 8.14 rejects with `Unsupported class file major version 69`. Point Flutter at a JDK 17 with `flutter config --jdk-dir <path-to-jdk-17>`.
+# iOS
+sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+sudo xcodebuild -license accept
+sudo xcodebuild -runFirstLaunch
 
-### Platform-Specific Setup
+flutter doctor   # Android toolchain and Xcode should both pass
+```
 
-**For Android development:**
+See Flutter's [Android](https://docs.flutter.dev/platform-integration/android/setup)
+and [iOS](https://docs.flutter.dev/platform-integration/ios/setup) setup guides
+if `flutter doctor` still complains.
 
-- Follow the setup guide: [`../docs/FLUTTER_ANDROID_SETUP.md`](../docs/FLUTTER_ANDROID_SETUP.md)
-- Quick check: Run `flutter doctor` - Android toolchain should show ✓
-- **Quick start:** After setup, use `./scripts/run-android.sh` to automatically open emulator and run the app
-
-**For iOS development (macOS only):**
-
-- Minimum deployment target: iOS 15.0.
-- Follow the setup guide: [`../docs/FLUTTER_IOS_SETUP.md`](../docs/FLUTTER_IOS_SETUP.md)
-- Quick check: Run `flutter doctor` - Xcode should show ✓
-- **Quick start:** After setup, use `./scripts/run-ios.sh` to automatically open simulator and run the app
-
-For detailed simulator/emulator setup and troubleshooting, see the documentation in [`../docs/`](../docs/).
-
-### Installation
-
-1. Install dependencies:
+## Configure
 
 ```bash
 # From the repository root:
 cd Mobiles/flutter
 flutter pub get
+cp -n config.json.example config.json   # gitignored
 ```
 
-2. Configure the app:
+Edit `config.json`:
 
-   a. Copy the example config file:
+| Key | Value |
+| --- | --- |
+| `FARO_COLLECTOR_URL` | **Required** unless a platform key below or a saved Debug → Config URL is set. Your Faro collector URL, ending in `/collect/<appKey>`. The app throws at startup when no URL is set. |
+| `FARO_COLLECTOR_URL_IOS`, `FARO_COLLECTOR_URL_ANDROID` | Optional. Override `FARO_COLLECTOR_URL` on one platform, for example to send each platform to its own Frontend Observability app. |
+| `BASE_URL` | Backend URL. Leave empty on emulators and simulators (`http://10.0.2.2:3333` on Android, `http://localhost:3333` on iOS, using `PORT`). On a physical device, use your machine's LAN IP, for example `http://192.168.1.100:3333`. |
+| `PORT` | Backend port when `BASE_URL` is empty. Defaults to `3333`. |
+| `CI_DEMO_VERSIONING` | CI only. Leave `false`. |
 
-   ```bash
-   cp config.json.example config.json
-   ```
+A collector or backend URL set in the in-app **Debug → Config** screen
+overrides `config.json` after an app restart.
 
-   b. Edit `config.json` with your values:
-
-   ```json
-   {
-     "FARO_COLLECTOR_URL": "https://your-faro-collector.grafana.net/collect/xxx",
-     "BASE_URL": "",
-     "PORT": "3333"
-   }
-   ```
-
-   **Configuration options:**
-
-   - `FARO_COLLECTOR_URL` (**required**): Your Grafana Faro collector URL — see
-     [Connect to Grafana Cloud](../docs/CONNECT_GRAFANA_CLOUD.md). The app throws
-     at startup if this is empty.
-   - `BASE_URL`: Backend API URL. Leave empty on emulators/simulators; set it to
-     your machine's LAN IP for physical devices. See
-     [emulator/device defaults in the Mobile README](../README.md#shared-basics).
-   - `PORT`: Backend port (optional, defaults to `3333`)
-
-When [shared local setup](../telemetry/README.md) is active, the helper scripts
-and the repository's Cursor/VS Code launch configurations automatically use its
-generated backend and collector settings on either platform. After teardown they
-select your ordinary `config.json` again. Manual `flutter run` can use
-`--dart-define-from-file=../telemetry/.runtime/active/flutter.json` while setup is active.
-
-3. Run the app:
+## Run
 
 ```bash
-# Using the helper scripts (recommended - includes config validation):
-./scripts/run-android.sh
-./scripts/run-ios.sh
-
-# Or manually with flutter:
-flutter run --dart-define-from-file=config.json
+./scripts/run-android.sh   # uses a connected Android device, or launches the first AVD
+./scripts/run-ios.sh       # boots an iPhone simulator and opens Simulator (DeviceHub on Xcode 27)
 ```
 
-## App Icon & Splash Screen
-
-The app uses `flutter_launcher_icons` and `flutter_native_splash` packages to manage branding assets. These packages read image files from the `assets/` directory and generate platform-specific resources.
-
-**Regenerate after updating assets:**
-
-```bash
-# Update app icon (reads from assets/icon.png and assets/icon_ios.png)
-dart run flutter_launcher_icons
-
-# Update splash screen (reads from assets/splash.png)
-dart run flutter_native_splash:create
-```
-
-Configuration for these packages is in `pubspec.yaml`.
-
-## Project Structure
-
-```
-lib/
-├── main.dart                 # App entry point
-├── core/                     # Shared infrastructure & cross-cutting concerns
-│   ├── config/              # App configuration & environment
-│   ├── localization/        # i18n/l10n support
-│   ├── o11y/                # Observability (logging, errors, events, metrics)
-│   ├── router/              # Navigation/routing setup
-│   └── theme/               # Theming & colors
-└── features/                 # Feature modules (see Architecture below)
-```
-
-## Architecture
-
-This app follows an **MVVM (Model-View-ViewModel)** architecture pattern with clear separation of concerns. Each feature is organized into three layers:
-
-### Feature Folder Structure
-
-```
-features/
-└── pizza/                    # Example feature
-    ├── domain/              # Business logic layer
-    │   ├── pizza_provider.dart      # Domain providers & notifiers
-    │   └── pizza_repository.dart    # Data access & API calls
-    ├── presentation/        # Presentation layer
-    │   ├── home_screen.dart         # UI (widgets)
-    │   ├── home_screen_view_model.dart  # ViewModel (UI state + actions)
-    │   └── widgets/                 # Reusable UI components
-    └── models/              # Data models
-        ├── pizza.dart
-        └── restrictions.dart
-```
-
-### Layer Responsibilities
-
-| Layer             | Purpose                      | Contains                                       |
-| ----------------- | ---------------------------- | ---------------------------------------------- |
-| **domain/**       | Business logic & data access | Repositories, domain providers, business rules |
-| **presentation/** | UI & presentation logic      | Screens, ViewModels, widgets                   |
-| **models/**       | Data structures              | Pure data classes, no behavior                 |
-
-### ViewModel Pattern
-
-ViewModels follow a hybrid Riverpod pattern that provides clean separation:
-
-```dart
-// UI State - pure data class
-class RatingButtonsUiState {
-  const RatingButtonsUiState({this.rateResult, this.isLoading = false});
-
-  final String? rateResult;
-  final bool isLoading;
-}
-
-// Actions interface - defines what the ViewModel can do
-abstract interface class RatingButtonsActions {
-  Future<void> ratePizza({required int stars});
-}
-
-class RatingButtonsViewModel extends Notifier<RatingButtonsUiState>
-    implements RatingButtonsActions {
-  RatingButtonsViewModel(this.pizzaId);
-  final int pizzaId;
-
-  @override
-  RatingButtonsUiState build() => const RatingButtonsUiState();
-
-  @override
-  Future<void> ratePizza({required int stars}) async { /* ... */ }
-}
-
-// UI State provider with family parameter
-final ratingButtonsUiStateProvider = NotifierProvider.family<
-    RatingButtonsViewModel, RatingButtonsUiState, int>(
-  RatingButtonsViewModel.new,
-);
-
-// Actions provider - exposes the interface, hides Riverpod details
-final ratingButtonsActionsProvider = Provider.family<RatingButtonsActions, int>(
-  (ref, pizzaId) => ref.watch(ratingButtonsUiStateProvider(pizzaId).notifier),
-);
-
-// Usage in widgets
-final uiState = ref.watch(ratingButtonsUiStateProvider(pizzaId));
-final actions = ref.watch(ratingButtonsActionsProvider(pizzaId));
-onPressed: () => actions.ratePizza(stars: 5);
-```
-
-**Benefits:**
-
-- **Testability**: Easy to mock `RatingButtonsActions` interface in tests
-- **Readability**: No Riverpod-specific syntax (`.notifier`) in widget code
-- **Separation**: UI state is a pure data class, actions are interface methods
-- **Discoverability**: New developers see plain Dart interfaces
-
-## Running a second RUM SDK alongside Faro
-
-Grafana Faro is the primary — and only *real* — instrumentation for this app.
-Alongside it runs **DemoRum**, a small **made-up, no-op RUM SDK** defined
-locally in [`core/o11y/demo_rum/`](lib/core/o11y/demo_rum/). Its whole purpose is
-to demonstrate *how you would wire a second mobile RUM SDK into an app that
-already uses Faro* — the shared `core/o11y/` layer fans every error, log, event
-and span out to both, so you can see the exact call sites a second SDK plugs
-into.
-
-- **It's a stand-in, not a real backend.** DemoRum sends nothing over the
-  network. Every method is a no-op that echoes to the console (look for
-  `[DemoRum]` logs) so you can *see* it receiving the same telemetry as Faro. To
-  ship a real second SDK, swap the types in `core/o11y/demo_rum/sdk/demo_rum.dart`
-  for the vendor's and keep the surrounding code essentially unchanged. Its API
-  is deliberately shaped like a typical RUM SDK (init + options, root widget,
-  navigation observer, HTTP client wrapper, exception capture, structured logs,
-  scope/user, and spans).
-- **It behaves like a real SDK where it matters.** DemoRum installs *chained*
-  `FlutterError.onError` / `PlatformDispatcher.onError` handlers (the same
-  cooperative pattern real SDKs use — save + call the previous handler), so both
-  Faro and DemoRum observe every Dart error. Its HTTP client wrapper forwards
-  each request (Faro's `HttpOverrides` underneath still does the real capture),
-  and its spans run their callbacks so instrumenting a call site never changes
-  behavior.
-- **How it's wired:** `bootstrap.dart` nests the two (DemoRum wraps Faro wraps
-  the app). Each SDK's init + widget wrapper live in
-  [`core/o11y/demo_rum/`](lib/core/o11y/demo_rum/) and
-  [`core/o11y/faro/`](lib/core/o11y/faro/).
-- **Verify:** the in-app **Debug** tab triggers errors/logs/events (they reach
-  Faro *and* echo through DemoRum), plus a dedicated "Capture DemoRum Test
-  Exception" button.
-
-## API Endpoints Used
-
-- `GET /api/quotes` - Get random quote
-- `GET /api/tools` - Get available pizza tools
-- `POST /api/pizza` - Get pizza recommendation
-- `POST /api/ratings` - Submit pizza rating
-- `GET /api/ratings` - Get user's ratings
-- `DELETE /api/ratings` - Clear all ratings
-- `POST /api/users/token/login` - User login
-
-## Default Login Credentials
-
-`default` / `12345678` (see [Shared basics](../README.md#shared-basics)).
-
-## Running on Android and iOS
-
-This demo targets Android and iOS. Its Faro HTTP instrumentation uses `dart:io`, and the project does not include a web target.
-
-From `Mobiles/flutter/`, select the device ID shown by `flutter devices` and pass the required configuration:
+Both scripts run [`../telemetry/flutter-config.py`](../telemetry/flutter-config.py),
+which picks the config file (`QUICKPIZZA_FLUTTER_CONFIG_FILE` if set, else the
+active dual-stack config, else `config.json`), checks that it parses as JSON and
+passes it to `flutter run`. It does not check the URLs. `run-ios.sh` always targets a
+simulator and ignores connected iPhones. For a physical iPhone, or any other
+device, run Flutter directly:
 
 ```bash
 flutter devices
-# Replace the placeholder with a device ID from the list.
 flutter run -d "<device-id>" --dart-define-from-file=config.json
 ```
 
-## AI-Assisted Testing with MCP
+A physical iPhone needs code signing: open `ios/Runner.xcworkspace` in Xcode, pick your team
+under **Runner → Signing & Capabilities**, and change the bundle id
+(`com.example.flutterMobileO11yDemo`) if Xcode reports it as unavailable.
 
-This app supports AI-assisted testing via the Dart MCP server. An AI assistant (like Cursor) can navigate, interact with, and test the running app.
+To start a simulator yourself on Xcode 27, where `open -a Simulator` no longer
+works, use `../scripts/open-simulator.sh`. For an Android emulator, use
+`flutter emulators --launch "<emulator-id>"`.
 
-### Setup
+In VS Code or Cursor, open the repository root and use the **Flutter (debug)**
+launch configuration from [`.vscode/launch.json`](../../.vscode/launch.json).
 
-1. **Launch with Flutter Driver enabled:**
+The project has no web target: Faro's HTTP instrumentation uses `dart:io`.
 
-   - Open the repository root in VS Code/Cursor, then select **"Flutter (debug with driver)"** from the Run and Debug panel (configured in [`.vscode/launch.json`](../../.vscode/launch.json))
-   - Or run: `flutter run --dart-define-from-file=config.json lib/driver_main.dart`
+**Dual-stack telemetry:** while [dual-stack telemetry](../telemetry/README.md) is
+active, the helper scripts and the VS Code launch configurations use its
+generated backend and collector settings, and return to `config.json` after
+teardown. For a manual run, pass
+`--dart-define-from-file=../telemetry/.runtime/active/flutter.json`.
 
-2. **Get the DTD (Dart Tooling Daemon) URI:**
+## Generating telemetry
 
-   - After the app launches, look in the Debug Console for the DTD URI
-   - Or use the **"Copy DTD URI to clipboard"** action in VS Code/Cursor
-   - The URI looks like: `ws://127.0.0.1:61788/Jc_1sL6labM=`
+Use the in-app **Debug** tab to override config, inject backend errors and
+latency, send test logs and events, throw handled and unhandled exceptions, and
+trigger native crashes on Android and iOS (through the `MethodChannel`-based
+`NativeCrashService`). See
+[the shared Debug screen](../docs/MOBILE_OBSERVABILITY_OVERVIEW.md#the-shared-debug-screen).
 
-3. **Provide the DTD URI to your AI assistant:**
-   - Tell the AI: "Here is the DTD: `ws://...`"
-   - The AI can then connect and interact with your app (tap buttons, enter text, scroll, inspect widgets)
+## How Faro is wired
 
-### What the AI can do
+[`lib/bootstrap.dart`](lib/bootstrap.dart) starts telemetry in this order (arguments trimmed):
 
-- Navigate between screens
-- Tap buttons and interact with UI elements
-- Enter text in form fields
-- Scroll views
-- Inspect the widget tree
-- Verify UI state and content
-
-> **Note:** The `driver_main.dart` entry point enables Flutter Driver extension which is required for programmatic interaction.
-
-## Versioning
-
-When adding new features or making significant changes, bump the version in `pubspec.yaml`:
-
-```yaml
-version: 1.2.0
+```dart
+WidgetsFlutterBinding.ensureInitialized();
+installFaroHttpOverrides();   // before any http.Client exists
+...
+await startDemoRum(appRunner: () async {
+  await startFaro(appRunner: () => runApp(
+    UncontrolledProviderScope(container: container,
+      child: wrapWithDemoRum(wrapWithFaro(const QuickPizzaApp()))),
+  ));
+});
 ```
 
-This ensures the Faro SDK tracks different versions in telemetry, which is useful for:
-- Demonstrating version-based filtering in Grafana dashboards
-- Showing how metrics differ between app versions
-- Creating realistic observability demo scenarios
+- **HTTP:** `installFaroHttpOverrides()` sets `HttpOverrides.global`. An
+  `http.Client` created before that call bypasses Faro for good, so it runs first.
+- **Config** ([`faro_init.dart`](lib/core/o11y/faro/faro_init.dart)):
+  `appName: 'QuickPizza_Flutter'`; `apiKey` is the `<appKey>` parsed from the
+  collector URL, so you set only the URL; `enableCrashReporting: true` (native
+  crashes are sent on the next launch; on Android this needs API 30+); `sampling: SamplingRate(...)`, from
+  Debug → Config (default `1.0`); CPU, memory, refresh-rate and ANR vitals.
+- **Offline:** an `OfflineTransport` caches signals for up to 3 days and sends
+  them when the device is back online.
+- **Widgets and routes:** `wrapWithFaro` adds `FaroAssetTracking` and
+  `FaroUserInteractionWidget`. The router registers `FaroNavigationObserver` on
+  the root and shell navigators.
 
-## Notes
+## A second RUM SDK next to Faro (DemoRum)
 
-- The app generates a random token for anonymous usage on first launch
-- For authenticated features (ratings), users need to log in
-- The app matches the web application's UI/UX as closely as possible
-- All API calls follow the same structure as the web application
+The app also runs **DemoRum**, a made-up, no-op RUM SDK in
+[`lib/core/o11y/demo_rum/`](lib/core/o11y/demo_rum/). It is intentional: it shows
+where a second mobile RUM SDK plugs into an app that already uses Faro. Faro is
+the only real instrumentation.
+
+- The shared `core/o11y/` layer fans every error, log, event and span out to
+  both SDKs. DemoRum sends nothing over the network; it echoes each call to the
+  console as `[DemoRum]` logs.
+- It installs chained `FlutterError.onError` and `PlatformDispatcher.onError`
+  handlers (saving and calling the previous handler), so both SDKs see every Dart
+  error. Its HTTP wrapper, `DemoRumHttpClient` (in `demo_rum.dart`, used by
+  `api_client.dart`), is an `http.Client` decorator that forwards requests on top of Faro's `HttpOverrides`.
+  Its spans run their callbacks, so behavior never changes.
+- Nesting is `startDemoRum` → `startFaro` → `runApp`. Both SDKs chain error
+  handlers, so the order only decides which runs first.
+- To use a real vendor SDK, replace the types in
+  `lib/core/o11y/demo_rum/sdk/demo_rum.dart`.
+- To check it, use the Debug tab. Its events reach Faro and also appear as
+  `[DemoRum]` logs. The **Capture DemoRum Test Exception** button tests the
+  manual reporting path.
+
+## Development
+
+**Architecture:** MVVM per feature, under `lib/features/<feature>/` with
+`domain/` (repositories, providers), `presentation/` (screens, ViewModels,
+widgets) and `models/` (plain data classes). Shared infrastructure is in
+`lib/core/` (config, o11y, router, theme, localization). ViewModels are Riverpod
+`Notifier`s that expose a UI state class plus an `Actions` interface, so widgets
+never touch `.notifier`. For an example, see
+[`rating_buttons_view_model.dart`](lib/features/pizza/presentation/widgets/rating_buttons_view_model.dart).
+
+**Icon and splash:** after changing images in `assets/`, regenerate the
+platform resources (config is in `pubspec.yaml`):
+
+```bash
+dart run flutter_launcher_icons          # assets/icon.png, assets/icon_ios.png
+dart run flutter_native_splash:create    # assets/splash.png
+```
+
+**Versioning:** bump `version` in `pubspec.yaml` for significant changes. Faro
+reports it as the app version.
+
+**Symbols:** the app is not built with `--obfuscate` or `--split-debug-info`, so
+Dart stack traces arrive readable. The repo has no Flutter symbol upload; if you
+add obfuscation, keep the split debug info to read the traces yourself.
+
+### AI-assisted testing with MCP
+
+An AI assistant can drive the running app through the Dart MCP server:
+
+1. Launch with Flutter Driver enabled: use the **Flutter (debug with driver)**
+   launch configuration, or run
+   `flutter run --dart-define-from-file=config.json lib/driver_main.dart`.
+2. Copy the Dart Tooling Daemon (DTD) URI from the Debug Console, or use
+   **Copy DTD URI to clipboard** in VS Code or Cursor. It looks like
+   `ws://127.0.0.1:61788/Jc_1sL6labM=`.
+3. Give the URI to the assistant. It can then tap, type, scroll and inspect the
+   widget tree.
