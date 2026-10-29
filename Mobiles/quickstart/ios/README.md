@@ -38,6 +38,8 @@ Copy it into your own app and follow the steps below.
 4. **Open** `OTelSwiftSample.xcodeproj`, pick an iPhone Simulator, press **Run**.
    Xcode downloads the packages on the first build.
 5. **Tap every button** in the app.
+
+   <img src="docs/images/5-sample-app.png" alt="The sample app" width="260">
 6. **Open your app in Frontend Observability.** Sessions, logs, errors and HTTP requests appear
    within a minute. The session ID on screen matches the one in Grafana.
 
