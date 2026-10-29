@@ -13,9 +13,13 @@ symbol upload stays in
 [`faro-android-gradle-plugin`](https://github.com/grafana/faro-android-gradle-plugin).
 
 The name is **Grafana OpenTelemetry Android**, with `GrafanaOtel.initialize(...)` as the entrypoint.
-The final repository, Maven coordinate, release owner and supported upstream version window still
-need agreement. Once they are agreed, QuickPizza can consume the published AAR instead of the
-project dependency.
+The library has been extracted to
+[grafana/grafana-opentelemetry-android](https://github.com/grafana/grafana-opentelemetry-android)
+(no release yet). QuickPizza still builds the local module in this repo, and the two copies can
+drift: for example, the standalone library defaults `useLatestExperimentalSemanticConventions` to
+`true` (the local module uses `false`), which emits `app.crash` instead of `device.crash`. The Maven
+coordinate, release owner and supported upstream version window still need agreement. Once a
+release exists, QuickPizza can consume the published AAR instead of the project dependency.
 
 ## Package boundary
 

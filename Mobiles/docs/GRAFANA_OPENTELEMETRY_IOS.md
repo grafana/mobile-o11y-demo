@@ -16,8 +16,10 @@ way it does and what is still open.
   file-system-synchronized group over that folder, so sources there would compile twice.
 - The demo repo is not its permanent home. Generic Swift SDK and instrumentation work goes upstream
   to [`opentelemetry-swift`](https://github.com/open-telemetry/opentelemetry-swift). Build-time
-  symbol upload stays out of the runtime package. Location, identity, release owner and supported
-  upstream window need agreement before extraction.
+  symbol upload stays out of the runtime package. The package has been extracted to
+  [grafana/grafana-opentelemetry-ios](https://github.com/grafana/grafana-opentelemetry-ios) (no
+  release yet); QuickPizza still uses the local copy in this repo. Identity, release owner and
+  supported upstream window still need agreement.
 - Proposed name: **Grafana OpenTelemetry iOS**, entry point `GrafanaOtel.initialize(...)`. The local
   directory name is not a package identity.
 

@@ -21,7 +21,7 @@ Plugin details: [`@grafana/faro-metro-plugin` README](https://github.com/grafana
 ## Configure
 
 ```bash
-cp sourcemaps.config.example.json sourcemaps.config.json   # gitignored
+cp -n sourcemaps.config.example.json sourcemaps.config.json   # gitignored
 ```
 
 | Env var | `sourcemaps.config.json` key | Value |
@@ -69,7 +69,9 @@ Composed map paths:
 - iOS: `$(DERIVED_FILE_DIR)/main.jsbundle.map` (under `~/Library/Developer/Xcode/DerivedData`)
 
 On Android a failed upload fails the build, but missing credentials, map or
-bundle-id file skip the upload silently, so a green build does not prove an upload.
+bundle-id file only skip it: the build succeeds and logs a
+`[Faro] Skipping composed source map upload — <reason>` line, so check the build
+output for it, since a green build does not prove an upload.
 Unset `FARO_BUNDLE_ID` before an Android release build; an iOS-style value is not
 a valid Android release identity and fails the build. On iOS it only logs a warning; a
 `[Faro] Skipping composed source map upload` line names the reason: not a Release

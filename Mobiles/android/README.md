@@ -20,7 +20,7 @@ SDK versions are pinned in [`gradle/libs.versions.toml`](gradle/libs.versions.to
 
 ```bash
 cd Mobiles/android
-cp config.json.example app/src/main/res/raw/config.json
+cp -n config.json.example app/src/main/res/raw/config.json
 ```
 
 `config.json` is gitignored. To send to Frontend Observability, set `OTLP_ENDPOINT` to your Faro

@@ -52,7 +52,7 @@ if `flutter doctor` still complains.
 # From the repository root:
 cd Mobiles/flutter
 flutter pub get
-cp config.json.example config.json   # gitignored
+cp -n config.json.example config.json   # gitignored
 ```
 
 Edit `config.json`:

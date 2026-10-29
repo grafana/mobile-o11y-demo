@@ -30,7 +30,7 @@ it shows up in Frontend Observability as `QuickPizza_ReactNative`.
 cd Mobiles/react-native
 corepack enable
 yarn install --immutable
-cp config.json.example config.json   # gitignored
+cp -n config.json.example config.json   # gitignored
 cd ios && bundle install && bundle exec pod install && cd ..   # iOS only; Gemfile pins CocoaPods
 ```
 

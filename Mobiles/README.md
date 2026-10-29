@@ -49,16 +49,26 @@ To send telemetry to two stacks at once, use
 - **iOS / Android native:** optional. With the OTLP fields empty the apps run,
   but OpenTelemetry is not initialized and sends nothing.
 
-Get the URL and where to put it from
-[Connect to Grafana Cloud](./docs/CONNECT_GRAFANA_CLOUD.md).
+Create the app's config file from its template (from the repository root), then
+add the URL as described in [Connect to Grafana Cloud](./docs/CONNECT_GRAFANA_CLOUD.md):
+
+```bash
+cp -n Mobiles/ios/Config.xcconfig.example Mobiles/ios/Config.xcconfig  # iOS native
+cp -n Mobiles/android/config.json.example Mobiles/android/app/src/main/res/raw/config.json  # Android native
+cp -n Mobiles/flutter/config.json.example Mobiles/flutter/config.json  # Flutter
+cp -n Mobiles/react-native/config.json.example Mobiles/react-native/config.json  # React Native
+```
+
+Copy only the ones you need. The files are gitignored, and `cp -n` leaves an
+existing file alone, so running it again (here or in a platform README) keeps your URL.
 
 ### Step 3 — Run an app
 
 Each platform README has the toolchain prerequisites and full steps. From the
 repository root:
 
-- **iOS native** (Xcode): `cp Mobiles/ios/Config.xcconfig.example Mobiles/ios/Config.xcconfig && bash Mobiles/ios/Scripts/sim-run.sh`
-- **Android native** (Android Studio + emulator): `cp Mobiles/android/config.json.example Mobiles/android/app/src/main/res/raw/config.json && (cd Mobiles/android && ./gradlew installDebug) && adb shell am start -n com.grafana.quickpizza.android/com.grafana.quickpizza.MainActivity`
+- **iOS native** (Xcode): `bash Mobiles/ios/Scripts/sim-run.sh`
+- **Android native** (Android Studio + emulator): `(cd Mobiles/android && ./gradlew installDebug) && adb shell am start -n com.grafana.quickpizza.android/com.grafana.quickpizza.MainActivity`
 - **Flutter** (Flutter SDK + Xcode or Android Studio): see [flutter/README.md](./flutter/README.md)
 - **React Native** (Node 24.5+, Yarn, CocoaPods for iOS): see [react-native/README.md](./react-native/README.md)
 

@@ -29,7 +29,7 @@ curl http://localhost:3333/api/quotes   # should return JSON
 
 ```bash
 cd Mobiles/ios
-cp Config.xcconfig.example Config.xcconfig
+cp -n Config.xcconfig.example Config.xcconfig
 ```
 
 The defaults work for a simulator with a local backend:
@@ -44,9 +44,13 @@ OTLP_API_KEY =
 
 - `/$()/` escapes `://` in xcconfig files. Leave it in.
 - Keep the `KEY = value` spacing. `Scripts/generate-config.sh` only reads lines in that form.
-- On a physical device, `localhost` is the phone. Use `BASE_URL = http:/$()/<your-mac-ip>:3333`
-  (ATS does not apply to IP addresses) and allow the Local Network prompt on first launch, or use
-  an HTTPS tunnel such as ngrok (see [BrowserStack](#real-device-on-browserstack-optional)).
+- On a physical device, `localhost` is the phone, and plain HTTP to your Mac's IP is blocked: since
+  iOS 17, App Transport Security no longer exempts IP addresses, and the app has no ATS exception.
+  Expose the backend over HTTPS instead, for example `ngrok http 3333`, and set `BASE_URL` to the
+  `https` URL it prints (see [BrowserStack](#real-device-on-browserstack-optional)). To stay on
+  the local network, add `NSAllowsLocalNetworking` to the target's App Transport Security Settings
+  (Xcode: **QuickPizzaIos → Info**), use `http:/$()/<your-mac-ip>:3333` and allow the Local
+  Network prompt on first launch.
   The project is signed with Grafana's development team; for your own iPhone, pick your team (and,
   if needed, a unique bundle id) in Xcode under **QuickPizzaIos → Signing & Capabilities**.
 - An empty `OTLP_ENDPOINT` means OpenTelemetry is not started at all. The app still runs and
