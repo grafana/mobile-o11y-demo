@@ -12,6 +12,9 @@ share the same screens and backend; they differ in the telemetry SDK.
 
 All four land in Grafana Cloud **Frontend Observability**, one app per key.
 
+Want the smallest possible setup instead of a full demo? [quickstart/](./quickstart/README.md) has
+tiny single-screen apps that use plain OpenTelemetry, with no Grafana package, and are meant to be copied.
+
 ## Run a demo in 3 steps
 
 ### Step 1 — Start the backend
@@ -104,6 +107,7 @@ See [telemetry/README.md](./telemetry/README.md) for options and IDE launch.
 
 | I want to… | Read |
 | --- | --- |
+| Set up plain OpenTelemetry Swift from scratch (no Grafana package) | [quickstart/ios/README.md](./quickstart/ios/README.md) |
 | Connect an app to a Grafana Cloud stack | [docs/CONNECT_GRAFANA_CLOUD.md](./docs/CONNECT_GRAFANA_CLOUD.md) |
 | See what each app emits and where it lands | [docs/MOBILE_OBSERVABILITY_OVERVIEW.md](./docs/MOBILE_OBSERVABILITY_OVERVIEW.md) |
 | Read the shared screens and workflows spec | [FEATURES.md](./FEATURES.md) |
