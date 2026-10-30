@@ -10,7 +10,7 @@ x-quickpizza-env-common: &quickpizza-env-common
   # Default is 1s, which is too short to demonstrate "slow" error injection
   # toggles (e.g. x-delay-record-recommendation: 3s would always trigger
   # the timeout instead of producing a slow-but-successful response).
-  QUICKPIZZA_TIMEOUT: "10s"
+  QUICKPIZZA_RECOMMENDATIONS_HTTP_CLIENT_TIMEOUT: "10s"
   OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=${DEPLOYMENT_ENVIRONMENT:-development},service.version=quickpizza-local"
   # Adds redacted request/response bodies to server spans as events.
   QUICKPIZZA_OTEL_RECORD_BODIES: "${QUICKPIZZA_OTEL_RECORD_BODIES:-false}"
