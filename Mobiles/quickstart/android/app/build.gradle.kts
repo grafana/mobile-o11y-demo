@@ -17,8 +17,8 @@ android {
 
     compileOptions {
         // REQUIRED when minSdk is below 31. The agent calls java.time methods that Android only has
-        // natively from Android 12 (API 31). Without desugaring, slow-frame reporting silently
-        // stops on older devices.
+        // natively from Android 12 (API 31). Without desugaring, the app crashes on Android 11 and
+        // older when it goes to the background (opentelemetry-android#2183).
         isCoreLibraryDesugaringEnabled = true
     }
 

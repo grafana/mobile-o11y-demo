@@ -99,8 +99,10 @@ Activity and Fragment screen spans, and slow-render detection.
 
 **Turn on core library desugaring** if your `minSdk` is below 31, which is almost every app. The
 agent calls `java.time` methods that Android only has natively from Android 12 (API 31). Without
-desugaring the app still builds and runs, but slow-frame reporting silently stops on Android 11 and
-older. Desugaring also needs this line in `gradle.properties`:
+desugaring the app still builds, but on Android 11 and older it **crashes when it goes to the
+background**, and slow-frame reporting stops (upstream bug
+[opentelemetry-android#2183](https://github.com/open-telemetry/opentelemetry-android/issues/2183)).
+Desugaring also needs this line in `gradle.properties`:
 
 ```properties
 android.useFullClasspathForDexingTransform=true
@@ -246,7 +248,7 @@ If you change the setup, keep these. Most cause "I see no data"; the rest cause 
 | Use `OpenTelemetryRumInitializer` (the agent) | It adds `session.id` to every span and log. Every record must carry it; one record without it and the **whole batch is rejected**, silently. A hand-built `OpenTelemetrySdk` has no sessions. |
 | Keep sessions at 15 min background timeout and 4 h max | Other values break Grafana's session counts. They are the agent's defaults; `OTel.kt` spells them out. |
 | Remove `service.name` from the resource | Data still arrives, but logs, events and errors show your app label (`android:label`), while traces show the registered app name. |
-| Core library desugaring on | On Android 11 and older, slow-frame reporting stops after its first check, with no error in Logcat. |
+| Core library desugaring on | On Android 11 and older, the app crashes when it goes to the background (`NoSuchMethodError` in `SlowRenderListener`). |
 | `disableMetrics()` | Metrics are accepted and silently dropped. Send an event instead. |
 | `OTel.start()` right after `super.onCreate()` in your `Application` | Started later, it misses app start, the first screen, and crashes before that point. |
 | Wrap OkHttp clients **after** `OTel.start()` | A client wrapped earlier uses the no-op API and records nothing. |
