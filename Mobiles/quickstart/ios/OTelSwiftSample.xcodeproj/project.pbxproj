@@ -1,0 +1,425 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		245D43B80B9E071C056471D7 /* OpenTelemetrySdk in Frameworks */ = {isa = PBXBuildFile; productRef = 1976B43B5F731D55C18C3C27 /* OpenTelemetrySdk */; };
+		3A58981EDA5B0B25EFB9DB42 /* Sessions in Frameworks */ = {isa = PBXBuildFile; productRef = 8C483BD23F4D1F3F95814573 /* Sessions */; };
+		58EB510DA68117D7B325C6E6 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0811725AB30D51595CCF4A3 /* ContentView.swift */; };
+		5D59B73B91F79946F73845F9 /* OpenTelemetryProtocolExporterHTTP in Frameworks */ = {isa = PBXBuildFile; productRef = 67045E01965B570BE3CAB14A /* OpenTelemetryProtocolExporterHTTP */; };
+		71909612F5946388B75332E5 /* OpenTelemetryApi in Frameworks */ = {isa = PBXBuildFile; productRef = AF824E323B789CE06506510A /* OpenTelemetryApi */; };
+		73FAC68522AD332680A6ED09 /* ResourceExtension in Frameworks */ = {isa = PBXBuildFile; productRef = 3ADA042BB8D45367C3A54529 /* ResourceExtension */; };
+		8795A6B540B0C1CE67BC7CD2 /* OTel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33C5E205787987510E54F691 /* OTel.swift */; };
+		9DE7B63F09D2FE33C8636F59 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0ABAD97B36C8658CAB37F291 /* Foundation.framework */; };
+		ECD29CE48DC616EDFF3C8D62 /* OTelSwiftSampleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5CBE7146275283AFA47E552 /* OTelSwiftSampleApp.swift */; };
+		F1B8A16786EE573E0C0B7A88 /* URLSessionInstrumentation in Frameworks */ = {isa = PBXBuildFile; productRef = B276661379BE65672F0A5600 /* URLSessionInstrumentation */; };
+		F75DA7828F8AF4DCB4ECC565 /* MetricKitInstrumentation in Frameworks */ = {isa = PBXBuildFile; productRef = 49EE5A81876F0065C880C529 /* MetricKitInstrumentation */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0ABAD97B36C8658CAB37F291 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		33C5E205787987510E54F691 /* OTel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = OTel.swift; sourceTree = "<group>"; };
+		8539A033F03EEA8E470AB078 /* OTelSwiftSample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OTelSwiftSample.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A0811725AB30D51595CCF4A3 /* ContentView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		E5CBE7146275283AFA47E552 /* OTelSwiftSampleApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = OTelSwiftSampleApp.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		CBB5ED7D3A9A56ED98DDE459 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9DE7B63F09D2FE33C8636F59 /* Foundation.framework in Frameworks */,
+				71909612F5946388B75332E5 /* OpenTelemetryApi in Frameworks */,
+				245D43B80B9E071C056471D7 /* OpenTelemetrySdk in Frameworks */,
+				5D59B73B91F79946F73845F9 /* OpenTelemetryProtocolExporterHTTP in Frameworks */,
+				3A58981EDA5B0B25EFB9DB42 /* Sessions in Frameworks */,
+				F1B8A16786EE573E0C0B7A88 /* URLSessionInstrumentation in Frameworks */,
+				73FAC68522AD332680A6ED09 /* ResourceExtension in Frameworks */,
+				F75DA7828F8AF4DCB4ECC565 /* MetricKitInstrumentation in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		4234CB4E2139BFA9F4C2B713 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				FF81916D9C94AD3AF184B8D6 /* iOS */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		8E5FC99C7886B27CEEA7DFE9 = {
+			isa = PBXGroup;
+			children = (
+				EC82A1BCFE8F5B25AEAD33C0 /* Products */,
+				4234CB4E2139BFA9F4C2B713 /* Frameworks */,
+				9656AC2B6FD54E60B4765C6A /* OTelSwiftSample */,
+			);
+			sourceTree = "<group>";
+		};
+		9656AC2B6FD54E60B4765C6A /* OTelSwiftSample */ = {
+			isa = PBXGroup;
+			children = (
+				E5CBE7146275283AFA47E552 /* OTelSwiftSampleApp.swift */,
+				A0811725AB30D51595CCF4A3 /* ContentView.swift */,
+				33C5E205787987510E54F691 /* OTel.swift */,
+			);
+			name = OTelSwiftSample;
+			path = OTelSwiftSample;
+			sourceTree = "<group>";
+		};
+		EC82A1BCFE8F5B25AEAD33C0 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				8539A033F03EEA8E470AB078 /* OTelSwiftSample.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FF81916D9C94AD3AF184B8D6 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				0ABAD97B36C8658CAB37F291 /* Foundation.framework */,
+			);
+			name = iOS;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A2BFA4231E9B87E58774BC25 /* OTelSwiftSample */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D908B6523FB6FCD5DCCB1007 /* Build configuration list for PBXNativeTarget "OTelSwiftSample" */;
+			buildPhases = (
+				2B5A1633412C4A8C5D9B2A28 /* Sources */,
+				CBB5ED7D3A9A56ED98DDE459 /* Frameworks */,
+				CFB777DF0DC63A4D042BA697 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = OTelSwiftSample;
+			packageProductDependencies = (
+				AF824E323B789CE06506510A /* OpenTelemetryApi */,
+				1976B43B5F731D55C18C3C27 /* OpenTelemetrySdk */,
+				67045E01965B570BE3CAB14A /* OpenTelemetryProtocolExporterHTTP */,
+				8C483BD23F4D1F3F95814573 /* Sessions */,
+				B276661379BE65672F0A5600 /* URLSessionInstrumentation */,
+				3ADA042BB8D45367C3A54529 /* ResourceExtension */,
+				49EE5A81876F0065C880C529 /* MetricKitInstrumentation */,
+			);
+			productName = OTelSwiftSample;
+			productReference = 8539A033F03EEA8E470AB078 /* OTelSwiftSample.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		CB62BAE93E0EB6C26B328895 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+			};
+			buildConfigurationList = BA071A29E1458CE8460E2AA6 /* Build configuration list for PBXProject "OTelSwiftSample" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 8E5FC99C7886B27CEEA7DFE9;
+			minimizedProjectReferenceProxies = 0;
+			packageReferences = (
+				38AC618F059371897F1780CA /* XCRemoteSwiftPackageReference "opentelemetry-swift-core" */,
+				A37E854260A377D35090B60A /* XCRemoteSwiftPackageReference "opentelemetry-swift" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = EC82A1BCFE8F5B25AEAD33C0 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A2BFA4231E9B87E58774BC25 /* OTelSwiftSample */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		CFB777DF0DC63A4D042BA697 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		2B5A1633412C4A8C5D9B2A28 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				ECD29CE48DC616EDFF3C8D62 /* OTelSwiftSampleApp.swift in Sources */,
+				58EB510DA68117D7B325C6E6 /* ContentView.swift in Sources */,
+				8795A6B540B0C1CE67BC7CD2 /* OTel.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		94ADB8F189DE2514F97CA6AE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "OTel Sample";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.OTelSwiftSample;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		CCD3A5E14042D921F8FC1239 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "OTel Sample";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.OTelSwiftSample;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		D59B1536CB8603294BF56738 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		F2990B741C15ED0A3118530E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		BA071A29E1458CE8460E2AA6 /* Build configuration list for PBXProject "OTelSwiftSample" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D59B1536CB8603294BF56738 /* Debug */,
+				F2990B741C15ED0A3118530E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D908B6523FB6FCD5DCCB1007 /* Build configuration list for PBXNativeTarget "OTelSwiftSample" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CCD3A5E14042D921F8FC1239 /* Release */,
+				94ADB8F189DE2514F97CA6AE /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		38AC618F059371897F1780CA /* XCRemoteSwiftPackageReference "opentelemetry-swift-core" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/open-telemetry/opentelemetry-swift-core.git";
+			requirement = {
+				kind = upToNextMinorVersion;
+				minimumVersion = 2.6.0;
+			};
+		};
+		A37E854260A377D35090B60A /* XCRemoteSwiftPackageReference "opentelemetry-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/open-telemetry/opentelemetry-swift.git";
+			requirement = {
+				kind = upToNextMinorVersion;
+				minimumVersion = 2.6.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		1976B43B5F731D55C18C3C27 /* OpenTelemetrySdk */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 38AC618F059371897F1780CA /* XCRemoteSwiftPackageReference "opentelemetry-swift-core" */;
+			productName = OpenTelemetrySdk;
+		};
+		3ADA042BB8D45367C3A54529 /* ResourceExtension */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A37E854260A377D35090B60A /* XCRemoteSwiftPackageReference "opentelemetry-swift" */;
+			productName = ResourceExtension;
+		};
+		49EE5A81876F0065C880C529 /* MetricKitInstrumentation */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A37E854260A377D35090B60A /* XCRemoteSwiftPackageReference "opentelemetry-swift" */;
+			productName = MetricKitInstrumentation;
+		};
+		67045E01965B570BE3CAB14A /* OpenTelemetryProtocolExporterHTTP */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A37E854260A377D35090B60A /* XCRemoteSwiftPackageReference "opentelemetry-swift" */;
+			productName = OpenTelemetryProtocolExporterHTTP;
+		};
+		8C483BD23F4D1F3F95814573 /* Sessions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A37E854260A377D35090B60A /* XCRemoteSwiftPackageReference "opentelemetry-swift" */;
+			productName = Sessions;
+		};
+		AF824E323B789CE06506510A /* OpenTelemetryApi */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 38AC618F059371897F1780CA /* XCRemoteSwiftPackageReference "opentelemetry-swift-core" */;
+			productName = OpenTelemetryApi;
+		};
+		B276661379BE65672F0A5600 /* URLSessionInstrumentation */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A37E854260A377D35090B60A /* XCRemoteSwiftPackageReference "opentelemetry-swift" */;
+			productName = URLSessionInstrumentation;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = CB62BAE93E0EB6C26B328895 /* Project object */;
+}

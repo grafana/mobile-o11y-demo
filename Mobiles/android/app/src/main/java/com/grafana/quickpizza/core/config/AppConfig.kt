@@ -44,6 +44,9 @@ class AppConfig @Inject constructor(
             return if (url.isNotEmpty()) url else defaultBaseUrl
         }
 
+    /** From config.json; also requires a `-PmobileSessionReplay=true` build to take effect. */
+    val mobileSessionReplayEnabled: Boolean get() = config.mobileSessionReplayEnabled
+
     // Android emulator uses 10.0.2.2 to reach the host machine's localhost.
     // For physical devices, set BASE_URL in config.json to the host machine's LAN IP.
     private val defaultBaseUrl = "http://10.0.2.2:3333"
@@ -69,6 +72,7 @@ class AppConfig @Inject constructor(
         @SerializedName("OTLP_INSTANCE_ID") val otlpInstanceId: String = "",
         @SerializedName("OTLP_API_KEY") val otlpApiKey: String = "",
         @SerializedName("BASE_URL") val baseUrl: String = "",
+        @SerializedName("MOBILE_SESSION_REPLAY_ENABLED") val mobileSessionReplayEnabled: Boolean = false,
     )
 }
 

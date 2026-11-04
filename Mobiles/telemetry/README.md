@@ -1,117 +1,86 @@
 # Send telemetry to two stacks
 
-Local apps export directly to their configured endpoint by default. Optional
-dual-stack setup forwards telemetry to two stacks through Alloy (native/backend
-OTLP) and nginx (Flutter/RN). Each app uses one local endpoint through generated
-build configuration; saved app settings are preserved.
+By default each app exports straight to its configured endpoint. Dual-stack
+setup instead points every app at a local forwarder, which copies telemetry to
+two Grafana Cloud stacks: Alloy for native and backend OTLP, nginx for Flutter
+and React Native Faro payloads. Saved app settings are preserved.
 
-See [prerequisites](DETAILS.md#setup) before running setup.
+Prerequisites: Python 3.10+, a C compiler, OpenSSL and PCRE2 headers, and a
+running Docker engine (unless you use `--backend none`).
 
-## Guided setup
+- macOS: `brew install openssl@3 pcre2`
+- Debian/Ubuntu: `sudo apt-get install build-essential libssl-dev libpcre2-dev unzip`
+
+## Setup
 
 From the repository root:
 
-```sh
+```bash
 python3 Mobiles/telemetry/setup.py
 ```
 
-Setup reuses your saved destinations (or asks for them once), installs missing
-forwarding tools, starts one QuickPizza backend, and activates build configs for
-**all four apps on both iOS and Android**. There is no platform selection.
-The services stay running until teardown; you launch the apps yourself.
+Setup reuses your saved destinations (or asks for them once), installs the
+forwarding tools if missing, starts one QuickPizza backend on port `3333`, and
+activates build configs for all four apps on both iOS and Android. Services run
+until teardown; you launch the apps yourself.
 
-Setup requires a running Docker engine, builds the backend image from this
-checkout using the existing Dockerfile, and starts the microservices backend on
-port `3333`. If Docker is unavailable or unresponsive, setup exits with guidance
-to start or restart it. Generated app configs select the correct host address
-for each simulator/emulator.
+The backend image `quickpizza-mobile-local:development` is built from this
+checkout on every start (Docker reuses cached layers). Export `QUICKPIZZA_IMAGE`
+to use an existing image instead. If you already run the standalone backend,
+stop it first with `docker stop quickpizza`: both use port `3333`.
 
-If you already started the standalone backend from the Mobile README, stop it
-with `docker stop quickpizza` before setup: both use port `3333`. An existing
-`quickpizza` Compose project is managed by setup and stopped by teardown.
-Use `--backend none` to keep managing a backend separately.
-
-Then build/run:
+Then build and run the apps:
 
 | App | After setup |
 | --- | --- |
-| Flutter in Cursor / VS Code | Open the repo root, choose **Flutter (debug)**, select your device, press **F5**. The launch task selects the active config automatically. |
-| Flutter from terminal | Run `Mobiles/flutter/scripts/run-ios.sh` or `run-android.sh`. Both select the active config automatically. |
-| React Native | Restart Metro with `--reset-cache`, then rebuild/run on either platform. One Metro instance can serve both platforms. |
+| Flutter in Cursor / VS Code | Open the repo root, choose **Flutter (debug)**, select your device, press **F5**. The active config is picked automatically. |
+| Flutter from terminal | `Mobiles/flutter/scripts/run-ios.sh` or `run-android.sh`; both pick the active config. |
+| React Native | Restart Metro with `--reset-cache`, then rebuild/run. One Metro serves both platforms. |
 | Native Android | Sync Gradle in Android Studio, then rebuild/run. |
 | Native iOS | Rebuild/run in Xcode. |
 
-You can run several apps against the same setup. Build the two Flutter platforms
-sequentially in one checkout. Saved in-app endpoint overrides still take
-precedence: clear those overrides in Debug → Config if an app uses an old URL.
+Several apps can run against one setup; build the two Flutter platforms one
+after the other. One active setup per checkout. Emulators and simulators only.
 
-## Backend options and automation
+## Options
 
-```sh
-# Docker microservices (the default).
-python3 Mobiles/telemetry/setup.py --backend docker
-
+```bash
 # Forwarding only, when you manage the backend yourself.
 python3 Mobiles/telemetry/setup.py --backend none
 
-# No prompts; use a private destination file.
+# No prompts; use a private destination file (or - for stdin).
 python3 Mobiles/telemetry/setup.py --non-interactive \
   --destinations /path/to/destinations.json
 ```
 
-Docker collects backend OTLP, container logs, scraped metrics and profiles.
-By default, setup builds `quickpizza-mobile-local:development` on every start;
-Docker reuses cached layers. The first build needs internet access for base
-images and build dependencies, but no private mobile-image registry access.
-Export `QUICKPIZZA_IMAGE` to use an existing local or pullable image and skip the
-build. Setup records the selected image for teardown; it does not change `.env`.
-
-`--backend none` skips Docker checks and builds, and preserves the backend
-addresses from your saved app configs. It does not redirect an existing
-backend's telemetry: configure its OTLP export separately as described in
-[Backend scope](DETAILS.md#backend-scope).
-
-JSON can also be supplied in `MOBILE_TELEMETRY_DESTINATIONS` or with
-`--destinations -` on stdin. Append `-- COMMAND ARG…` to wrap a complete test run
-with automatic teardown. Existing `--docker-backend` remains an alias for
-`--backend docker`; `--platform` only selects the legacy single-platform field
-for external consumers, not which apps setup enables.
+`--backend none` keeps the backend addresses in your saved app configs and does
+not redirect your backend's telemetry; see [Backend scope](DETAILS.md#backend-scope).
+Destination JSON can also come from `MOBILE_TELEMETRY_DESTINATIONS`. Append
+`-- COMMAND ARG...` to wrap a run with automatic teardown.
 
 ## GitHub Actions
 
-Manual, scheduled and main-branch telemetry runs always use both stacks.
-PR forwarding tests use local recorders, no secrets.
+Manual, scheduled and `main` telemetry runs always use both stacks. PR
+forwarding tests use local recorders and need no secrets. The workflow needs two
+Vault secrets, both read from field `value`:
 
-Create **one Vault secret** for dual-stack runs:
+- `ci/repo/grafana/mobile-o11y-demo/mobile_telemetry_destinations`: the whole
+  destination JSON as one string, including both `cloud` objects, with literal
+  values (no `${ENV_VAR}` placeholders).
+- `openai_api_key`: the OpenAI key for the [e2e runner](../e2e/README.md).
 
-- Path: `ci/repo/grafana/mobile-o11y-demo/mobile_telemetry_destinations`
-- Field: `value`
-- Value: the complete private destination JSON used locally, including both
-  `cloud` objects. Use actual values, not unresolved `${ENV_VAR}` placeholders.
-
-[JSON fields and where to get each value](DETAILS.md#destination-json) ·
+[JSON fields](DETAILS.md#destination-json) ·
 [Update endpoints or rotate tokens](DETAILS.md#update-an-endpoint-or-rotate-a-token)
-
-The test runner also requires the Vault secret `openai_api_key`, field `value`.
-After configuring destinations, dispatch the workflow manually and check both
-Android and iOS jobs before relying on the two-hour schedule.
 
 ## Teardown
 
-Stop apps after their SDKs flush, then:
+Let apps flush their SDKs, stop them, then:
 
-```sh
+```bash
 python3 Mobiles/telemetry/teardown.py
 ```
 
-Forwarding drains/stops; the managed Docker backend stops too. Saved
-credentials and Docker volumes remain. **Rebuild/reinstall apps** to restore
-original endpoints; restart Metro and sync native Android. Flutter’s next Cursor
-launch or helper-script run selects the ordinary `config.json` automatically. Restart the backend using your usual Compose
-command. Already-installed apps do not switch endpoints automatically.
-
-One active setup per checkout; emulator/simulator only. Docker setup manages the
-demo Compose project. Faro secondary delivery is best-effort. Private
-logs in `.runtime/local/` can contain credentials.
-
-[Configuration, prerequisites and troubleshooting](DETAILS.md)
+Forwarding drains and stops, and so does the managed backend. Saved destinations
+and Docker volumes are kept. Installed apps keep the endpoint they were built
+with: rebuild/reinstall them (restart Metro, sync native Android) to return to
+direct export. See [Troubleshooting](DETAILS.md#troubleshooting).

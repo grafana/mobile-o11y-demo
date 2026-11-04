@@ -1,7 +1,6 @@
 # Configuration and troubleshooting
 
-Start with the [quick guide](README.md). This page covers destination values,
-updates and the lower-level tools.
+Reference for the [dual-stack quick guide](README.md).
 
 ## What gets duplicated
 
@@ -20,20 +19,8 @@ The primary Faro destination controls SDK responses, including sampling and
 Align sampling policies when comparing stacks. OTLP uses separate in-memory
 queues and bounded retries; long outages or shutdown can still lose data.
 
-nginx preserves Faro's session/device/view envelope. Alloy 1.19.2's Faro round
-trip loses some of that metadata, so this profile does not use it for Faro.
-
-## Setup
-
-Requires Python 3.10+, a C compiler, OpenSSL and PCRE2 headers:
-
-- macOS: `brew install openssl@3 pcre2`
-- Debian/Ubuntu: `sudo apt-get install build-essential libssl-dev libpcre2-dev unzip`
-
-`setup.py` installs private, checksum-verified Alloy 1.19.2 and nginx 1.30.5
-binaries when missing. The default setup requires a running Docker engine.
-`--backend none` skips backend management and does not require Docker; app builds
-still need their usual toolchains. Nothing is installed as a system service.
+Faro goes through nginx because nginx forwards the body unchanged, keeping
+the session/device/view envelope; Alloy's Faro round trip loses some of it.
 
 ## Destination JSON
 
@@ -56,7 +43,7 @@ There are two complete objects: `primary` (the preferred destination) and
 | `backend.headers.Authorization` | Full header: `Basic ` followed by Base64 of `OTLP_USERNAME:TOKEN`. Get the username from OpenTelemetry setup; guided setup computes this header. |
 | `cloud.stack` | Stack slug from the Cloud portal, not its URL or numeric ID. |
 | `cloud.token` | Cloud Access Policy token for this stack; use the same token as backend authorization. |
-| `cloud.api_url` | Cloud stack API base URL, normally `https://grafana.com/api/instances/`. Match the stack’s environment and keep the trailing slash. |
+| `cloud.api_url` | `https://grafana.com/api/instances/` (production) or `https://grafana-dev.com/api/instances/` (development). Keep the trailing slash. |
 
 Use a stack-scoped Cloud Access Policy token with `metrics:write`, `logs:write`,
 `traces:write`, `profiles:write` and `stacks:read`. A Grafana login/service-account
@@ -68,10 +55,7 @@ include `/v1/traces`, `/v1/logs` or `/v1/metrics`. Use the advertised backend UR
 do not derive it from the stack's Grafana hostname or `clusterSlug`.
 
 Local JSON also supports `${ENV_VAR}` references, with no shell evaluation.
-For Vault, use literal values so no additional destination secrets are needed.
-Store the **whole JSON object as the string value of the `value` field**, not
-separate Vault fields for `primary` and `secondary`. Exact Vault path and workflow
-selection: [GitHub Actions setup](README.md#github-actions).
+Vault needs literal values: see [GitHub Actions](README.md#github-actions).
 
 ## Update an endpoint or rotate a token
 
@@ -87,20 +71,17 @@ selection: [GitHub Actions setup](README.md#github-actions).
    workflow manually; check both Android and iOS jobs
    and Cloud delivery. Revoke the old token after verification.
 
-Running forwarders keep their loaded configuration: restart them after updating
-local values. CI loads Vault afresh on each run. Changing Cloud destinations
-alone needs no app rebuild if the local listener addresses stay the same.
-Never commit the JSON or upload generated configs/logs as artifacts.
+Changing Cloud destinations alone needs no app rebuild, as long as the local
+listener addresses stay the same (same `--port-offset`). CI loads Vault afresh
+on each run. Never commit the JSON or upload generated configs/logs.
 
 ## Backend scope
 
-`setup.py` (equivalent to `setup.py --backend docker`) manages the demo
-microservices Compose project and ports. Teardown stops that backend and retains volumes. It is not a second,
-isolated Compose project. Stop a standalone backend on port `3333` before setup;
-an existing instance of this Compose project can be reconfigured by setup.
-The default image is built locally from the checkout; export `QUICKPIZZA_IMAGE`
-to skip building and use a specific image. Docker Alloy uses `backend_pipeline.alloy` for
-discovery and resource transforms.
+The default `--backend docker` manages the demo microservices Compose project
+itself, not a separate isolated copy: an existing `quickpizza` Compose project
+is reconfigured by setup and stopped by teardown. Docker Alloy uses
+[`backend_pipeline.alloy`](../../deployments/docker-compose/grafana-cloud/backend_pipeline.alloy)
+for discovery and resource transforms.
 
 For an independently managed native backend (`--backend none`), source
 `.runtime/local/env.sh` before starting it, and keep
@@ -117,17 +98,15 @@ stacks need symbolication.
 | Symptom | Check |
 | --- | --- |
 | Setup fails | Missing tools, occupied ports or incomplete destination JSON. Private logs are in `.runtime/local/`; they can contain credentials. |
-| App still sends directly | Sync/rebuild/reinstall; restart Metro with `--reset-cache`. Clear saved in-app endpoint overrides. Flutter needs the repository launch config/helper scripts or the generated `--dart-define-from-file`. |
+| App still sends directly | Sync/rebuild/reinstall; restart Metro with `--reset-cache`. Saved in-app endpoint overrides win: clear them in Debug → Config. Flutter needs the repository launch config/helper scripts or the generated `--dart-define-from-file`. |
 | Setup says already active | Run teardown before another setup. Retry teardown after a partial failure; saved destinations remain. |
 | Ready, but Cloud data missing | App key, token scopes, TLS/CA and sampling. Inspect both stacks; a successful primary response does not prove secondary delivery. |
-| Returning to direct export | Teardown, rebuild/reinstall and restart Metro. Unset any explicit `QUICKPIZZA_*_CONFIG_FILE` variables. Installed apps retain their built endpoint. |
+| Returning to direct export | Teardown, rebuild/reinstall and restart Metro. Flutter's next launch or helper-script run picks the ordinary `config.json`. Unset any explicit `QUICKPIZZA_*_CONFIG_FILE` variables. |
 | Destination DNS changed | Restart forwarding; nginx resolves upstream names at startup. |
 
-Leave apps alive for their SDK export interval before stopping them; CI allows
-30 seconds. Stop backend producers before forwarding. Teardown finishes in-flight
-Faro requests and gives OTLP queues a bounded drain window (30 seconds by default),
-then gracefully stops processes. Empty queues do not prove Cloud acceptance.
-SIGINT/SIGTERM clean up owned processes; SIGKILL or a host crash cannot.
+Leave apps alive for their SDK export interval before stopping them (CI waits
+30 s). Teardown finishes in-flight Faro requests and gives OTLP queues a 30 s
+drain window. SIGINT/SIGTERM clean up owned processes; SIGKILL cannot.
 
 ## Maintainer tools
 
@@ -158,10 +137,13 @@ configs override backend addresses in generated files only.
 
 Concurrent lower-level sessions need separate run directories and `--port-offset`
 values; parallel app builds also need separate build directories/worktrees.
-Physical devices are outside this profile.
 
-Use `ALLOY_BIN`/`NGINX_BIN` for existing tools, `--skip-install` on setup to disable
-installation, or the supervisor's `--ca-file` for a missing host CA bundle.
+Setup installs private, checksum-verified Alloy and nginx binaries (versions in
+[`install-tools.sh`](install-tools.sh)); nothing is installed as a system
+service. Use `ALLOY_BIN`/`NGINX_BIN` for existing tools, `--skip-install` on setup
+to disable installation, or the supervisor's `--ca-file` for a missing host CA
+bundle. On setup, `--docker-backend` is an alias for `--backend docker`, and
+`--platform` only sets a legacy default field for external consumers.
 
 ```sh
 python3 -m venv Mobiles/telemetry/.runtime/test-venv

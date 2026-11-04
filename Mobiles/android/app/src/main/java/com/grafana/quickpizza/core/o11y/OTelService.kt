@@ -1,21 +1,13 @@
 package com.grafana.quickpizza.core.o11y
 
 import android.app.Application
-import android.os.Looper
 import android.util.Log
 import androidx.navigation.NavController
-import com.grafana.faro.replay.AndroidProcessHost
-import com.grafana.faro.replay.FaroReplay
-import com.grafana.faro.replay.FaroReplayInstallation
-import com.grafana.faro.replay.FaroReplayOptions
-import com.grafana.faro.replay.MaskOptions
 import com.grafana.opentelemetry.android.ExperimentalGrafanaOtelApi
 import com.grafana.opentelemetry.android.GrafanaOtel
 import com.grafana.opentelemetry.android.GrafanaOtelConfiguration
 import com.grafana.quickpizza.core.config.AppConfig
 import com.grafana.quickpizza.core.config.RuntimeConfigHolder
-import com.grafana.quickpizza.features.replay.QuickPizzaNavHost
-import com.grafana.quickpizza.features.replay.QuickPizzaSessionHost
 import com.grafana.quickpizza.nativecrash.NativeExitCrashReporter
 import io.opentelemetry.android.OpenTelemetryRum
 import io.opentelemetry.api.OpenTelemetry
@@ -31,14 +23,10 @@ class OTelService @Inject constructor(
     private val application: Application,
     private val appConfig: AppConfig,
     private val runtimeConfig: RuntimeConfigHolder,
+    private val sessionReplayIntegration: SessionReplayIntegration,
 ) {
     @Volatile
     private var rum: OpenTelemetryRum? = null
-
-    private val replaySessionHost = QuickPizzaSessionHost()
-    private val replayNavigationHost = QuickPizzaNavHost()
-    private var processHost: AndroidProcessHost? = null
-    private var replayInstallation: FaroReplayInstallation? = null
 
     val openTelemetry: OpenTelemetry
         get() = rum?.openTelemetry ?: OpenTelemetry.noop()
@@ -53,41 +41,15 @@ class OTelService @Inject constructor(
     val openTelemetryRum: OpenTelemetryRum?
         get() = rum
 
-    /**
-     * Installs replay once the activity has a [NavController]. Safe to call again after
-     * rotation: install stays once per process and the navigation host rebinds.
-     *
-     * The app calls [FaroReplay.install]. The library calls its controller `onInstall`.
-     *
-     * TODO(faro-replay-otel-android): replace [replaySessionHost] with the class from
-     * `com.grafana.faro:faro-replay-otel-android` and depend on that artifact plus
-     * `com.grafana.faro:faro-android-replay`. [replayNavigationHost] stays in this app.
-     */
+    /** Installs session replay when enabled in [RuntimeConfigHolder.current]. */
     fun installReplay(navController: NavController) {
-        check(Looper.myLooper() == Looper.getMainLooper()) {
-            "FaroReplay.install requires the main thread"
-        }
-        replayNavigationHost.bind(navController)
-        if (replayInstallation != null || rum == null) return
-
         val snapshot = runtimeConfig.current
-        replayInstallation = FaroReplay.install(
-            processHost = processHost ?: AndroidProcessHost.create(application).also { processHost = it },
-            options = FaroReplayOptions(
-                ingestUrl = snapshot.otlpEndpoint,
-                headers = snapshot.otlpAuthHeader?.let { mapOf("Authorization" to it) }.orEmpty(),
-                appName = SERVICE_NAME,
-                appVersion = appConfig.appVersion,
-                maskOptions = MaskOptions(
-                    maskAllText = false,
-                    maskAllInputs = true,
-                    blockAllMedia = false,
-                ),
-                replaySamplingRate = 1.0f,
-                allowLoopbackHttp = allowsLoopback(snapshot.otlpEndpoint),
-            ),
-            sessionHost = replaySessionHost,
-            navigationHost = replayNavigationHost,
+        if (!snapshot.mobileSessionReplayEnabled) return
+        sessionReplayIntegration.install(
+            navController = navController,
+            runtimeConfig = snapshot,
+            appConfig = appConfig,
+            application = application,
         )
     }
 
@@ -102,6 +64,7 @@ class OTelService @Inject constructor(
         val endpoint = snapshot.otlpEndpoint
         val authHeader = snapshot.otlpAuthHeader
         val diskBufferingEnabled = snapshot.diskBufferingEnabled
+        val replayObserver = sessionReplayIntegration.sessionObserver
 
         if (endpoint.isEmpty()) {
             Log.w(TAG, "OTLP endpoint not configured — running with noop telemetry")
@@ -128,12 +91,14 @@ class OTelService @Inject constructor(
                     useLatestExperimentalSemanticConventions = false,
                 ),
             ) {
-                // Register before the first session starts. A later observer misses it,
-                // and SessionPublisher does not replay the current session.
-                session { observers(replaySessionHost) }
+                if (replayObserver != null && snapshot.mobileSessionReplayEnabled) {
+                    // Register before the first session starts. A later observer misses it,
+                    // and SessionPublisher does not replay the current session.
+                    session { observers(replayObserver) }
+                }
             }
         }.onFailure { Log.e(TAG, "OTelService initialization failed", it) }.getOrNull()
-        rum?.let(replaySessionHost::attach)
+        rum?.let(sessionReplayIntegration::attach)
 
         if (rum != null) {
             sdkLoggerProvider?.let { loggerProvider ->
@@ -154,7 +119,7 @@ class OTelService @Inject constructor(
             Log.i(
                 TAG,
                 "OTelService initialized, exporting to $endpoint " +
-                    "(diskBuffering=$diskBufferingEnabled)",
+                    "(diskBuffering=$diskBufferingEnabled, mobileSessionReplay=${snapshot.mobileSessionReplayEnabled})",
             )
         }
     }
@@ -181,11 +146,6 @@ class OTelService @Inject constructor(
         private const val TAG = "OTelService"
         const val SERVICE_NAME = "quickpizza-android"
         const val INSTRUMENTATION_SCOPE = "com.grafana.quickpizza"
-
-        private fun allowsLoopback(endpoint: String): Boolean {
-            val host = runCatching { java.net.URI(endpoint).host }.getOrNull()?.lowercase() ?: return false
-            return host == "localhost" || host == "127.0.0.1" || host == "10.0.2.2" || host == "::1"
-        }
     }
 }
 

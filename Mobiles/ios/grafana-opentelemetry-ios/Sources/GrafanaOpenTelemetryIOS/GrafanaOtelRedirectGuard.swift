@@ -14,8 +14,8 @@ import OpenTelemetryApi
 /// is the only place the system offers the destination before that request is sent, so filtering a
 /// redirect means having a delegate there.
 ///
-/// Reach for this one when the package cannot supply that delegate itself: a session of your own
-/// that already has a delegate, or iOS 13 and 14. Otherwise prefer
+/// Reach for this one when the package cannot supply that delegate itself: for example, a session
+/// of your own that already has a delegate. Otherwise prefer
 /// ``GrafanaOtelExperimentalOptions/automaticRedirectProtection``, which covers delegate-less
 /// sessions with nothing installed by you — see ``GrafanaOtelAutomaticRedirectProtection`` for how
 /// and for what it cannot reach.
@@ -26,7 +26,7 @@ import OpenTelemetryApi
 /// URLSession(configuration: .default, delegate: runtime.redirectGuard, delegateQueue: nil)
 /// ```
 ///
-/// Or per task, on iOS 15 and later, where `URLSessionTask.delegate` exists:
+/// Or per task using `URLSessionTask.delegate`, available on every supported iOS version:
 ///
 /// ```swift
 /// let (data, response) = try await URLSession.shared.data(

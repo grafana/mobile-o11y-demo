@@ -1,5 +1,6 @@
 package com.grafana.quickpizza.core.config
 
+import com.grafana.quickpizza.BuildConfig
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -28,6 +29,11 @@ data class RuntimeConfig(
      * by the `Disable disk buffering` debug toggle.
      */
     val diskBufferingEnabled: Boolean,
+    /**
+     * Faro Android session replay install. Requires [BuildConfig.MOBILE_SESSION_REPLAY] and
+     * `MOBILE_SESSION_REPLAY_ENABLED` in config.json.
+     */
+    val mobileSessionReplayEnabled: Boolean,
 )
 
 /**
@@ -55,6 +61,8 @@ class RuntimeConfigHolder @Inject constructor(
             otlpApiKey = apiKey,
             otlpAuthHeader = buildOtlpAuthHeader(instanceId, apiKey),
             diskBufferingEnabled = !saved.disableDiskBuffering,
+            mobileSessionReplayEnabled =
+                BuildConfig.MOBILE_SESSION_REPLAY && appConfig.mobileSessionReplayEnabled,
         )
     }
 }

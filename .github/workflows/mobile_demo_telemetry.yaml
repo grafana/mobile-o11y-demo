@@ -254,7 +254,8 @@ jobs:
             "OTLP_ENDPOINT": "${OTLP_ENDPOINT}",
             "OTLP_INSTANCE_ID": "",
             "OTLP_API_KEY": "",
-            "BASE_URL": ""
+            "BASE_URL": "",
+            "MOBILE_SESSION_REPLAY_ENABLED": true
           }
           EOF
           echo "Created Android Native config.json (OTLP endpoint redacted)"
@@ -270,7 +271,7 @@ jobs:
         working-directory: Mobiles/android
         run: |
           echo "Building native Android APK..."
-          ./gradlew :app:assembleDebug -PquickpizzaDemoVersionName="${ANDROID_NATIVE_DEMO_APP_VERSION}"
+          ./gradlew -PmobileSessionReplay=true :app:assembleDebug -PquickpizzaDemoVersionName="${ANDROID_NATIVE_DEMO_APP_VERSION}"
           ls -la app/build/outputs/apk/debug/
 
       - name: Stage APKs for e2e
@@ -300,6 +301,7 @@ jobs:
           # Use dev Alloy config for grafana-dev.net stack
           ALLOY_FILE_NAME: cloud-dev.alloy
           QUICKPIZZA_IMAGE: quickpizza-mobile-local:ci
+          QUICKPIZZA_OTEL_RECORD_BODIES: "true"
         run: |
           echo "Starting QuickPizza backend (Grafana Cloud microservices + dev Alloy override)..."
           bash Mobiles/telemetry/backend-compose.sh up -d
@@ -366,35 +368,26 @@ jobs:
             adb shell settings put global transition_animation_scale 0 || true
             adb shell settings put global animator_duration_scale 0 || true
 
-            # Devices use localhost:3333; refresh this between apps in case
-            # ADB state changes during test cleanup.
-            echo "Setting up ADB reverse port forwarding..."
-            adb reverse --remove tcp:3333 || true
-            adb reverse tcp:3333 tcp:3333
+            # The apps are built with an empty BASE_URL, so they reach the
+            # host backend at http://10.0.2.2:3333; no adb reverse is needed.
 
             echo "==> Flutter APK: install and E2E"
             adb install -r apk/flutter/app-debug.apk
             bash Mobiles/e2e/run_e2e_tests.sh --app=flutter --platform=android
             sleep 30 # Allow normal SDK export before stopping the app.
             adb shell am force-stop com.example.flutter_mobile_o11y_demo || true
-            adb reverse --remove tcp:3333 || true
-            adb reverse tcp:3333 tcp:3333
 
             echo "==> React Native APK: install and E2E"
             adb install -r apk/react-native/app-debug.apk
             bash Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=android
             sleep 30 # Allow normal SDK export before stopping the app.
             adb shell am force-stop com.grafana.quickpizza.rn || true
-            adb reverse --remove tcp:3333 || true
-            adb reverse tcp:3333 tcp:3333
 
             echo "==> Android Native APK: install and E2E"
             adb install -r apk/android-native/app-debug.apk
             bash Mobiles/e2e/run_e2e_tests.sh --app=android-native --platform=android
             sleep 30 # Allow normal SDK export before stopping the app.
             adb shell am force-stop com.grafana.quickpizza.android || true
-            adb reverse --remove tcp:3333 || true
-            adb reverse tcp:3333 tcp:3333
 
             # android-emulator-runner executes script lines individually, so
             # keep diagnostics gating as one-line commands instead of a
@@ -735,9 +728,10 @@ jobs:
           QUICKPIZZA_TRUST_CLIENT_TRACEID=1 \
           QUICKPIZZA_ENABLE_ALL_SERVICES=1 \
           QUICKPIZZA_DB= \
-          QUICKPIZZA_TIMEOUT=10s \
+          QUICKPIZZA_RECOMMENDATIONS_HTTP_CLIENT_TIMEOUT=10s \
           QUICKPIZZA_OTLP_ENDPOINT="${QUICKPIZZA_OTLP_ENDPOINT:?Forwarding endpoint missing}" \
           QUICKPIZZA_OTEL_SERVICE_NAME=quickpizza-ios-ci-backend \
+          QUICKPIZZA_OTEL_RECORD_BODIES=true \
           OTEL_RESOURCE_ATTRIBUTES="deployment.environment=${DEPLOYMENT_ENVIRONMENT},service.version=quickpizza-local" \
           ./bin/quickpizza > backend-ios.log 2>&1 &
           echo "$!" > backend-ios.pid

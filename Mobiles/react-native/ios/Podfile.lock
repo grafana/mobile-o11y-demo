@@ -1,5 +1,5 @@
 PODS:
-  - FaroReactNative (1.4.1):
+  - FaroReactNative (1.4.2):
     - PLCrashReporter (~> 1.11)
     - React-Core
   - FBLazyVector (0.84.1)
@@ -1881,7 +1881,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - RNDeviceInfo (11.1.0):
+  - RNDeviceInfo (15.0.2):
     - React-Core
   - RNScreens (4.24.0):
     - hermes-engine
@@ -2180,7 +2180,7 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
 SPEC CHECKSUMS:
-  FaroReactNative: cc67a97e812b20519e5a8e4d031d30e51b9430d2
+  FaroReactNative: 298c68e0b4394ca7000bc0492ce9f49526bcc66c
   FBLazyVector: e97c19a5a442429d1988f182a1940fb08df514da
   hermes-engine: cbc267903904a60b1506f5e9acab3f894f21fc6b
   PLCrashReporter: db59ef96fa3d25f3650040d02ec2798cffee75f2
@@ -2257,7 +2257,7 @@ SPEC CHECKSUMS:
   ReactCommon: 07572bf9e687c8a52fbe4a3641e9e3a1a477c78e
   ReactNativeDependencies: cc5f7411ad5c6d6a5cf3fc160f3f923af79032b9
   RNCAsyncStorage: 7a5a6094f9f6b9158e72f1855cd86e769413d851
-  RNDeviceInfo: 900bd20e1fd3bfd894e7384cc4a83880c0341bd3
+  RNDeviceInfo: 4c852998208b60dc192ae3529e5867817719ad1e
   RNScreens: 6cb648bdad8fe9bee9259fe144df95b6d1d5b707
   Yoga: c0b3f2c7e8d3e327e450223a2414ca3fa296b9a2
 

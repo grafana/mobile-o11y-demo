@@ -1,0 +1,16 @@
+# Allowlist: ignore everything, then unignore the sample's own files.
+# Keeps build output (which embeds the real collector URL) and local files out of git.
+*
+!.gitignore
+!README.md
+!docs/
+!docs/images/
+!docs/images/*.png
+!OTelSwiftSample/
+!OTelSwiftSample/*.swift
+!OTelSwiftSample.xcodeproj/
+!OTelSwiftSample.xcodeproj/project.pbxproj
+!OTelSwiftSample.xcodeproj/project.xcworkspace/
+!OTelSwiftSample.xcodeproj/project.xcworkspace/xcshareddata/
+!OTelSwiftSample.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+!OTelSwiftSample.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved

@@ -1,228 +1,139 @@
 # Shared mobile E2E tests (Arbigent)
 
-End-to-end tests for the four QuickPizza mobile demo apps
-(`Mobiles/flutter`, `Mobiles/react-native`, `Mobiles/android`,
-`Mobiles/ios`) all live here so we maintain one runner script, one
-set of scenario templates, and one HTML report generator.
+One runner and one set of scenario templates drive all four QuickPizza mobile
+apps. [Arbigent](https://github.com/takahirom/arbigent) uses an OpenAI model to
+operate the app through the platform's accessibility tree. The basic flow opens
+the app, requests a pizza recommendation, rates it, backgrounds the app and
+brings it back.
 
-Tests are driven by [Arbigent](https://github.com/takahirom/arbigent),
-which uses an LLM (OpenAI by default) to interact with the app through
-the platform's accessibility tree. A single scenario file walks the AI
-through the canonical QuickPizza flow: open the app, log in, request a
-pizza recommendation, rate it, background the app, and bring it back.
+## Prerequisites
 
-## Layout
-
-```
-Mobiles/e2e/
-├── run_e2e_tests.sh                                       # Unified runner (all apps, all platforms)
-├── arbigent-e2e_basic_pizza_flow.android.yaml.template    # Android scenario template (Flutter + RN + native Android)
-├── arbigent-e2e_basic_pizza_flow.ios.yaml.template        # iOS scenario template (native iOS + Flutter + RN)
-├── arbigent-recovery-hints.txt                            # Shared "if stuck" guidance, injected into every scenario goal
-├── render-template.js                                     # Renders a template (placeholders + recovery block) into a runnable YAML
-├── report-generator/                                      # HTML report tool (separate npm package)
-│   ├── generate_report.js
-│   ├── package.json
-│   ├── package-lock.json
-│   ├── .npmrc / .yarnrc / .yarnrc.yml                     # ignore install scripts; engine-strict
-└── results/                                               # Test artifacts land here (git-ignored)
-    └── <app>/
-        ├── arbigent-project.yaml                          # Rendered scenario file (template + per-app values)
-        ├── arbigent-result/                               # Latest run output + visual_report.html
-        │   ├── arbigent-project.yaml                      # Copy of the rendered YAML used for the latest run
-        │   └── arbigent-result-N/                         # Archived run, including its own arbigent-project.yaml
-        └── arbigent-cache/                                # AI response cache (speeds up repeat runs)
-```
-
-Centralising results under `Mobiles/e2e/results/` keeps the per-app
-directories (`Mobiles/flutter/`, etc.) clean and avoids each app having
-its own `arbigent-result/` and `arbigent-cache/` directories.
-
-## Quick start (local)
-
-Prerequisites (Android):
-- An Android emulator booted, with the app under test installed.
-- QuickPizza backend running and reachable at `http://localhost:3333`.
-  For Android emulators, also run `adb reverse tcp:3333 tcp:3333`.
 - `OPENAI_API_KEY` exported.
-- `adb`, `unzip`, Node.js 24.5+, npm 11.10+, and either `wget` or `curl` available.
+- `unzip`, `curl`, Node.js 24.5+, npm 11.10+.
+- QuickPizza backend answering `http://localhost:3333/ready` (see
+  [Mobiles/README.md](../README.md)). `QUICKPIZZA_BACKEND_URL` changes only this
+  probe, not the app's backend address.
+- **Android:** `adb`, an emulator booted, and the app under test installed.
+- **iOS (macOS only):** Xcode (`xcrun`), a booted simulator, and the app
+  installed. `bash Mobiles/ios/Scripts/sim-run.sh` builds, boots and installs the
+  native app; `Mobiles/scripts/open-simulator.sh <udid>` boots a simulator.
 
-Prerequisites (iOS — macOS only):
-- Xcode + Command Line Tools (`xcrun`, `xcodebuild`).
-- A booted iOS simulator with the iOS app already installed
-  (e.g. `bash Mobiles/ios/Scripts/sim-run.sh` — it builds, boots, and
-  installs in one go, then you can `Ctrl+C` out of the log stream).
-- QuickPizza backend on `http://localhost:3333` (the simulator shares the
-  Mac's network, so no port forwarding is required).
-- `OPENAI_API_KEY` exported. `xcrun`, `unzip`, Node.js 24.5+, npm 11.10+, and
-  either `wget` or `curl` available.
+The runner does not boot devices or install apps. It fails fast if the
+emulator or simulator is missing (on iOS, also the installed app).
+
+## Run
+
+From the repository root:
 
 ```bash
-# From repo root
 export OPENAI_API_KEY='sk-...'
-
-# Flutter on Android
 ./Mobiles/e2e/run_e2e_tests.sh --app=flutter --platform=android
-
-# React Native on Android — see the RN note below first
-./Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=android
-
-# Native Android (Kotlin / Compose)
-./Mobiles/e2e/run_e2e_tests.sh --app=android-native --platform=android
-
-# Flutter and React Native on iOS — macOS only
-./Mobiles/e2e/run_e2e_tests.sh --app=flutter --platform=ios
-./Mobiles/e2e/run_e2e_tests.sh --app=react-native --platform=ios
-
-# Native iOS (Swift / SwiftUI) — macOS only
-./Mobiles/e2e/run_e2e_tests.sh --app=ios-native --platform=ios
 ```
 
-### Extra step for local React Native runs
-
-If you installed the RN app locally via `yarn android` (the normal dev
-workflow), the APK does NOT have the JS bundle embedded — it expects
-Metro to serve the bundle at runtime. Before running the e2e tests:
-
-```bash
-# In a separate terminal, leave running
-cd Mobiles/react-native && yarn start
-
-# Tell the emulator to find Metro and the backend on the host
-adb reverse tcp:8081 tcp:8081
-adb reverse tcp:3333 tcp:3333
-```
-
-This does NOT apply in CI: the
-[`mobile_demo_telemetry.yaml`](../../.github/workflows/mobile_demo_telemetry.yaml)
-workflow runs `yarn react-native bundle` before `./gradlew assembleDebug`,
-which produces an **offline** debug APK (JS embedded at
-`assets/index.android.bundle`) that doesn't talk to Metro at all. The
-runner script intentionally doesn't try to manage Metro itself —
-spawning a long-running dev server from a test runner is fragile, and
-most local users will have Metro running already while iterating on the
-app.
-
-Results land in `Mobiles/e2e/results/<app>/arbigent-result/` (e.g.
-`Mobiles/e2e/results/flutter/arbigent-result/`). The HTML report is at
-`arbigent-result/visual_report.html`. Previous runs are archived as
-`arbigent-result-1/`, `arbigent-result-2/`, etc.
-Non-default flows use `results/<app>-handled-exception/` or
-`results/<app>-diagnostics/`. Results are not separated by platform, so copy
-artifacts before switching between Android and iOS if you need to keep them
-separate. The `arbigent-cache/`
-directory holds Arbigent's AI response cache and is reused across
-runs to save time and OpenAI cost when the UI tree + goal are
-unchanged. The rendered project file (`arbigent-project.yaml`) is
-written both at the app result root and inside the latest/archived
-result output so you can inspect exactly what Arbigent was asked to do
-for the report you're viewing — the runner reads the template,
-substitutes per-app values, and persists the result alongside the run
-output (gitignored).
-
-## Supported combinations
-
-| App | Android | iOS |
+| `--app` | Android | iOS |
 | --- | :---: | :---: |
 | `flutter` | yes | yes |
 | `react-native` | yes | yes |
 | `android-native` | yes | no |
 | `ios-native` | no | yes |
 
-All six combinations run in CI. iOS runs require macOS and Xcode.
+`--flow=basic` is the default. `--flow=handled-exception` triggers a handled
+exception from the Debug tab; `--flow=diagnostics` does that and then crashes
+the app on purpose and relaunches it. A run gets up to 3 attempts with a 45 s
+pause between them, so failures take a while.
 
-## Configuration knobs
+### React Native on Android
 
-The runner reads these environment variables (all optional except
-`OPENAI_API_KEY`):
+A debug APK installed with `yarn android` has no embedded JS bundle and needs
+Metro:
 
-| Variable                 | Default                 | Purpose                                            |
-| ------------------------ | ----------------------- | -------------------------------------------------- |
-| `OPENAI_API_KEY`         | _(required)_            | Passed to Arbigent for AI decisions.               |
-| `ARBIGENT_VERSION`       | `0.76.1`                | Arbigent CLI release to download.                  |
-| `ARBIGENT_MODEL`         | `gpt-5.6-luna`          | OpenAI model used by Arbigent.                     |
-| `ARBIGENT_LOG_AI_API`    | `false`                 | Set `true` to log AI API request/response payloads (system prompt, per-step prompts). |
-| `QUICKPIZZA_BACKEND_URL` | `http://localhost:3333` | Backend reachability probe before launching tests. |
+```bash
+# Separate terminal, leave running
+cd Mobiles/react-native && yarn start
 
-The scenario templates use OpenAI's Responses API with low reasoning effort,
-which is required for Luna to execute function tools through Arbigent.
+adb reverse tcp:8081 tcp:8081
+```
+
+CI builds an offline bundle into the APK instead, so it needs no Metro.
+
+## Results
+
+Results land in `Mobiles/e2e/results/<app>/` (`<app>-handled-exception/` or
+`<app>-diagnostics/` for the other flows). Each run replaces the previous
+results; the script prints the report path when it finishes:
+
+```text
+Mobiles/e2e/results/<app>/arbigent-result/arbigent-result-1/visual_report.html
+```
+
+Results are not split by platform: copy them before switching between Android
+and iOS if you want to keep both. `arbigent-cache/` holds Arbigent's AI response
+cache and is reused across runs. The rendered `arbigent-project.yaml` is kept at
+the result root and in each run, so you can see exactly what Arbigent was asked.
+
+## Configuration
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `OPENAI_API_KEY` | _(required)_ | Passed to Arbigent. |
+| `ARBIGENT_VERSION` | `0.76.1` | Arbigent CLI release to download. |
+| `ARBIGENT_MODEL` | `gpt-5.6-luna` | OpenAI model. |
+| `ARBIGENT_LOG_AI_API` | `false` | `true` logs AI request/response payloads. |
+| `QUICKPIZZA_BACKEND_URL` | `http://localhost:3333` | Backend readiness probe. |
+
+The templates use OpenAI's Responses API with low reasoning effort, which Luna
+needs to call Arbigent's function tools.
 
 ## Scenario templates
 
-Each flow has an Android and an iOS template:
+There are six templates, one per flow and platform:
+`arbigent-e2e_<flow>.<android|ios>.yaml.template`, where `<flow>` is
+`basic_pizza_flow`, `handled_exception` or `diagnostics`. `render-template.js`
+substitutes these tokens before the run:
 
-- [`arbigent-e2e_basic_pizza_flow.android.yaml.template`](./arbigent-e2e_basic_pizza_flow.android.yaml.template) — Flutter, React Native, and native Android on a running Android emulator.
-- [`arbigent-e2e_basic_pizza_flow.ios.yaml.template`](./arbigent-e2e_basic_pizza_flow.ios.yaml.template) — native iOS, Flutter, and React Native on a running iOS simulator.
-- [`arbigent-e2e_handled_exception.android.yaml.template`](./arbigent-e2e_handled_exception.android.yaml.template) and [`arbigent-e2e_handled_exception.ios.yaml.template`](./arbigent-e2e_handled_exception.ios.yaml.template) — Debug-tab handled exception only.
-- [`arbigent-e2e_diagnostics.android.yaml.template`](./arbigent-e2e_diagnostics.android.yaml.template) and [`arbigent-e2e_diagnostics.ios.yaml.template`](./arbigent-e2e_diagnostics.ios.yaml.template) — Debug-tab handled exception plus intentional crash and relaunch.
+| Token | Replaced with |
+| --- | --- |
+| `__ANDROID_PACKAGE__` | Android package id of the app under test. |
+| `__IOS_BUNDLE_ID__` | iOS bundle id of the app under test. |
+| `__RECOVERY_BLOCK__` | [`arbigent-recovery-hints.txt`](./arbigent-recovery-hints.txt), indented and appended to the end of each goal. |
 
-The split exists because launcher and backgrounding flows differ enough
-between Springboard and the Android launcher that a single template was
-fragile: HOME is a hardware key on Android but an XCUITest call on iOS,
-and the "find the app icon and tap it" fallback prose mentions
-platform-specific app names (Play Store / Gmail vs. Safari / Messages).
-
-The runner substitutes three tokens before handing the file to Arbigent:
-
-| Token                  | Replaced with                                                                  |
-| ---------------------- | ------------------------------------------------------------------------------ |
-| `__ANDROID_PACKAGE__`  | Android package id of the app under test (used in the `.android` template).    |
-| `__IOS_BUNDLE_ID__`    | iOS bundle id of the app under test (used in the `.ios` template).             |
-| `__RECOVERY_BLOCK__`   | Contents of [`arbigent-recovery-hints.txt`](./arbigent-recovery-hints.txt), indented to match the YAML block-scalar context. |
-
-The recovery block is short, app- and platform-agnostic guidance the AI
-should fall back on when it cannot make progress — dismiss unexpected
-modals, scroll when an expected element is missing, wait once when a tap
-seems to have been ignored, etc. It's kept in a separate file so we have
-a single source of truth across the basic and diagnostic flows, so prompt
-content can be updated without changing scenario flows. The block is injected at the END of each scenario goal
-so the scenario-specific guidance is read first.
+The recovery hints are generic "if stuck" guidance (dismiss modals, scroll, wait
+once) shared by all flows. The HTML report is built by `report-generator/`.
 
 ## CI
 
-Two workflows cover mobile telemetry — **PR builds never fetch Vault secrets**.
-
 | Workflow | Trigger | Vault | Purpose |
-| -------- | ------- | ----- | ------- |
-| [`mobile_demo_telemetry_build.yaml`](../../.github/workflows/mobile_demo_telemetry_build.yaml) | `pull_request` (mobile jobs skip when unrelated paths change) | No | Compile-only check with placeholder telemetry config |
-| [`mobile_demo_telemetry.yaml`](../../.github/workflows/mobile_demo_telemetry.yaml) | `schedule`, `workflow_dispatch`, `push` to `main` | Yes | Full build + e2e + Grafana Cloud telemetry |
+| --- | --- | --- | --- |
+| [`mobile_demo_telemetry_build.yaml`](../../.github/workflows/mobile_demo_telemetry_build.yaml) | `pull_request` | No | Build checks, forwarding and version-script tests |
+| [`mobile_demo_telemetry.yaml`](../../.github/workflows/mobile_demo_telemetry.yaml) | every 2 h, `workflow_dispatch`, path-filtered push to `main` | Yes | Build, e2e and dual-stack Grafana Cloud telemetry |
 
-**After opening a mobile PR:** wait for the four **Build check — …** jobs in *Mobile Demo Telemetry (build only)*.
+The full workflow runs two legs in parallel. The Android leg (`ubuntu-latest`)
+starts the backend with Docker Compose, builds the Flutter, React Native and
+native Android APKs and runs each on one emulator. The iOS leg (`macos-26`)
+runs the backend natively and does the same for the three iOS apps on one
+simulator. Builds are not uploaded; only e2e results (1-day retention) and logs
+are. Secrets: [telemetry/README.md](../telemetry/README.md#github-actions).
 
-A green E2E run confirms the UI flow, not successful telemetry delivery.
-Verify arrival separately in the target Grafana stack.
+A green run confirms the UI flow, not telemetry delivery. Check the target
+stacks for the data.
 
-**Full Cloud telemetry before merge:** run **Mobile Demo Telemetry** manually via Actions → *Run workflow* on your branch (`workflow_dispatch`), or rely on the two-hour schedule / post-merge run on `main`. Feature branches
-must be allowed by the `mobile-demo-telemetry` environment branch policy to
-access its secrets.
+To run the full workflow on a feature branch, dispatch it from Actions. The
+branch must be allowed by the `mobile-demo-telemetry` environment's branch
+policy to get secrets.
 
-The full telemetry workflow has two independent legs that run in parallel:
+Scheduled runs also emit diagnostic data, bucketed on UTC wall-clock time:
 
-- **Android leg** — `ubuntu-latest`. Fetches Vault secrets, builds Flutter,
-  React Native, and native Android APKs on the runner, boots a single
-  Android emulator, installs each APK in turn, and runs
-  `run_e2e_tests.sh --platform=android` for each app. Secret-bearing APKs
-  are **not** uploaded as workflow artifacts.
-- **iOS leg** — `macos-26`. Fetches Vault secrets, builds native iOS,
-  Flutter iOS, and React Native iOS `.app` bundles on the runner, boots
-  one iOS simulator, installs each app in turn, and runs
-  `run_e2e_tests.sh --platform=ios` for each app. The QuickPizza backend
-  is started natively on the macOS runner. The `.app` bundles are **not**
-  uploaded as workflow artifacts.
+- handled-exception flow about every 6 h;
+- crash diagnostics about every 20 h, which replaces the handled-exception
+  flow on that run (the crash flow emits one handled exception first);
+- `workflow_dispatch` runs the basic flow only, unless `run_diagnostics=true`
+  forces crash diagnostics.
 
-### Scheduled diagnostic data
+### Demo app version variation
 
-The two-hour full telemetry workflow also emits a small amount of diagnostic data
-so the demo apps show realistic error/crash signals:
-
-- handled exceptions run every third scheduled run (roughly every six hours);
-- crash diagnostics run every tenth scheduled run (roughly every 20 hours);
-- when crash diagnostics run, the separate handled-exception flow is skipped
-  because the crash flow emits one handled exception before the crash;
-- manual `workflow_dispatch` runs with `run_diagnostics=true` still force the
-  full crash diagnostics flow.
-
-This targets roughly 90% crash-free scheduled demo sessions over time. Any
-error signal is more frequent: handled-exception diagnostics run about every
-third scheduled run, and crash diagnostics run about every tenth scheduled
-run.
+CI varies app versions so Mobile O11y shows a small version distribution
+instead of one flat version. Flutter resolves the version at runtime when
+`CI_DEMO_VERSIONING=true`. React Native resolves the Faro-reported version at
+bundle time. Native Android and iOS resolve it during the CI build and bake it
+into `versionName` / `MARKETING_VERSION`, so installed app metadata and
+telemetry agree for that run.

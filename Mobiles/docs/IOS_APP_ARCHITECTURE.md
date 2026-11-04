@@ -1,138 +1,62 @@
-# iOS App Architecture Guide
+# iOS App Architecture
 
-This document captures architectural decisions and best practices for building the QuickPizza iOS app. It serves as context for AI agents and developers working on the iOS codebase.
+Code conventions for the QuickPizza iOS app. For telemetry, see the
+[iOS instrumentation guide](IOS_OBSERVABILITY_OTEL_GUIDE.md). For what the app does, see
+[FEATURES.md](../FEATURES.md).
 
-For telemetry-specific implementation details, see the [iOS instrumentation guide](IOS_OBSERVABILITY_OTEL_GUIDE.md).
+## Project setup
 
-## Table of Contents
+- A standard Xcode project (`QuickPizzaIos.xcodeproj`), SwiftUI only, no storyboards. The entry
+  point is the `@main` `App` struct in `QuickPizzaIosApp.swift`.
+- Swift Package Manager only, no CocoaPods.
+- **Deployment target iOS 26.0.** Both app target configurations override the project-level 17.0.
+  Use Xcode 26+ and an iOS 26+ simulator or device. The local
+  [`grafana-opentelemetry-ios`](../ios/grafana-opentelemetry-ios/README.md) package has its own,
+  lower floor (see its README).
+- Build configuration flows `Config.xcconfig` → `Scripts/generate-config.sh` →
+  `Core/Config/BuildConfig.generated.swift`. The generated file is gitignored; don't edit it.
+- The telemetry package sits beside the `.xcodeproj`, not inside `QuickPizzaIos/`. The app target is
+  a file-system-synchronized group, so anything inside that folder is compiled as app source.
 
-- [Project Setup](#project-setup)
-- [Folder Structure](#folder-structure)
-- [ViewModel Pattern](#viewmodel-pattern)
-- [ViewModel Lifecycle & SwiftUI @State](#viewmodel-lifecycle--swiftui-state)
-- [Dependency Injection with SwiftiePod](#dependency-injection-with-swiftiepod)
-- [Clean Code: Protocol-Based Services](#clean-code-protocol-based-services)
-- [Async Work & Subscriptions](#async-work--subscriptions)
-- [Navigation](#navigation)
-- [Reference: Flutter App Structure](#reference-flutter-app-structure)
+## Folder structure
 
----
-
-## Project Setup 
-
-- Use a **standard Xcode project** (`.xcodeproj`). This gives full IDE support for signing, capabilities, asset catalogs, and SwiftUI previews.
-- **No storyboards** — SwiftUI apps are code-only. The entry point is an `@main` struct conforming to `App`.
-- Use **Swift Package Manager** (integrated into Xcode) for dependencies — not CocoaPods.
-- **Minimum deployment target: iOS 26.0** — both app target configurations override the project-level iOS 17.0 default. Use Xcode 26+ and an iOS 26+ simulator or device. The local telemetry package has a separate iOS 13 minimum.
-- The iOS app lives at `Mobiles/ios/` alongside the Flutter app at `Mobiles/flutter/`.
-- **Build configuration** is managed via `Config.xcconfig` → `Scripts/generate-config.sh` → `BuildConfig.generated.swift`. This file is auto-generated and should not be edited manually.
-
----
-
-## Folder Structure
-
-Use feature-based organization. Each feature has `Domain/`, `Models/`, and `Presentation/` sub-folders. This mirrors the Flutter app's structure.
+Feature-based, mirroring the Flutter app:
 
 ```
 Mobiles/ios/QuickPizzaIos/
-├── QuickPizzaIosApp.swift                # @main entry point
-├── Bootstrap.swift                       # App setup, pod configuration, OTel init
+├── QuickPizzaIosApp.swift      # @main
+├── Bootstrap.swift             # pod setup, OTel start
 ├── Core/
-│   ├── API/
-│   │   ├── APIClientProtocol.swift       # Protocol
-│   │   └── APIClient.swift               # URLSession-based implementation
-│   ├── Config/
-│   │   ├── ConfigService.swift           # Base URL, OTel endpoint, app version config
-│   │   └── BuildConfig.generated.swift   # Auto-generated from Config.xcconfig (do not edit)
-│   ├── Storage/
-│   │   ├── TokenStoring.swift            # StoredSession model + TokenStoring protocol
-│   │   └── UserDefaultsTokenStorage.swift
-│   ├── O11y/
-│   │   ├── Logger.swift                  # Logging protocol + CompositeLogger (OSLog + OTel)
-│   │   ├── Config/OTelConfig.swift       # OTel configuration values
-│   │   ├── Tracer.swift                  # Standard OTel tracing facade
-│   │   ├── AppEvents.swift               # Screen-view and custom events
-│   │   └── OTelService.swift             # Starts the local Grafana OpenTelemetry package
+│   ├── API/                    # APIClient + protocol
+│   ├── Config/                 # ConfigService, RuntimeConfig, DebugSettings, BuildConfig.generated
+│   ├── Storage/                # token storage
+│   ├── O11y/                   # Logger, Tracer, AppEvents, OTelService, Exporters/
 │   ├── Theme/
-│   │   └── AppTheme.swift                # AppColors, card styles, button styles
-│   └── UI/
-│       └── Components/                   # Shared reusable UI components
-│           └── QuickPizzaAppBar.swift
+│   └── UI/Components/          # components shared across features
 ├── Features/
-│   ├── Auth/
-│   │   ├── Domain/
-│   │   │   ├── AuthServiceProtocol.swift
-│   │   │   └── AuthRepository.swift
-│   │   └── Presentation/
-│   │       ├── LoginView.swift
-│   │       └── LoginViewModel.swift
-│   ├── Pizza/
-│   │   ├── Domain/
-│   │   │   ├── PizzaRepositoryProtocol.swift
-│   │   │   └── PizzaRepository.swift
-│   │   ├── Models/
-│   │   │   ├── Pizza.swift
-│   │   │   └── Restrictions.swift
-│   │   └── Presentation/
-│   │       ├── HomeView.swift
-│   │       ├── HomeViewModel.swift
-│   │       └── Components/
-│   │           ├── PizzaCard.swift
-│   │           ├── CustomizeSection.swift
-│   │           └── RatingButtons.swift
-│   ├── About/
-│   │   ├── Models/
-│   │   │   └── LinkItem.swift
-│   │   └── Presentation/
-│   │       └── AboutView.swift
-│   ├── Debug/
-│   │   └── Presentation/                # Debug and runtime configuration screens
-│   └── Profile/
-│       ├── Domain/
-│       │   ├── RatingsRepositoryProtocol.swift
-│       │   └── RatingsRepository.swift   # GET/DELETE /api/ratings
-│       ├── Models/
-│       │   └── Rating.swift              # Rating + RatingRequest models
-│       └── Presentation/
-│           ├── ProfileView.swift
-│           └── ProfileViewModel.swift
-├── Navigation/
-│   ├── MainShell.swift                   # TabView (Home, About, Debug) + Login/Profile sheets
-│   └── MainShellViewModel.swift
-└── Assets.xcassets
+│   └── <Feature>/              # Auth, Pizza, Profile, About, Debug
+│       ├── Domain/             # service protocols + repositories
+│       ├── Models/             # Codable data types
+│       └── Presentation/       # Views, ViewModels, Components/
+└── Navigation/                 # MainShell (TabView + Login/Profile sheets)
 ```
 
 ### Conventions
 
-- **Everything is a `View`** in SwiftUI. Both full-screen pages and small sub-components end in `*View.swift`. The folder structure distinguishes them:
-  - **Screen-level views** (full pages like `HomeView.swift`, `LoginView.swift`) live directly in `Presentation/`.
-  - **Extracted sub-components** (e.g., `PizzaCard.swift`, `AnimatedPizzaHeaderView.swift`) live in `Presentation/Components/`.
-- **ViewModels** are named `*ViewModel.swift` and placed next to their screen-level View in `Presentation/`.
-- **Protocols** (interfaces) are defined in separate files or at the top of the file alongside the implementation.
-- **Domain** folder holds service protocols and repository implementations.
-- **Models** folder holds plain data types (structs with `Codable`).
-- **Presentation** folder holds Views, ViewModels, and feature-specific components.
-- **Components** folder holds extracted sub-views. Only move UI into `Components/` when it's substantial enough to warrant its own file — because it has meaningful logic, its own ViewModel, or is reused. Small extractions can stay as private computed properties or `@ViewBuilder` methods within the parent View file.
-- **Core/UI/Components** holds shared components used across multiple features (e.g., `QuickPizzaAppBar.swift`).
-- **Core** holds shared infrastructure used across all features.
-- Do NOT use the name "Widgets" — in iOS, "Widget" refers to WidgetKit (home screen widgets) and would be confusing.
+- Every UI type is a `View` named `*View.swift`. Screens live in `Presentation/`; extracted
+  sub-views live in `Presentation/Components/`.
+- Move UI into `Components/` only when it is substantial: real logic, its own ViewModel, or reuse.
+  Small pieces stay as private computed properties or `@ViewBuilder` methods.
+- ViewModels are `*ViewModel.swift`, next to their screen.
+- Cross-feature components go in `Core/UI/Components/`; shared infrastructure in `Core/`.
+- Don't name anything "Widgets". On iOS that means WidgetKit.
 
----
+## ViewModels
 
-## ViewModel Pattern
-
-Use the **`@Observable` macro** (iOS 17+). This replaces the older `ObservableObject` + `@Published` pattern.
-
-### Basic ViewModel structure
-
-This reduced example shows the pattern; the app's full `HomeViewModel` also
-receives authentication and debug-settings dependencies.
+Use the `@Observable` macro. Don't use `ObservableObject`, `@Published`, `@StateObject`,
+`@ObservedObject` or `@EnvironmentObject`.
 
 ```swift
-import SwiftUI
-import SwiftiePod
-
-// Provider — co-located at the top of the file, creates a fresh instance per view
 let homeViewModelProvider = Provider(scope: AlwaysCreateNewScope()) { pod in
     HomeViewModel(
         pizzaRepository: pod.resolve(pizzaRepositoryProvider),
@@ -142,142 +66,55 @@ let homeViewModelProvider = Provider(scope: AlwaysCreateNewScope()) { pod in
 
 @Observable
 class HomeViewModel {
-    // Dependencies — injected via constructor
     private let pizzaRepository: PizzaRepositoryProtocol
     private let logger: Logging
 
-    // View state — @Observable tracks these automatically
     var recommendation: PizzaRecommendation?
     var isLoading = false
-    var errorMessage: String?
 
     init(pizzaRepository: PizzaRepositoryProtocol, logger: Logging) {
         self.pizzaRepository = pizzaRepository
         self.logger = logger
     }
 
-    func fetchRecommendation(restrictions: Restrictions) async {
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            recommendation = try await pizzaRepository.getRecommendation(restrictions)
-        } catch {
-            errorMessage = error.localizedDescription
-            logger.error("Failed to fetch pizza", error: error)
-        }
-    }
+    func start() async { /* subscriptions and initial loads */ }
 }
-```
 
-### Using the ViewModel in a View
-
-```swift
 struct HomeView: View {
     @State private var viewModel = pod.resolve(homeViewModelProvider)
 
     var body: some View {
-        VStack {
-            if viewModel.isLoading {
-                ProgressView()
-            } else if let recommendation = viewModel.recommendation {
-                PizzaCard(recommendation: recommendation)
-            }
-        }
-        .task {
-            await viewModel.fetchRecommendation(restrictions: .default)
-        }
+        content.task { await viewModel.start() }
     }
 }
 ```
 
-### Key rules
+(Simplified; the real `HomeViewModel` also takes auth and debug-settings dependencies.)
 
-- `@Observable` auto-tracks all stored properties. No `@Published` needed.
-- SwiftUI only redraws when the specific properties accessed in `body` change (fine-grained).
-- Use `@Bindable` for two-way bindings (e.g., `TextField($viewModel.name)`).
-- Dependencies are injected via **constructor** — never via method calls after init.
+Rules:
 
----
+- Inject dependencies through the initializer, never after init.
+- Keep `init` cheap: store dependencies and defaults only. SwiftUI may construct a view, and so
+  resolve the ViewModel, several times; `@State` keeps the first instance and discards the rest.
+- Start async work and subscriptions in a `start()` method called from `.task { }`. It runs when the
+  view appears and cancels when it disappears.
+- Run several concurrent subscriptions with `withTaskGroup` inside `start()`. Each child must
+  cooperate with cancellation.
+- `@State` ignores new initial values from the parent. Use `.task(id:)` to rerun async work,
+  `.onChange(of:)` to update the existing ViewModel, or a plain `let` property for display-only data.
+- Use `@Bindable` for two-way bindings to ViewModel properties.
 
-## ViewModel Lifecycle & SwiftUI @State
+## Dependency injection with SwiftiePod
 
-This section is critical. Getting this wrong causes subtle state bugs.
+[SwiftiePod](https://github.com/robert-northmind/SwiftiePod) is the DI container (1.1.2 or newer;
+resolved version in
+[Package.resolved](../ios/QuickPizzaIos.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved)).
+One global `pod` is created at startup.
 
-### Core mental model
-
-SwiftUI views are **structs** (value types). They are **ephemeral** — SwiftUI creates and discards them freely. The `body` property is evaluated to build an internal render tree. **The lifetime of a view struct is NOT the same as the lifetime of the on-screen view.**
-
-`@State` bridges this gap. It tells SwiftUI: "manage the storage of this property — keep it alive as long as this view exists in the hierarchy."
-
-### What happens with `@State private var viewModel = SomeViewModel()`
-
-1. **First time** the view appears: SwiftUI calls the View's init, evaluates `SomeViewModel()`, and stores the instance in internal state storage.
-2. **On every subsequent parent redraw**: SwiftUI calls the View's init again. `SomeViewModel()` is evaluated again — a new instance is allocated. But SwiftUI **discards** this new instance and continues using the original one.
-3. **View removed from hierarchy** (popped, `if` condition changes): @State storage is destroyed, the ViewModel is deallocated (`deinit` runs).
-
-**Consequence**: The ViewModel's `init()` may be called multiple times, but extra instances are discarded. Keep `init()` lightweight — just store dependencies, set defaults. No network calls, no subscriptions in `init()`.
-
-### @State ignores new initial values
-
-If a parent passes a changing parameter:
+Define each provider at the top of the file of the type it serves, not in a central file:
 
 ```swift
-// Parent rebuilds with different value
-HomeView(count: 4)  // was 3 before
-```
-
-The `@State` property **ignores** the new initial value. It only uses the first value. To react to parameter changes:
-
-- **`.onChange(of:)`** — to update the existing ViewModel:
-  ```swift
-  .onChange(of: count) { _, newValue in
-      viewModel.updateCount(newValue)
-  }
-  ```
-- **`.task(id:)`** — to re-run async work when a parameter changes:
-  ```swift
-  .task(id: userId) {
-      await viewModel.loadUser(userId)
-  }
-  ```
-- **`.id(value)`** on the parent — to force complete view destruction and recreation.
-- **Plain `let` properties** — if it's just display data, don't put it in the ViewModel at all. Pass it as a regular property on the View.
-
-### Navigation lifecycle
-
-- **Push** a view onto `NavigationStack`: new @State created, new ViewModel.
-- **Pop** a view: @State destroyed, ViewModel deallocated (if no retain cycles).
-- **Re-push** the same screen: brand new @State, brand new ViewModel, fresh state.
-
----
-
-## Dependency Injection with SwiftiePod
-
-Use **SwiftiePod** as the service locator / DI container. The app requires 1.1.2 or
-newer, with its resolved version recorded in [Package.resolved](../ios/QuickPizzaIos.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved). Add it via Swift Package Manager:
-
-```
-.package(url: "https://github.com/robert-northmind/SwiftiePod.git", from: "1.1.2")
-```
-
-### Pod setup
-
-Create a single global pod instance at app startup:
-
-```swift
-import SwiftiePod
-
-let pod = SwiftiePod()
-```
-
-### Provider definitions
-
-Providers are defined **co-located** with the types they serve — at the top of the same file. This keeps the provider close to its implementation and avoids a single large file.
-
-```swift
-// In Logger.swift — co-located with the Logging protocol and implementations
-import SwiftiePod
-
+// Logger.swift
 let loggerProvider = Provider<Logging> { pod in
     let subsystem = Bundle.main.bundleIdentifier ?? "com.grafana.QuickPizzaIos"
     return CompositeLogger(loggers: [
@@ -287,267 +124,44 @@ let loggerProvider = Provider<Logging> { pod in
 }
 ```
 
-```swift
-// In HomeViewModel.swift — co-located with the ViewModel
-let homeViewModelProvider = Provider(scope: AlwaysCreateNewScope()) { pod in
-    HomeViewModel(
-        pizzaRepository: pod.resolve(pizzaRepositoryProvider),
-        authService: pod.resolve(authRepositoryProvider),
-        debugSettings: pod.resolve(debugSettingsRepositoryProvider),
-        logger: pod.resolve(loggerProvider)
-    )
-}
-```
-
-```swift
-// In ConfigService.swift — co-located with ConfigService
-let configServiceProvider = Provider { _ in
-    ConfigService()
-}
-```
-
-### Scoping rules
-
 | What | Scope | Why |
-|------|-------|-----|
-| Services (APIClient, Logger, TokenStorage) | `SingletonScope` (default) | Shared, app-lifetime, stateless or app-scoped state |
-| Repositories | `SingletonScope` (default) | Shared, stateless data access layer |
-| ViewModels | `AlwaysCreateNewScope()` | Each view needs its own fresh instance; `@State` manages its lifetime |
+| --- | --- | --- |
+| Services (APIClient, Logger, token storage) | `SingletonScope` (default) | App-lifetime, shared |
+| Repositories | `SingletonScope` (default) | Stateless data access |
+| ViewModels | `AlwaysCreateNewScope()` | One per view; `@State` owns its lifetime |
 
-### Usage in Views
-
-```swift
-struct HomeView: View {
-    @State private var viewModel = pod.resolve(homeViewModelProvider)
-
-    var body: some View {
-        // ...
-    }
-}
-```
-
-`@State` keeps the stored ViewModel alive. SwiftiePod's `AlwaysCreateNewScope`
-creates a fresh instance each time `resolve()` is called. Recreating the view
-struct can call `resolve()` again; SwiftUI keeps the existing state value and
-discards the newly created instance.
-
-### Testing with overrides
+Override providers in tests and previews:
 
 ```swift
-// In tests or SwiftUI previews
-pod.overrideProvider(pizzaRepositoryProvider) { _ in
-    MockPizzaRepository()
-}
+pod.overrideProvider(pizzaRepositoryProvider) { _ in MockPizzaRepository() }
 ```
 
----
+## Protocol-based services
 
-## Clean Code: Protocol-Based Services
+Wrap external frameworks (UserDefaults, URLSession, Keychain, the OTel SDK) behind a protocol and
+inject it, so business logic can be tested with a mock. For example, `TokenStoring` is implemented
+by `UserDefaultsTokenStorage`.
 
-Define protocols (interfaces) for all services. Never call frameworks like `UserDefaults`, `URLSession`, or third-party SDKs directly inside business logic. Inject abstractions instead.
-
-### Pattern
-
-```swift
-// Protocol (interface) — in TokenStoring.swift
-protocol TokenStoring {
-    func saveSession(token: String, username: String)
-    func loadSession() -> StoredSession
-    func clearSession()
-}
-
-struct StoredSession: Equatable {
-    let token: String?
-    let username: String?
-    static let empty = StoredSession(token: nil, username: nil)
-    var isAuthenticated: Bool { token != nil && !(token?.isEmpty ?? true) }
-}
-
-// Real implementation — in UserDefaultsTokenStorage.swift
-class UserDefaultsTokenStorage: TokenStoring {
-    private let defaults: UserDefaults
-    init(defaults: UserDefaults = .standard) { self.defaults = defaults }
-
-    func saveSession(token: String, username: String) { /* ... */ }
-    func loadSession() -> StoredSession { /* ... */ }
-    func clearSession() { /* ... */ }
-}
-
-// Mock for testing
-class MockTokenStorage: TokenStoring {
-    var session: StoredSession = .empty
-    func saveSession(token: String, username: String) {
-        session = StoredSession(token: token, username: username)
-    }
-    func loadSession() -> StoredSession { session }
-    func clearSession() { session = .empty }
-}
-```
-
-### When to be pragmatic
-
-Do NOT force this pattern everywhere. Skip the protocol when:
-- The type is trivial and will never be mocked (e.g., `Date()`, `UUID()`).
-- It adds complexity without testability benefit.
-- It's a pure data model or value type.
-
-DO use protocols when:
-- The implementation wraps an external framework (UserDefaults, URLSession, Keychain, OTel SDK).
-- You need to swap implementations for testing.
-- Multiple implementations exist (e.g., real vs. mock API client).
-
----
-
-## Async Work & Subscriptions
-
-### The recommended pattern: cheap init + `.task { await start() }`
-
-Do NOT set up subscriptions or async work in the ViewModel's `init()`. The `init()` may be called multiple times due to SwiftUI's view struct re-initialization behavior.
-
-Instead, use a `start()` method called from `.task { }`:
-
-```swift
-@Observable
-class HomeViewModel {
-    private let authService: AuthServiceProtocol
-    var isLoggedIn = false
-
-    // Init is cheap — just stores dependencies
-    init(authService: AuthServiceProtocol) {
-        self.authService = authService
-    }
-
-    // Subscriptions happen here. Called from .task { }
-    func start() async {
-        for await _ in authService.authStateChanged {
-            isLoggedIn = authService.isAuthenticated
-        }
-    }
-}
-```
-
-```swift
-struct HomeView: View {
-    @State private var viewModel = pod.resolve(homeViewModelProvider)
-
-    var body: some View {
-        // ...
-        .task {
-            await viewModel.start()
-        }
-    }
-}
-```
-
-### Why `.task { }` is ideal
-
-- Runs when the view **appears** in the hierarchy.
-- **Auto-cancels** the `Task` when the view **disappears** (popped, removed).
-- Only runs **once** per view appearance (not on every parent redraw).
-- Uses Swift structured concurrency — cleanup is automatic.
-
-### Multiple concurrent subscriptions
-
-Use `withTaskGroup` inside `start()`. The app concurrently loads initial data
-and observes authentication changes:
-
-```swift
-func start() async {
-    await withTaskGroup(of: Void.self) { group in
-        group.addTask { @MainActor in
-            for await _ in self.authService.authStateChanged {
-                self.isLoggedIn = self.authService.isAuthenticated
-            }
-        }
-        group.addTask { @MainActor in
-            await self.loadInitialData()
-        }
-    }
-}
-```
-
-When `.task` cancels, cancellation propagates to its task group. Each child must
-cooperate with cancellation; the app uses async streams and cancellable network
-operations.
-
-### Reacting to parameter changes
-
-Use `.task(id:)`:
-
-```swift
-.task(id: userId) {
-    await viewModel.loadData(for: userId)
-}
-```
-
-This cancels the previous task and re-runs with the new value.
-
----
+Skip the protocol for trivial types that will never be mocked, pure data models and value types.
 
 ## Navigation
 
-Use `NavigationStack` with a `TabView` for bottom navigation (matching the Flutter app's shell route with bottom nav).
+`MainShell` is a `NavigationStack` around a `TabView(selection:)` with Home, About and Debug tabs,
+plus Login and Profile sheets. See `Navigation/MainShell.swift`.
 
-```swift
-struct MainShell: View {
-    var body: some View {
-        NavigationStack {
-            TabView {
-                HomeView()
-                    .tabItem { Label("Home", systemImage: "house") }
+## Flutter mapping
 
-                AboutView()
-                    .tabItem { Label("About", systemImage: "info.circle") }
-
-                DebugView()
-                    .tabItem { Label("Debug", systemImage: "ladybug") }
-            }
-        }
-    }
-}
-```
-
----
-
-## Reference: Flutter App Structure
-
-The iOS app mirrors the Flutter app's architecture. Here's the mapping:
+The iOS app mirrors the Flutter app:
 
 | Flutter | iOS |
-|---------|-----|
+| --- | --- |
 | `main.dart` | `QuickPizzaIosApp.swift` |
 | `bootstrap.dart` | `Bootstrap.swift` |
 | Riverpod `Provider` | SwiftiePod `Provider` (co-located in each file) |
 | Riverpod `Notifier` | `@Observable` ViewModel class |
-| `ConsumerWidget` | SwiftUI `View` with `@State` ViewModel |
+| `ConsumerWidget` | SwiftUI `View` with a `@State` ViewModel |
 | `ref.read(provider)` for dependency lookup | `pod.resolve(provider)` (lookup, not a reactive subscription) |
 | `core/api/api_client.dart` | `Core/API/APIClient.swift` |
-| `features/pizza/domain/` | `Features/Pizza/Domain/` |
-| `features/pizza/models/` | `Features/Pizza/Models/` |
-| `features/pizza/presentation/` | `Features/Pizza/Presentation/` |
+| `features/pizza/{domain,models,presentation}/` | `Features/Pizza/{Domain,Models,Presentation}/` |
 | GoRouter | `NavigationStack` + `TabView` |
 | Async initialization in a Riverpod notifier | `.task { await viewModel.start() }` |
-
-### Shared features
-
-- **Auth**: Login screen, token-based auth, session persistence
-- **Pizza**: Pizza recommendation with customization, quote display
-- **Ratings**: Rate pizzas, view/delete ratings
-- **About**: App info, links
-- **Profile**: User profile, ratings history, sign out
-- **Debug**: Runtime configuration, fault simulation, test telemetry, and crashes
-- **Observability**: OpenTelemetry Swift for traces and logs (OSLog + OTel dual logging)
-
----
-
-## Quick Reference: SwiftUI State Property Wrappers
-
-| Wrapper | Use for |
-|---------|---------|
-| `@State` | View-owned state: primitives, structs, `@Observable` class instances |
-| `@Binding` | Two-way connection to a parent's `@State` |
-| `@Bindable` | Two-way binding to `@Observable` class properties |
-| `@Environment(\.key)` | Reading SwiftUI environment values (theme, locale, custom keys) |
-| `@Environment(Type.self)` | Reading `@Observable` objects from the environment |
-
-Do NOT use the older `@StateObject`, `@ObservedObject`, `@EnvironmentObject`, or `@Published` — these are the pre-iOS 17 pattern.

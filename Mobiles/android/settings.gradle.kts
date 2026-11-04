@@ -29,6 +29,10 @@ rootProject.name = "QuickPizza"
 include(":app")
 include(":grafana-opentelemetry-android")
 
+val mobileSessionReplay = providers.gradleProperty("mobileSessionReplay")
+    .map { it.toBoolean() }
+    .orElse(false)
+
 fun resolveFaroReplayCheckout(): java.io.File {
     val configured = providers.gradleProperty("faroReplayDir").orNull
         ?: System.getenv("FARO_REPLAY_DIR")?.trim()?.takeIf { it.isNotEmpty() }
@@ -43,8 +47,10 @@ fun resolveFaroReplayCheckout(): java.io.File {
     return checkout
 }
 
-includeBuild(resolveFaroReplayCheckout()) {
-    dependencySubstitution {
-        substitute(module("com.grafana.faro:faro-android-replay")).using(project(":replay"))
+if (mobileSessionReplay.get()) {
+    includeBuild(resolveFaroReplayCheckout()) {
+        dependencySubstitution {
+            substitute(module("com.grafana.faro:faro-android-replay")).using(project(":replay"))
+        }
     }
 }

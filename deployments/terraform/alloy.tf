@@ -2,8 +2,8 @@
 
 locals {
   alloy_component_labels = {
-    "environment"                = var.deployment_environment
-    "app.k8s.io/name"            = "alloy-app"
+    "environment"                 = var.deployment_environment
+    "app.k8s.io/name"             = "alloy-app"
     "app.kubernetes.io/component" = "service"
     "app.kubernetes.io/instance"  = "alloy"
   }
@@ -20,7 +20,7 @@ resource "kubernetes_service_account_v1" "alloy" {
 // This allows Alloy (`service_account_name`) to discover application pods and scrape metrics. 
 resource "kubernetes_cluster_role_binding_v1" "alloy" {
   metadata {
-    name      = "alloy"
+    name = "alloy"
   }
   role_ref {
     api_group = "rbac.authorization.k8s.io"
@@ -50,8 +50,9 @@ resource "kubernetes_secret_v1" "alloy_credentials" {
     namespace = kubernetes_namespace_v1.quickpizza.id
   }
   data = {
-    GRAFANA_CLOUD_STACK = var.grafana_cloud_stack
-    GRAFANA_CLOUD_TOKEN = var.grafana_cloud_token
+    GRAFANA_CLOUD_STACK         = var.grafana_cloud_stack
+    GRAFANA_CLOUD_TOKEN         = var.grafana_cloud_token
+    GRAFANA_CLOUD_OTLP_ENDPOINT = var.grafana_cloud_otlp_endpoint
   }
   type = "Opaque"
 }
@@ -63,7 +64,7 @@ resource "kubernetes_deployment_v1" "alloy" {
   metadata {
     name      = "alloy"
     namespace = kubernetes_namespace_v1.quickpizza.id
-    labels = local.alloy_component_labels
+    labels    = local.alloy_component_labels
   }
   spec {
     replicas = 1
@@ -85,7 +86,7 @@ resource "kubernetes_deployment_v1" "alloy" {
         service_account_name = kubernetes_service_account_v1.alloy.metadata[0].name
         container {
           name              = "alloy"
-          image             = "grafana/alloy:v1.14.2@sha256:eadfe35ea52b26cbec4d4d780fbcc31edb31108c1c9e537ca59557a5a102c712"
+          image             = "grafana/alloy:v1.20.0@sha256:f111cce835516c5f99166342be7038496b52ced16667be5a11e19258a3e4cd30"
           image_pull_policy = "IfNotPresent"
           args = [
             "run",
@@ -192,6 +193,6 @@ resource "kubernetes_service_v1" "alloy" {
       target_port = "http"
     }
     selector = local.alloy_component_labels
-    type = "ClusterIP"
+    type     = "ClusterIP"
   }
 }

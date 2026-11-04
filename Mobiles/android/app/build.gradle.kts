@@ -17,15 +17,21 @@ plugins {
     id("com.grafana.faro.android-symbols") version "0.1.1"
 }
 
+val mobileSessionReplay = providers.gradleProperty("mobileSessionReplay")
+    .map { it.toBoolean() }
+    .orElse(false)
+
 // Replay's layout masker is audited against Compose 1.7.6. OTel 1.7.0's runtime
 // lifecycle-process dependency otherwise upgrades the Lifecycle family and Compose
 // to 2.11/1.11 while compilation still uses this app's older versions. OTel uses
 // only ProcessLifecycleOwner and LifecycleObserver APIs available in 2.8.7.
-configurations.configureEach {
-    resolutionStrategy.eachDependency {
-        if (requested.group == "androidx.lifecycle") {
-            useVersion(libs.versions.lifecycle.get())
-            because("Keep the replay demo on its tested Lifecycle and Compose versions")
+if (mobileSessionReplay.get()) {
+    configurations.configureEach {
+        resolutionStrategy.eachDependency {
+            if (requested.group == "androidx.lifecycle") {
+                useVersion(libs.versions.lifecycle.get())
+                because("Keep the replay demo on its tested Lifecycle and Compose versions")
+            }
         }
     }
 }
@@ -75,6 +81,29 @@ android {
         versionName = quickPizzaDemoVersionName.get()
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("boolean", "MOBILE_SESSION_REPLAY", mobileSessionReplay.get().toString())
+    }
+
+    sourceSets {
+        if (mobileSessionReplay.get()) {
+            getByName("main").apply {
+                java.srcDir("src/mobileSessionReplay/java")
+                kotlin.srcDir("src/mobileSessionReplay/java")
+            }
+            getByName("test").apply {
+                java.srcDir("src/mobileSessionReplay/test")
+                kotlin.srcDir("src/mobileSessionReplay/test")
+            }
+            getByName("androidTest").apply {
+                java.srcDir("src/mobileSessionReplay/androidTest")
+                kotlin.srcDir("src/mobileSessionReplay/androidTest")
+            }
+        } else {
+            getByName("main").apply {
+                java.srcDir("src/replayOff/java")
+                kotlin.srcDir("src/replayOff/java")
+            }
+        }
     }
 
     buildTypes {
@@ -162,7 +191,9 @@ dependencies {
     implementation(libs.opentelemetry.android.okhttp3.library)
     implementation(libs.opentelemetry.okhttp3)
     byteBuddy(libs.opentelemetry.android.okhttp3.agent)
-    implementation("com.grafana.faro:faro-android-replay:0.1.0-SNAPSHOT")
+    if (mobileSessionReplay.get()) {
+        implementation("com.grafana.faro:faro-android-replay:0.1.0-SNAPSHOT")
+    }
 
     // TODO(opentelemetry-android#764): remove with com.grafana.quickpizza.nativecrash package.
     // Protobuf tombstone decode for ApplicationExitInfo.traceInputStream (API 31+).

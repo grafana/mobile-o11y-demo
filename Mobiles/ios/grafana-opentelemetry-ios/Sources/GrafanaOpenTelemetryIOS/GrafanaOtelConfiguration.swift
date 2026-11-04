@@ -1,14 +1,11 @@
 import Foundation
 import OpenTelemetryApi
 
-/// Whether spans and pre-export log batches are persisted to disk between launches.
+/// Whether span and log batches are persisted to disk between launches.
 ///
-/// Enabled by default, at ``enabledInDefaultDirectory``. For spans, the disk queue owns retry, so
-/// failed exports survive relaunch and can be delivered after connectivity returns. For logs,
-/// persistence only protects the batch until its first export attempt: the pinned upstream HTTP log
-/// exporter reports success before the response arrives, causing the disk copy to be removed, and
-/// requeues a later network failure in memory only. Log records — including MetricKit diagnostics —
-/// therefore do not have durable offline retry after an attempt has started.
+/// Enabled by default, at ``enabledInDefaultDirectory``. For both signals the disk queue owns retry,
+/// so failed exports survive relaunch and can be delivered after connectivity returns. Logs include
+/// MetricKit diagnostics.
 ///
 /// It is not free. Records become readable to the exporter after roughly 4.75 seconds and then
 /// export on an adaptive 1–20 second cycle, so every signal arrives later than it would without
@@ -38,7 +35,7 @@ public enum GrafanaOtelDiskBuffering: Sendable, Equatable {
 
   /// Application Support is not guaranteed to resolve, so this falls back to the temporary
   /// directory rather than making buffering unavailable. `appendingPathComponent` is used instead
-  /// of the iOS 16 `appending(path:)` because this package supports iOS 13.
+  /// of the iOS 16 `appending(path:)` because this candidate still supports iOS 15.
   static let defaultStorageURL: URL = {
     let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
       ?? FileManager.default.temporaryDirectory

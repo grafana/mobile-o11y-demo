@@ -10,7 +10,7 @@ flutter devices | grep ios
 
 if [ $? -ne 0 ]; then
     echo "No iOS device found. Opening iOS Simulator..."
-    open -a Simulator
+    ../scripts/open-simulator.sh
     echo "Waiting for simulator to start..."
     sleep 5
 else
