@@ -43,7 +43,9 @@ You need Android Studio (or JDK 17+ and the Android SDK for command-line builds)
    <img src="docs/images/3-sample-app.png" alt="The sample app" width="260">
 6. **Open your app in Frontend Observability.** Sessions, logs, errors, crashes and HTTP requests
    appear about 45 seconds later (see [Disk buffering](#disk-buffering)). The
-   session ID on screen matches the one in Grafana.
+   session ID on screen matches the one in Grafana. Open it under **Sessions** to see its journey:
+
+   ![A session from the sample app in Frontend Observability](docs/images/4-session-in-grafana.png)
 
 ## Add it to your own app
 
