@@ -28,9 +28,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import io.opentelemetry.api.common.AttributeKey.longKey
 import io.opentelemetry.api.common.AttributeKey.stringKey
 import io.opentelemetry.api.common.Attributes
+import io.opentelemetry.instrumentation.compose.navigation.withOpenTelemetry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -55,14 +59,27 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MaterialTheme(colorScheme = SampleColors) { SampleScreen() }
+            MaterialTheme(colorScheme = SampleColors) { SampleNavHost() }
         }
+    }
+}
+
+/** Two screens, so you can see Compose navigation arrive as screen views in Frontend Observability. */
+@Composable
+private fun SampleNavHost() {
+    val navController = rememberNavController()
+    // Reports every route change ("home", "details") as a screen view. Skipped if OTel did not start.
+    OTel.rum?.let { navController.withOpenTelemetry(it) }
+
+    NavHost(navController, startDestination = "home") {
+        composable("home") { SampleScreen(onOpenDetails = { navController.navigate("details") }) }
+        composable("details") { DetailsScreen(onBack = { navController.popBackStack() }) }
     }
 }
 
 /** One button per kind of telemetry. Each action uses the thin `OTel` helpers over the plain OpenTelemetry API. */
 @Composable
-private fun SampleScreen() {
+private fun SampleScreen(onOpenDetails: () -> Unit) {
     var status by remember { mutableStateOf("Tap a button") }
     val scope = rememberCoroutineScope()
 
@@ -91,6 +108,9 @@ private fun SampleScreen() {
 
             item { SectionTitle("Traces") }
             item { Action("Manual span with child HTTP call") { runInBackground { manualSpan() } } }
+
+            item { SectionTitle("Navigation") }
+            item { Action("Open second screen") { onOpenDetails() } }
 
             item { SectionTitle("Crash") }
             item { Action("Crash the app (reported on next launch)", destructive = true) { crash() } }
@@ -143,6 +163,22 @@ private fun crash(): Nothing = throw IllegalStateException("Demo crash from the 
 
 /** An example app error. */
 class CheckoutException(message: String) : Exception(message)
+
+/** The second screen. Opening it and going back are both reported as screen views. */
+@Composable
+private fun DetailsScreen(onBack: () -> Unit) {
+    Scaffold { padding ->
+        LazyColumn(
+            Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            item { Text("Second screen", style = MaterialTheme.typography.headlineMedium) }
+            item { Text("This screen change was sent to Grafana as a screen view named \"details\".") }
+            item { Action("Back to home", onClick = onBack) }
+        }
+    }
+}
 
 /** The result of the last tap, and the session ID to search for in Frontend Observability. */
 @Composable

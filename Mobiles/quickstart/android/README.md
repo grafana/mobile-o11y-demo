@@ -1,11 +1,13 @@
 # OpenTelemetry Android → Grafana Frontend Observability (Android)
 
-A tiny Jetpack Compose app that sends logs, events, errors, crashes, manual spans and HTTP spans to
-Grafana Frontend Observability, using **plain OpenTelemetry Android**, with no Grafana SDK.
+A tiny Jetpack Compose app that sends logs, events, errors, crashes, screen views, manual spans and
+HTTP spans to Grafana Frontend Observability, using **plain OpenTelemetry Android**, with no Grafana
+SDK.
 
-Everything that matters is in one file:
+All the OpenTelemetry code is in one file:
 [`OTel.kt`](app/src/main/java/com/example/otelandroidsample/OTel.kt). Copy it into your own app and
-follow the steps below.
+follow the steps below. Your build needs AGP 9.1+, `compileSdk` 37 and Kotlin 2.3+
+([requirements](#1-add-the-dependencies)).
 
 > **Status:** private preview. Tested with `opentelemetry-android` 1.8.0 (BOM `1.8.0-alpha`),
 > OkHttp 5.5, Android Studio 2026.2, Pixel 4 emulator (Android 11, API 30), against a production
@@ -51,14 +53,15 @@ You need Android Studio (or JDK 17+ and the Android SDK for command-line builds)
 
 ### 1. Add the dependencies
 
-Requirements, all set by the agent's own dependencies:
+Your build needs (the agent's dependencies set these floors):
 
 - **Android Gradle Plugin 9.1 or newer (tested with 9.5) and `compileSdk` 37.** The agent pulls in
   `androidx.core` 1.19 and OkHttp 5.5, which refuse to build with anything older.
-- **Kotlin 2.3 or newer.** The agent is built with Kotlin 2.4; older compilers fail with "Module was
-  compiled with an incompatible version of Kotlin". Compose apps on the Compose compiler plugin 2.3+
-  already have it. Without Compose, AGP 9's built-in Kotlin is too old, so add this to the root
-  `build.gradle.kts`:
+- **Kotlin 2.3 or newer.** The agent is built with Kotlin 2.4, which Kotlin 2.3 compilers can still
+  read; 2.2 and older fail with "Module was compiled with an incompatible version of Kotlin". Compose apps on the Compose compiler plugin 2.3+
+  already have it. Without Compose, AGP 9's built-in Kotlin (2.2) is too old. AGP uses the Kotlin
+  Gradle plugin found on the build classpath, so add this to the root `build.gradle.kts` (any 2.3+
+  version works):
 
   ```kotlin
   plugins {
@@ -68,7 +71,7 @@ Requirements, all set by the agent's own dependencies:
 
   Only in the root, with `apply false`: AGP 9 refuses the plugin in the app module.
 
-- **`minSdk` 23 or newer.**
+- **`minSdk` 23 or newer**, or 24 if you use Navigation Compose (androidx.navigation requires it).
 
 In `app/build.gradle.kts` (if `compileOptions` already exists, add the line to it):
 
@@ -84,20 +87,24 @@ dependencies {
 
     implementation(platform("io.opentelemetry.android:opentelemetry-android-bom:1.8.0-alpha"))
     implementation("io.opentelemetry.android:android-agent")
-    // HTTP spans for OkHttp. Leave out if your app does not use OkHttp.
+    // HTTP spans for OkHttp. Leave out if your app does not use OkHttp. Your app must also declare
+    // OkHttp itself (for example "com.squareup.okhttp3:okhttp:5.5.1"), as most OkHttp apps already do.
     implementation("io.opentelemetry.instrumentation:opentelemetry-okhttp-3.0")
+    // Screen views for Jetpack Compose navigation. Leave out if your app does not use it.
+    implementation("io.opentelemetry.android.instrumentation:compose-navigation")
 }
 ```
 
-The BOM keeps every OpenTelemetry artifact on matching versions, so the two lines below it need no
+The BOM keeps every OpenTelemetry artifact on matching versions, so the lines below it need no
 version.
 
-The agent's exporter already depends on OkHttp 5, so your app uses OkHttp 5 either way. No OkHttp
-calls of your own? Leave out the last line, and delete `httpClient` and its `okhttp3` /
-`OkHttpTelemetry` imports from `OTel.kt`.
+The agent ships OkHttp 5 for its own exporter, so if your app uses OkHttp, it ends up on OkHttp 5
+(Retrofit 2.11 works with it). Your app does not use OkHttp, directly or through Retrofit? Leave
+out the `opentelemetry-okhttp-3.0` line, delete `httpClient` and its `okhttp3` / `OkHttpTelemetry`
+imports from `OTel.kt`, and skip the HTTP examples in step 4.
 
 `android-agent` brings sessions, the OTLP/HTTP exporter, crash and ANR reporting, app start,
-Activity and Fragment screen spans, and slow-render detection.
+Activity and Fragment screen views, and slow-render detection.
 
 **Turn on core library desugaring** if your `minSdk` is below 31, which is almost every app. The
 agent calls `java.time` methods that Android only has natively from Android 12 (API 31). Without
@@ -179,7 +186,7 @@ Logs, events, errors and spans are cheap, so call them from any thread, includin
 
 A manual span. OkHttp calls made inside the block become its child spans. Network calls must
 leave the main thread, so this one runs on a background dispatcher (`kotlinx-coroutines-android`,
-which Compose apps already have):
+which Compose apps already have; any background thread works too):
 
 ```kotlin
 import kotlinx.coroutines.Dispatchers
@@ -200,6 +207,24 @@ above. Calls made from a coroutine launched inside the block do not get it as pa
 
 The helpers are a few lines each, on top of the standard OpenTelemetry API. Use `OTel.logger`,
 `OTel.tracer` or `OTel.openTelemetry` directly when you need more control.
+
+**Screen views.** Activities and Fragments are tracked automatically, named after their class
+(`MainActivity`) or an `@RumScreenName` annotation. For Jetpack Compose navigation, add one line
+right after you create the `NavController`, in the same composable:
+
+```kotlin
+import io.opentelemetry.instrumentation.compose.navigation.withOpenTelemetry
+
+val navController = rememberNavController()
+OTel.rum?.let { navController.withOpenTelemetry(it) }   // rum is null if OTel did not start
+```
+
+It registers once per `NavController`, so recomposition does not add duplicates. Using several
+`NavController`s, for example one per tab? Add the line for each. Every route
+change, including the start route and going back, then shows up as a screen view named after the
+route (`home`, `details`). A route with arguments shows its pattern, for example `details/{id}`;
+pass `screenName = { destination, args -> ... }` to `withOpenTelemetry` to name it differently.
+The sample's **Open second screen** button shows it.
 
 **HTTP requests** are traced when they go through `OTel.httpClient`. To trace your own client,
 wrap it once and use the result wherever you used the client (Retrofit takes it as `callFactory`):
@@ -224,7 +249,8 @@ OpenTelemetry Android `okhttp3-agent` Byte Buddy plugin instead. It rewrites OkH
 the Android tab of **Mobile SDK Config** shows that setup.
 
 **Skip hosts you don't want traced**, for example a third-party SDK's API. Spans for these hosts
-are dropped before export; the requests still get a `traceparent` header. Add this inside the
+are dropped before export, for `OTel.httpClient` and clients you wrap yourself; the requests still
+get a `traceparent` header. Add this inside the
 `initialize { }` block in `OTel.kt` (the API is marked incubating, hence the opt-in):
 
 ```kotlin
@@ -266,7 +292,7 @@ offline is sent once the device is back online, and crashes are sent on the next
 1. **Look at Logcat.** Export errors are logged with the tag `HttpExporter`, for example
    `Failed to export 2 logs. Server responded with HTTP status code 404`. Filter on
    `tag:HttpExporter | tag:OTel | tag:OpenTelemetryRum`. `OTel: Not started` means the endpoint is
-   still the placeholder. Because of [disk buffering](#disk-buffering), export errors appear about
+   still the placeholder; `OTel: OpenTelemetry failed to start` comes with the reason. Because of [disk buffering](#disk-buffering), export errors appear about
    45 s after launch.
 2. **Check the URL.** It must contain `/otlp/`, not `/collect/`, must be the URL of *this* app, and
    must not end in `/v1/traces` or `/v1/logs`.
@@ -292,19 +318,21 @@ offline is sent once the device is back online, and crashes are sent on the next
 
 | Works | Not available yet |
 | --- | --- |
-| Sessions (start, 15 min in background, 4 h max, new on each launch) | Jetpack Compose screen names (all screens show the Activity name; see below) |
-| Logs, events, handled errors | Deobfuscation: this sample uploads no R8 mapping file, so minified release builds show obfuscated stack traces |
-| Crashes (sent on the next launch) and ANRs (main thread blocked for about 10 s) | Native (NDK) crashes (a separate `native-crash` instrumentation, not part of this sample) |
-| App start time | Metrics (dropped by design) |
-| Screen views per Activity and Fragment | |
+| Sessions (start, 15 min in background, 4 h max, new on each launch) | Deobfuscation: this sample uploads no R8 mapping file, so minified release builds show obfuscated stack traces |
+| Logs, events, handled errors | Native (NDK) crashes (a separate `native-crash` instrumentation, not part of this sample) |
+| Crashes (sent on the next launch) and ANRs (main thread blocked for about 10 s) | Metrics (dropped by design) |
+| App start time | |
+| Screen views per Activity and Fragment, and per Compose navigation route | |
 | Slow and frozen frames | |
 | HTTP spans for OkHttp, linked to your backend via `traceparent` | |
 | Manual spans | |
 | Device, OS, app version, network type, environment | |
 
-**Screens are Activities.** A single-Activity Compose app shows one screen (`MainActivity`). The
-OpenTelemetry Android `compose-navigation` instrumentation adds Compose route changes; it is not
-part of this sample.
+**What screen views look like.** Each Activity and Fragment shows up as a screen view when it
+appears, named after its class (`LoginActivity`, `ProfileFragment`). A Compose app shows one for its
+Activity at launch (`MainActivity`), then one per navigation route (`home`, `details`), as described
+in [Screen views](#4-send-your-own-telemetry). Returning to the app from the background does not
+add a new screen view.
 
 ## Next steps for production
 

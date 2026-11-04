@@ -43,7 +43,7 @@ object OTelConfig {
  * Wires OpenTelemetry Android for Grafana Frontend Observability.
  *
  * `OpenTelemetryRumInitializer` is the OpenTelemetry Android agent: one call sets up sessions,
- * exporters, crash and ANR reporting, app start, Activity and Fragment screen spans, and
+ * exporters, crash and ANR reporting, app start, Activity and Fragment screen views, and
  * slow-frame detection. The settings below are the ones Grafana needs; everything else keeps the
  * agent's defaults.
  */
@@ -51,7 +51,12 @@ object OTel {
     private const val TAG = "OTel"
     private const val SCOPE = "otel-android-sample"
 
-    private var rum: OpenTelemetryRum? = null
+    /**
+     * The agent's runtime, or null until [start] has run (or if it could not start).
+     * Only needed for instrumentations you attach yourself, such as Compose navigation.
+     */
+    var rum: OpenTelemetryRum? = null
+        private set
 
     /**
      * Call once, from [Application.onCreate], before anything else creates spans or logs.

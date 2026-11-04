@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.otelandroidsample"
-        minSdk = 23
+        minSdk = 24   // 24 for androidx.navigation; the agent itself supports 23
         targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
@@ -36,9 +36,12 @@ dependencies {
     // HTTP spans for OkHttp. Version comes from the BOM above.
     implementation("io.opentelemetry.instrumentation:opentelemetry-okhttp-3.0")
     implementation("com.squareup.okhttp3:okhttp:5.5.1")
+    // Screen views for Jetpack Compose navigation. Version comes from the BOM above.
+    implementation("io.opentelemetry.android.instrumentation:compose-navigation")
 
     // UI for the sample screen only.
     implementation(platform("androidx.compose:compose-bom:2026.09.00"))
     implementation("androidx.compose.material3:material3")
     implementation("androidx.activity:activity-compose:1.13.0")
+    implementation("androidx.navigation:navigation-compose:2.10.2")
 }
