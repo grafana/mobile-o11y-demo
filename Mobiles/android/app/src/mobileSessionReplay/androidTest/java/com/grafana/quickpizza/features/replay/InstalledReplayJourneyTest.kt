@@ -159,11 +159,13 @@ class InstalledReplayJourneyTest {
         val result = JSONObject()
         instrumentation.runOnMainSync {
             val service = compose.activity.otelService
-            val session = field(service, "replaySessionHost") as? FaroReplaySessionHost
-            val process = field(service, "processHost") as? FaroReplayProcessHost
-            val navigation = field(service, "replayNavigationHost") as? FaroReplayNavigationHost
+            val integration = field(service, "sessionReplayIntegration")
+                ?: error("sessionReplayIntegration missing on OTelService")
+            val session = field(integration, "replaySessionHost") as? FaroReplaySessionHost
+            val process = field(integration, "processHost") as? FaroReplayProcessHost
+            val navigation = field(integration, "replayNavigationHost") as? FaroReplayNavigationHost
             result.put("sdkInitialized", service.openTelemetryRum != null)
-                .put("installed", field(service, "replayInstallation") != null)
+                .put("installed", field(integration, "replayInstallation") != null)
                 .put("sessionSnapshot", session?.currentSessionSnapshot()?.toString())
                 .put("foreground", process?.isForeground())
                 .put("eligibleWindow", process?.hasEligibleWindow())
