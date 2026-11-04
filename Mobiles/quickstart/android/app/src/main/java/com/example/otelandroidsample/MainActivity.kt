@@ -3,14 +3,21 @@ package com.example.otelandroidsample
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -18,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import io.opentelemetry.api.common.AttributeKey.longKey
@@ -32,10 +40,23 @@ import okhttp3.Request
 private const val OK_URL = "https://quickpizza.grafana.com/api/quotes"
 private const val NOT_FOUND_URL = "https://quickpizza.grafana.com/api/does-not-exist"
 
+// Grafana orange, with matching light tints for the buttons and the status card.
+private val SampleColors = lightColorScheme(
+    primary = Color(0xFFF46800),
+    secondaryContainer = Color(0xFFFFE6D5),
+    onSecondaryContainer = Color(0xFF4A1F00),
+    surfaceContainerHighest = Color(0xFFF3EFEC),
+    background = Color.White,
+    surface = Color.White,
+)
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { MaterialTheme { SampleScreen() } }
+        enableEdgeToEdge()
+        setContent {
+            MaterialTheme(colorScheme = SampleColors) { SampleScreen() }
+        }
     }
 }
 
@@ -51,8 +72,13 @@ private fun SampleScreen() {
     }
 
     Scaffold { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
+        LazyColumn(
+            Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             item { Text("OTel Android Sample", style = MaterialTheme.typography.headlineMedium) }
+            item { StatusCard(status) }
 
             item { SectionTitle("Logs") }
             item { Action("Send info log") { status = sendLog() } }
@@ -67,19 +93,7 @@ private fun SampleScreen() {
             item { Action("Manual span with child HTTP call") { runInBackground { manualSpan() } } }
 
             item { SectionTitle("Crash") }
-            item { Action("Crash the app (reported on next launch)") { crash() } }
-
-            item { SectionTitle("Status") }
-            item { Text(status) }
-            item {
-                SelectionContainer {
-                    Text(
-                        "session.id: ${OTel.sessionId ?: "-"}",
-                        fontFamily = FontFamily.Monospace,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-            }
+            item { Action("Crash the app (reported on next launch)", destructive = true) { crash() } }
         }
     }
 }
@@ -130,17 +144,41 @@ private fun crash(): Nothing = throw IllegalStateException("Demo crash from the 
 /** An example app error. */
 class CheckoutException(message: String) : Exception(message)
 
+/** The result of the last tap, and the session ID to search for in Frontend Observability. */
+@Composable
+private fun StatusCard(status: String) {
+    Card(Modifier.fillMaxWidth()) {
+        Text(status, Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp))
+        SelectionContainer {
+            Text(
+                "session.id: ${OTel.sessionId ?: "-"}",
+                Modifier.padding(16.dp),
+                fontFamily = FontFamily.Monospace,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
+}
+
 @Composable
 private fun SectionTitle(text: String) {
     Text(
         text,
         style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(top = 20.dp, bottom = 4.dp),
+        modifier = Modifier.padding(top = 12.dp),
     )
 }
 
 @Composable
-private fun Action(label: String, onClick: () -> Unit) {
-    TextButton(onClick = onClick) { Text(label) }
+private fun Action(label: String, destructive: Boolean = false, onClick: () -> Unit) {
+    val colors = if (destructive) {
+        ButtonDefaults.filledTonalButtonColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        )
+    } else {
+        ButtonDefaults.filledTonalButtonColors()
+    }
+    FilledTonalButton(onClick, Modifier.fillMaxWidth(), colors = colors) { Text(label) }
 }
