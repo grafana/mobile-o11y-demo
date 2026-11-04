@@ -100,8 +100,8 @@ version.
 
 The agent ships OkHttp 5 for its own exporter, so if your app uses OkHttp, it ends up on OkHttp 5
 (Retrofit 2.11 works with it). Your app does not use OkHttp, directly or through Retrofit? Leave
-out the `opentelemetry-okhttp-3.0` line, delete `httpClient` and its `okhttp3` / `OkHttpTelemetry`
-imports from `OTel.kt`, and skip the HTTP examples in step 4.
+out the `opentelemetry-okhttp-3.0` line, delete `httpClient`, `traced` and `UrlWithoutQuery` and
+their imports from `OTel.kt`, and skip the HTTP examples in step 4.
 
 `android-agent` brings sessions, the OTLP/HTTP exporter, crash and ANR reporting, app start,
 Activity and Fragment screen views, and slow-render detection.
@@ -227,17 +227,17 @@ pass `screenName = { destination, args -> ... }` to `withOpenTelemetry` to name 
 The sample's **Open second screen** button shows it.
 
 **HTTP requests** are traced when they go through `OTel.httpClient`. To trace your own client,
-wrap it once and use the result wherever you used the client (Retrofit takes it as `callFactory`):
+wrap it once with `OTel.traced` and use the result wherever you used the client (Retrofit takes it
+as `callFactory`):
 
 ```kotlin
-import io.opentelemetry.instrumentation.okhttp.v3_0.OkHttpTelemetry
-import okhttp3.Call
-
-val callFactory: Call.Factory =
-    OkHttpTelemetry.builder(OTel.openTelemetry).build().createCallFactory(myOkHttpClient)
+val callFactory: okhttp3.Call.Factory = OTel.traced(myOkHttpClient)
 
 Retrofit.Builder().callFactory(callFactory) // ...
 ```
+
+The recorded URL keeps scheme, host and path only: `OTel.traced` drops the query string, fragment
+and credentials, so tokens or personal data in a query never reach Grafana.
 
 Every traced request gets a W3C `traceparent` header that links it to your backend traces.
 `OTel.start()` must have run before you wrap the client, or the wrapper records nothing. So do not
@@ -280,6 +280,7 @@ If you change the setup, keep these. Most cause "I see no data"; the rest cause 
 | `disableMetrics()` | Metrics are accepted and silently dropped. Send an event instead. |
 | `OTel.start()` right after `super.onCreate()` in your `Application` | Started later, it misses app start, the first screen, and crashes before that point. |
 | Wrap OkHttp clients **after** `OTel.start()` | A client wrapped earlier uses the no-op API and records nothing. |
+| Wrap them with `OTel.traced`, not `OkHttpTelemetry` directly | The instrumentation on its own records the full URL, including query parameters such as `?token=…`. |
 
 ### Disk buffering
 
