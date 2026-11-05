@@ -2,6 +2,8 @@ package com.grafana.quickpizza.core.o11y
 
 import android.app.Application
 import android.util.Log
+import androidx.navigation.NavController
+import com.grafana.opentelemetry.android.ExperimentalGrafanaOtelApi
 import com.grafana.opentelemetry.android.GrafanaOtel
 import com.grafana.opentelemetry.android.GrafanaOtelConfiguration
 import com.grafana.quickpizza.core.config.AppConfig
@@ -21,6 +23,7 @@ class OTelService @Inject constructor(
     private val application: Application,
     private val appConfig: AppConfig,
     private val runtimeConfig: RuntimeConfigHolder,
+    private val sessionReplayIntegration: SessionReplayIntegration,
 ) {
     @Volatile
     private var rum: OpenTelemetryRum? = null
@@ -38,6 +41,18 @@ class OTelService @Inject constructor(
     val openTelemetryRum: OpenTelemetryRum?
         get() = rum
 
+    /** Installs session replay when enabled in [RuntimeConfigHolder.current]. */
+    fun installReplay(navController: NavController) {
+        val snapshot = runtimeConfig.current
+        if (!snapshot.mobileSessionReplayEnabled) return
+        sessionReplayIntegration.install(
+            navController = navController,
+            runtimeConfig = snapshot,
+            appConfig = appConfig,
+            application = application,
+        )
+    }
+
     @Synchronized
     fun initialize() {
         if (rum != null) {
@@ -49,6 +64,7 @@ class OTelService @Inject constructor(
         val endpoint = snapshot.otlpEndpoint
         val authHeader = snapshot.otlpAuthHeader
         val diskBufferingEnabled = snapshot.diskBufferingEnabled
+        val replayObserver = sessionReplayIntegration.sessionObserver
 
         if (endpoint.isEmpty()) {
             Log.w(TAG, "OTLP endpoint not configured — running with noop telemetry")
@@ -56,6 +72,7 @@ class OTelService @Inject constructor(
         }
 
         rum = runCatching {
+            @OptIn(ExperimentalGrafanaOtelApi::class)
             GrafanaOtel.initialize(
                 application = application,
                 configuration = GrafanaOtelConfiguration(
@@ -73,8 +90,15 @@ class OTelService @Inject constructor(
                     // the existing consumer accepts the latest experimental conventions.
                     useLatestExperimentalSemanticConventions = false,
                 ),
-            )
+            ) {
+                if (replayObserver != null && snapshot.mobileSessionReplayEnabled) {
+                    // Register before the first session starts. A later observer misses it,
+                    // and SessionPublisher does not replay the current session.
+                    session { observers(replayObserver) }
+                }
+            }
         }.onFailure { Log.e(TAG, "OTelService initialization failed", it) }.getOrNull()
+        rum?.let(sessionReplayIntegration::attach)
 
         if (rum != null) {
             sdkLoggerProvider?.let { loggerProvider ->
@@ -95,7 +119,7 @@ class OTelService @Inject constructor(
             Log.i(
                 TAG,
                 "OTelService initialized, exporting to $endpoint " +
-                    "(diskBuffering=$diskBufferingEnabled)",
+                    "(diskBuffering=$diskBufferingEnabled, mobileSessionReplay=${snapshot.mobileSessionReplayEnabled})",
             )
         }
     }

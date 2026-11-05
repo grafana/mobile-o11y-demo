@@ -1,6 +1,7 @@
 name: Mobile Demo Telemetry (build only)
 
-# Compile-only validation on pull requests. No Vault secrets, no e2e, no Cloud telemetry.
+# Compile-only validation on pull requests. No e2e or Cloud telemetry.
+# Android obtains a read-only broker token for its private replay dependency.
 # Full build + telemetry: merge to main, two-hour schedule, or workflow_dispatch on
 # mobile_demo_telemetry.yaml.
 
@@ -216,6 +217,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Set up Java
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
@@ -232,7 +235,8 @@ jobs:
             "OTLP_ENDPOINT": "${{ env.CI_OTLP_ENDPOINT }}",
             "OTLP_INSTANCE_ID": "${{ env.CI_OTLP_INSTANCE_ID }}",
             "OTLP_API_KEY": "${{ env.CI_OTLP_API_KEY }}",
-            "BASE_URL": ""
+            "BASE_URL": "",
+            "MOBILE_SESSION_REPLAY_ENABLED": false
           }
           EOF
           echo "Created placeholder config.json for build check"
@@ -248,6 +252,75 @@ jobs:
       - name: Build Android APK (minified release)
         working-directory: Mobiles/android
         run: ./gradlew :app:assembleRelease
+
+  build-android-native-apk-replay:
+    name: Build check — Android Native APK (session replay)
+    needs: mobile-changes
+    if: needs.mobile-changes.outputs.mobile == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      FARO_REPLAY_DIR: ${{ github.workspace }}/.ci/faro-android-replay
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Check private dependency access requirements
+        if: github.event.pull_request.head.repo.full_name != github.repository
+        run: |
+          echo "::error::Android replay builds require the private replay library. Fork pull requests cannot obtain the repository's CI token; run this integration from a trusted branch in grafana/mobile-o11y-demo."
+          exit 1
+
+      - name: Get read-only replay checkout token
+        id: replay-token
+        uses: grafana/shared-workflows/actions/create-github-app-token@5bbb526b1728ca57fbe1750c4c27ab6ab06171c2 # create-github-app-token/v1.0.0
+        with:
+          github_app: app-o11y-kwl-ci
+          permission_set: replay-read
+
+      - name: Checkout replay library
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: grafana/hackathon-18-faro-android-replay
+          ref: 38067065cf837dcd3cdb49229e3c53ed44951411
+          token: ${{ steps.replay-token.outputs.token }}
+          path: .ci/faro-android-replay
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: "zulu"
+          java-version: "17"
+
+      - name: Create placeholder config.json for CI
+        working-directory: Mobiles/android
+        run: |
+          mkdir -p app/src/main/res/raw
+          cat > app/src/main/res/raw/config.json << EOF
+          {
+            "OTLP_ENDPOINT": "${{ env.CI_OTLP_ENDPOINT }}",
+            "OTLP_INSTANCE_ID": "${{ env.CI_OTLP_INSTANCE_ID }}",
+            "OTLP_API_KEY": "${{ env.CI_OTLP_API_KEY }}",
+            "BASE_URL": "",
+            "MOBILE_SESSION_REPLAY_ENABLED": true
+          }
+          EOF
+          echo "Created placeholder config.json for replay build check"
+
+      - name: Test Android replay unit tests
+        working-directory: Mobiles/android
+        run: ./gradlew -PmobileSessionReplay=true :app:testDebugUnitTest
+
+      - name: Build Android APK (debug, replay)
+        working-directory: Mobiles/android
+        run: ./gradlew -PmobileSessionReplay=true :app:assembleDebug
 
   build-ios-native-app:
     name: Build check — iOS Native .app

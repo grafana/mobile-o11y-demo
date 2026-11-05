@@ -43,8 +43,9 @@ the legacy OTLP gateway alternative, are in
 | `OTLP_INSTANCE_ID` | Numeric OTLP gateway instance ID. Legacy gateway only; leave empty for Faro. |
 | `OTLP_API_KEY` | Grafana Cloud access token, combined with the instance ID into `Authorization: Basic`. Legacy gateway only. |
 | `BASE_URL` | QuickPizza backend URL. Empty resolves to `http://10.0.2.2:3333` (the emulator's host). For devices, see [Run on a physical device](#run-on-a-physical-device). |
+| `MOBILE_SESSION_REPLAY_ENABLED` | When `true`, installs Faro Android session replay at runtime. Requires a build with `-PmobileSessionReplay=true` (see below). Default `false`. |
 
-All four fields can be overridden from **Debug → Config** without a rebuild. Overrides persist and
+All fields above can be overridden from **Debug → Config** without a rebuild (except replay, which also needs the Gradle flag). Overrides persist and
 apply after you restart the app.
 
 > [!WARNING]
@@ -56,6 +57,28 @@ apply after you restart the app.
 Precedence: **Debug → Config** override > that alternate file > `res/raw/config.json`. Overrides
 survive `installDebug`; reset them with **Reset All** on the Debug tab or **Use defaults** on the
 Config screen.
+
+## Mobile session replay (opt-in)
+
+Default Gradle builds **do not** link the private
+[`grafana/hackathon-18-faro-android-replay`](https://github.com/grafana/hackathon-18-faro-android-replay)
+library. To enable capture, use **both**:
+
+1. **Build:** `-PmobileSessionReplay=true` and a local checkout (`FARO_REPLAY_DIR` or
+   `-PfaroReplayDir=...`). Pin the library ref from
+   [mobile_demo_telemetry_build.yaml](../../.github/workflows/mobile_demo_telemetry_build.yaml)
+   (`build-android-native-apk-replay` job).
+2. **Runtime:** `"MOBILE_SESSION_REPLAY_ENABLED": true` in `config.json` (or packaged telemetry
+   config), then restart the app.
+
+```bash
+git clone git@github.com:grafana/hackathon-18-faro-android-replay.git ../hackathon-18-faro-android-replay
+export FARO_REPLAY_DIR="$(cd ../hackathon-18-faro-android-replay && pwd)"
+replay_ref="$(awk '/repository: grafana\\/hackathon-18-faro-android-replay/ { getline; if ($1 == \"ref:\") print $2 }' ../../.github/workflows/mobile_demo_telemetry_build.yaml)"
+git -C "$FARO_REPLAY_DIR" checkout "$replay_ref"
+cd Mobiles/android
+./gradlew -PmobileSessionReplay=true installDebug
+```
 
 ## Run on an emulator
 

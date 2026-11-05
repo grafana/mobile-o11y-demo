@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
 import com.grafana.quickpizza.core.o11y.OTelService
@@ -31,6 +32,7 @@ class MainActivity : ComponentActivity() {
             QuickPizzaTheme {
                 val navController = rememberNavController()
                 otelService.openTelemetryRum?.let { navController.withOpenTelemetry(it) }
+                SideEffect { otelService.installReplay(navController) }
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),

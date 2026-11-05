@@ -7,5 +7,7 @@
   "OTLP_API_KEY": "",
   "_OTLP_API_KEY_comment": "Grafana Cloud access token (glc_...), combined with the instance ID into Authorization: Basic. Legacy gateway only; leave empty for Faro.",
   "BASE_URL": "",
-  "_BASE_URL_comment": "Leave empty on emulators (uses http://10.0.2.2:3333). On a device (API 24+), run adb reverse tcp:3333 tcp:3333 and use http://127.0.0.1:3333, or use an HTTPS backend. HTTP to a LAN IP is blocked; API 23 needs HTTPS."
+  "_BASE_URL_comment": "Leave empty on emulators (uses http://10.0.2.2:3333). On a device (API 24+), run adb reverse tcp:3333 tcp:3333 and use http://127.0.0.1:3333, or use an HTTPS backend. HTTP to a LAN IP is blocked; API 23 needs HTTPS.",
+  "MOBILE_SESSION_REPLAY_ENABLED": false,
+  "_MOBILE_SESSION_REPLAY_ENABLED_comment": "Installs Faro Android session replay when true. Requires ./gradlew -PmobileSessionReplay=true and FARO_REPLAY_DIR. Align with Grafana feo11yMobileSessionReplay for end-to-end mp4 replay."
 }

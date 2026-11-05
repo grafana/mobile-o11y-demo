@@ -29,12 +29,13 @@ jobs:
           # Published Faro 0.17.0 and Dartastic 0.11.0 LICENSE files are Apache-2.0,
           # but GitHub reports lowercase apache-2.0, which this action rejects.
           # Related Pub license-casing report: https://github.com/orgs/community/discussions/200564
-          # Remove when GitHub returns canonical SPDX identifiers. These license-only
-          # exceptions cover all versions of these packages; vulnerability checks stay enabled.
+          # Remove those Pub exceptions when GitHub returns canonical SPDX identifiers.
+          # These license-only exceptions cover all versions; vulnerability checks stay enabled.
           # golang.org/x/* are BSD-3-Clause; GitHub adds a LicenseRef for Go's extra
           # PATENTS grant, which this action rejects. go-hex is BSD-3-Clause but
           # GitHub reports NOASSERTION. k6 (AGPL-3.0) is only built into a throwaway
           # binary by the k6 extension test in ci.yaml; it never ships in the image.
+          # The Grafana token broker action is AGPL-3.0 CI tooling, not an app dependency.
           allow-dependencies-licenses: >-
             pkg:pub/faro,
             pkg:pub/dartastic_opentelemetry,
@@ -45,4 +46,5 @@ jobs:
             pkg:golang/golang.org/x/text,
             pkg:golang/golang.org/x/time,
             pkg:golang/github.com/tmthrgd/go-hex,
-            pkg:golang/go.k6.io/k6/v2
+            pkg:golang/go.k6.io/k6/v2,
+            pkg:githubactions/grafana/shared-workflows/actions/create-github-app-token

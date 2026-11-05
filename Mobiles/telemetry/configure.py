@@ -178,6 +178,7 @@ def app_configs(run, platform, ports, root=ROOT, backend_port=None):
         if app == 'android':
             # Native Android must always use the emulator's host alias.
             data.update(OTLP_ENDPOINT=f'http://10.0.2.2:{ports[app]}', OTLP_INSTANCE_ID='', OTLP_API_KEY='')
+            data.setdefault('MOBILE_SESSION_REPLAY_ENABLED', False)
             if backend_port is not None:
                 data['BASE_URL'] = f'http://10.0.2.2:{backend_port}'
         else:
