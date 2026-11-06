@@ -114,6 +114,14 @@ jobs:
           repo_secrets: |
             OPENAI_API_KEY=openai_api_key:value
             MOBILE_TELEMETRY_DESTINATIONS=mobile_telemetry_destinations:value
+
+      # Separate step so a missing symbol-upload path (404) does not fail the job.
+      # ignore_missing leaves that env var unset; the build step treats it as incomplete.
+      - name: Get optional Android symbol-upload secrets
+        uses: grafana/shared-workflows/actions/get-vault-secrets@a53fc80bc30b0a16a262520465db899fa3af08b7 # v1.3.2
+        with:
+          ignore_missing: true
+          repo_secrets: |
             FARO_SOURCEMAP_PRIMARY_API_KEY=faro_sourcemap_primary_api_key:value
             FARO_SOURCEMAP_SECONDARY_API_KEY=faro_sourcemap_secondary_api_key:value
 
