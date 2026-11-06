@@ -296,6 +296,7 @@ jobs:
           fi
 
       # Skip until prod stack enables symbolication: release build only, all four secondary values non-empty.
+      # Pin resolves to npm dist-tag `latest` so scheduled / experimental runs surface CLI regressions early (less reproducible than an exact version).
       - name: Upload Android symbols to secondary stack (faro-cli)
         if: ${{ env.ANDROID_NATIVE_STAGE_FROM == 'release' && env.FARO_SOURCEMAP_SECONDARY_ENDPOINT != '' && env.FARO_SOURCEMAP_SECONDARY_APP_ID != '' && env.FARO_SOURCEMAP_SECONDARY_STACK_ID != '' && env.FARO_SOURCEMAP_SECONDARY_API_KEY != '' }}
         working-directory: Mobiles/android
@@ -306,7 +307,7 @@ jobs:
           SEC_API_KEY: ${{ env.FARO_SOURCEMAP_SECONDARY_API_KEY }}
         run: |
           set -euo pipefail
-          npx --yes @grafana/faro-cli@0.13.3 android upload \
+          npx --yes @grafana/faro-cli@latest android upload \
             --mapping app/build/outputs/mapping/release/mapping.txt \
             --native-symbols app/build/outputs/native-debug-symbols/release/native-debug-symbols.zip \
             --endpoint "${SEC_ENDPOINT}" \
