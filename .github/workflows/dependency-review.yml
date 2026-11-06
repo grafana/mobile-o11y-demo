@@ -35,7 +35,12 @@ jobs:
           # PATENTS grant, which this action rejects. go-hex is BSD-3-Clause but
           # GitHub reports NOASSERTION. k6 (AGPL-3.0) is only built into a throwaway
           # binary by the k6 extension test in ci.yaml; it never ships in the image.
+          #
+          # Grafana Labs shared-workflows composite action (Vault OIDC). The repo
+          # license may be AGPL; the workflow step does not ship AGPL code in the
+          # demo app — only invokes the action at CI runtime (same pattern as k6).
           allow-dependencies-licenses: >-
+            pkg:githubactions/grafana/shared-workflows/actions/get-vault-secrets,
             pkg:pub/faro,
             pkg:pub/dartastic_opentelemetry,
             pkg:pub/dartastic_opentelemetry_api,
