@@ -7,6 +7,8 @@
 # This flow intentionally exercises only the Debug tab handled-exception
 # control. The scheduled telemetry workflow can run it more often than crash
 # diagnostics, keeping demo error data realistic without crashing every run.
+# disable_disk_buffering + relaunch run first so native Android exports without
+# the default ~30–45s OTel disk-buffer delay (no-op on Flutter/RN).
 
 settings:
   aiOptions:
@@ -34,8 +36,51 @@ scenarios:
     maxRetry: 2
     maxStep: 5
 
-  - id: "open_debug_tab"
+  - id: "disable_disk_buffering"
     dependency: "start_app"
+    goal: |
+      You should turn ON "Disable disk buffering" if this app has that Debug control.
+
+      WHY:
+      - Native Android buffers OTLP to disk by default (~30–45s latency). CI needs the near-real-time path.
+      - Flutter and React Native do not have this toggle. If it is missing, that is success.
+
+      STEPS:
+      - Tap the bottom navigation tab labeled "Debug".
+      - Scroll until you see "OpenTelemetry SDK" or "Disable disk buffering", or you reach the end of the Debug page.
+      - If you see the "Disable disk buffering" switch and it is OFF, turn it ON. Do not tap any other Debug control (no crash, ANR, handled exception, error log, or Config).
+      - If the switch is already ON, leave it ON.
+      - If you never see "Disable disk buffering" or "OpenTelemetry SDK" after scrolling the Debug page, OUTPUT "Goal achieved" and STOP.
+
+      SUCCESS CRITERIA:
+      - The "Disable disk buffering" switch is ON, or this app has no such control.
+
+      __RECOVERY_BLOCK__
+
+    maxRetry: 2
+    maxStep: 10
+
+  - id: "relaunch_after_sdk_toggle"
+    dependency: "disable_disk_buffering"
+    initializationMethods:
+      - type: "LaunchApp"
+        packageName: "__ANDROID_PACKAGE__"
+    goal: |
+      QuickPizza should be relaunched so the disk-buffering setting is picked up at SDK init.
+
+      STEPS:
+      - If you already see the QuickPizza home screen with a "Pizza, Please!" button, OUTPUT "Goal achieved" and STOP.
+
+      SUCCESS CRITERIA:
+      - You see the QuickPizza home screen with a "Pizza, Please!" button.
+
+      __RECOVERY_BLOCK__
+
+    maxRetry: 2
+    maxStep: 5
+
+  - id: "open_debug_tab"
+    dependency: "relaunch_after_sdk_toggle"
     goal: |
       You should open the QuickPizza Debug tab.
 
