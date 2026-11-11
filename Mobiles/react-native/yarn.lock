@@ -1626,29 +1626,29 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@grafana/faro-bundlers-shared@npm:^0.11.0":
-  version: 0.11.0
-  resolution: "@grafana/faro-bundlers-shared@npm:0.11.0"
+"@grafana/faro-bundlers-shared@npm:^0.13.2":
+  version: 0.13.2
+  resolution: "@grafana/faro-bundlers-shared@npm:0.13.2"
   dependencies:
     ansis: "npm:^4.0.0"
-    tar: "npm:^7.1.0"
-    undici: "npm:^8.1.0"
-  checksum: 10c0/90e8a950a0dc0b9e953d40ad8f748f9601c6d8567ace71a51866aade12844e4e7fbdce167db544746547a0cb0fba0272f18862313c6ce430f5b8bfc374de3f56
+    tar: "npm:^7.5.21"
+    undici: "npm:^8.5.0"
+  checksum: 10c0/4ec8d33cb7cfbe713afa74856fd3f984b836a931cb63965b1179ee87c855ac9623fd12b69c432e844c0f534e49db51e0f07e12488a1075a83476a5bea9dac0f5
   languageName: node
   linkType: hard
 
-"@grafana/faro-cli@npm:0.11.0, @grafana/faro-cli@npm:^0.11.0":
-  version: 0.11.0
-  resolution: "@grafana/faro-cli@npm:0.11.0"
+"@grafana/faro-cli@npm:0.13.4, @grafana/faro-cli@npm:^0.13.4":
+  version: 0.13.4
+  resolution: "@grafana/faro-cli@npm:0.13.4"
   dependencies:
-    "@grafana/faro-bundlers-shared": "npm:^0.11.0"
+    "@grafana/faro-bundlers-shared": "npm:^0.13.2"
     commander: "npm:^15.0.0"
-    dotenv: "npm:^17.0.1"
+    dotenv: "npm:^18.0.0"
     glob: "npm:^13.0.0"
-    tar: "npm:^7.1.0"
+    tar: "npm:^7.5.21"
   bin:
-    faro-cli: dist/cjs/cli.js
-  checksum: 10c0/707513ef7f1e351f0a774e4b0b729d3a0fd2ebf3036aefa830996ad717e64f53ea9c4e7d9ed03fbfafadb8a0f02eb764a3ce4e98ac82947c6f88320466cf1d0b
+    faro-cli: dist/cjs/cli.cjs
+  checksum: 10c0/7ee7653d3e66e5ecfac3e9f59df9876a6aed8522bd2338e6cea65916a7b93ec8939ddfe8852cad3f2fe3c409bb2ba5063debfe215144e4dc8e8cbef58151e5da
   languageName: node
   linkType: hard
 
@@ -1662,28 +1662,27 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@grafana/faro-metro-plugin@npm:0.3.0":
-  version: 0.3.0
-  resolution: "@grafana/faro-metro-plugin@npm:0.3.0"
+"@grafana/faro-metro-plugin@npm:0.5.4":
+  version: 0.5.4
+  resolution: "@grafana/faro-metro-plugin@npm:0.5.4"
   dependencies:
-    "@grafana/faro-bundlers-shared": "npm:^0.11.0"
-    "@grafana/faro-cli": "npm:^0.11.0"
-    cross-fetch: "npm:^4.0.0"
-    source-map: "npm:^0.7.4"
+    "@grafana/faro-bundlers-shared": "npm:^0.13.2"
+    "@grafana/faro-cli": "npm:^0.13.4"
+    source-map: "npm:^0.8.0"
   peerDependencies:
     metro: ">=0.81.0"
   bin:
     faro-upload-source-map: bin/faro-upload-source-map.js
-  checksum: 10c0/e310d59c7383649b89c0cd393513f4eab9446e512baae6b64798e7cf71eeefb100fc55d6bd41ed85dfeaa9824f0dbda42213f1162274e85aa9ab62e6857e4520
+  checksum: 10c0/c0604996118da394558350e67d0c00c8a95c6ddc14c8d202d0e649421eab3e8a3d041e4b03026c81af4bbbf546c54fd9a3d0ea92933df6f8c211e0003160c3b9
   languageName: node
   linkType: hard
 
-"@grafana/faro-react-native-tracing@npm:2.0.2":
-  version: 2.0.2
-  resolution: "@grafana/faro-react-native-tracing@npm:2.0.2"
+"@grafana/faro-react-native-tracing@npm:2.0.4":
+  version: 2.0.4
+  resolution: "@grafana/faro-react-native-tracing@npm:2.0.4"
   dependencies:
     "@grafana/faro-core": "npm:^2.8.2"
-    "@grafana/faro-react-native": "npm:^1.4.2"
+    "@grafana/faro-react-native": "npm:^1.5.0"
     "@opentelemetry/api": "npm:^1.9.0"
     "@opentelemetry/core": "npm:^2.9.0"
     "@opentelemetry/instrumentation": "npm:^0.220.0"
@@ -1696,13 +1695,13 @@ __metadata:
     "@opentelemetry/semantic-conventions": "npm:^1.43.0"
   peerDependencies:
     react-native: ">=0.70.0"
-  checksum: 10c0/6818cb11b186efe996f4c9875156c45bff9f20dfe3266f4cb41710bc69da4464a2a1d1bda2d43ab4af7981b0ed1efdc95755f30f2757f0434a6044191c8ed620
+  checksum: 10c0/cedef0c341e2a7dcc4d0622fa7f534b09a8b85b7571dd83d27a151736511fd967e29af92f02c0a59abde555c8c1fb18024ba087f9f68e8ef2aea725b981756ab
   languageName: node
   linkType: hard
 
-"@grafana/faro-react-native@npm:1.4.2":
-  version: 1.4.2
-  resolution: "@grafana/faro-react-native@npm:1.4.2"
+"@grafana/faro-react-native@npm:1.5.0":
+  version: 1.5.0
+  resolution: "@grafana/faro-react-native@npm:1.5.0"
   dependencies:
     "@grafana/faro-core": "npm:^2.8.2"
     "@react-native-async-storage/async-storage": "npm:^1.21.0"
@@ -1717,7 +1716,7 @@ __metadata:
       optional: true
     react-native-mmkv:
       optional: true
-  checksum: 10c0/90db622c8461412359540b0227ee3701c26d3155f43dfbb30beb47e62f34f56435e78c7f415943e96eb07ab4e5a1d81b3f30e3b237a51842f7c17757a40dc714
+  checksum: 10c0/b47a06cd300d5c757a6496477cb9e51e33078b8c4c8824a63dbda65b35bc742a038aed6d1ebe8d484b501e76d1647492fb3ce6936b9b55ae36e626c34186c8ff
   languageName: node
   linkType: hard
 
@@ -3329,10 +3328,10 @@ __metadata:
     "@babel/core": "npm:^7.25.2"
     "@babel/preset-env": "npm:^7.25.3"
     "@babel/runtime": "npm:^7.25.0"
-    "@grafana/faro-cli": "npm:0.11.0"
-    "@grafana/faro-metro-plugin": "npm:0.3.0"
-    "@grafana/faro-react-native": "npm:1.4.2"
-    "@grafana/faro-react-native-tracing": "npm:2.0.2"
+    "@grafana/faro-cli": "npm:0.13.4"
+    "@grafana/faro-metro-plugin": "npm:0.5.4"
+    "@grafana/faro-react-native": "npm:1.5.0"
+    "@grafana/faro-react-native-tracing": "npm:2.0.4"
     "@react-native-async-storage/async-storage": "npm:^1.21.0"
     "@react-native-community/cli": "npm:20.2.0"
     "@react-native-community/cli-platform-android": "npm:20.2.0"
@@ -4359,15 +4358,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cross-fetch@npm:^4.0.0":
-  version: 4.1.0
-  resolution: "cross-fetch@npm:4.1.0"
-  dependencies:
-    node-fetch: "npm:^2.7.0"
-  checksum: 10c0/628b134ea27cfcada67025afe6ef1419813fffc5d63d175553efa75a2334522d450300a0f3f0719029700da80e96327930709d5551cf6deb39bb62f1d536642e
-  languageName: node
-  linkType: hard
-
 "cross-spawn@npm:^7.0.2, cross-spawn@npm:^7.0.3, cross-spawn@npm:^7.0.6":
   version: 7.0.6
   resolution: "cross-spawn@npm:7.0.6"
@@ -4564,10 +4554,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"dotenv@npm:^17.0.1":
-  version: 17.4.2
-  resolution: "dotenv@npm:17.4.2"
-  checksum: 10c0/164f8e77a646c8446867d5b588d26ea6005c8ea7c5eb41cf926f6113d23f2191355f6e0cfd95ea9bab98394a5b0a3f1e51a8399711b666fe55cc7b0bd745f942
+"dotenv@npm:^18.0.0":
+  version: 18.0.9
+  resolution: "dotenv@npm:18.0.9"
+  bin:
+    dotenv: dist/index.cjs
+  checksum: 10c0/62a70960e611f1d26bf5ade0e0baa7850513f65d56789ba282c8ae7f690411d364457d33d4302b2611cc18157d03dea589ac7e33f1aa85b8f69737b8c05cf726
   languageName: node
   linkType: hard
 
@@ -7516,20 +7508,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"node-fetch@npm:^2.7.0":
-  version: 2.7.0
-  resolution: "node-fetch@npm:2.7.0"
-  dependencies:
-    whatwg-url: "npm:^5.0.0"
-  peerDependencies:
-    encoding: ^0.1.0
-  peerDependenciesMeta:
-    encoding:
-      optional: true
-  checksum: 10c0/b55786b6028208e6fbe594ccccc213cab67a72899c9234eb59dba51062a299ea853210fcf526998eaa2867b0963ad72338824450905679ff0fa304b8c5093ae8
-  languageName: node
-  linkType: hard
-
 "node-gyp@npm:latest":
   version: 12.3.0
   resolution: "node-gyp@npm:12.3.0"
@@ -8848,10 +8826,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"source-map@npm:^0.7.4":
-  version: 0.7.6
-  resolution: "source-map@npm:0.7.6"
-  checksum: 10c0/59f6f05538539b274ba771d2e9e32f6c65451982510564438e048bc1352f019c6efcdc6dd07909b1968144941c14015c2c7d4369fb7c4d7d53ae769716dcc16c
+"source-map@npm:^0.8.0":
+  version: 0.8.0
+  resolution: "source-map@npm:0.8.0"
+  checksum: 10c0/fd2a5b81a1bf40f6155592f19c44abb46fc75b0f0f9473dd40c665b6f3866516a26218dad3d76b58b8b3e44560f3ab2191a837e1ce6631987e51a2db2e1cac56
   languageName: node
   linkType: hard
 
@@ -9104,7 +9082,20 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tar@npm:^7.1.0, tar@npm:^7.5.4":
+"tar@npm:^7.5.21":
+  version: 7.5.22
+  resolution: "tar@npm:7.5.22"
+  dependencies:
+    "@isaacs/fs-minipass": "npm:^4.0.0"
+    chownr: "npm:^3.0.0"
+    minipass: "npm:^7.1.2"
+    minizlib: "npm:^3.1.0"
+    yallist: "npm:^5.0.0"
+  checksum: 10c0/1311f6be85a8157ac4c9147bae43e13923d2a1aae15e4aa1bd5239e4e03d2cf53cfe103dde7f35832fbb4c938b042856bc8e9a0afd29abd05e2d1608788c4fea
+  languageName: node
+  linkType: hard
+
+"tar@npm:^7.5.4":
   version: 7.5.15
   resolution: "tar@npm:7.5.15"
   dependencies:
@@ -9186,13 +9177,6 @@ __metadata:
   version: 1.0.1
   resolution: "toidentifier@npm:1.0.1"
   checksum: 10c0/93937279934bd66cc3270016dd8d0afec14fb7c94a05c72dc57321f8bd1fa97e5bea6d1f7c89e728d077ca31ea125b78320a616a6c6cd0e6b9cb94cb864381c1
-  languageName: node
-  linkType: hard
-
-"tr46@npm:~0.0.3":
-  version: 0.0.3
-  resolution: "tr46@npm:0.0.3"
-  checksum: 10c0/047cb209a6b60c742f05c9d3ace8fa510bff609995c129a37ace03476a9b12db4dbf975e74600830ef0796e18882b2381fb5fb1f6b4f96b832c374de3ab91a11
   languageName: node
   linkType: hard
 
@@ -9359,10 +9343,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"undici@npm:^8.1.0":
-  version: 8.3.0
-  resolution: "undici@npm:8.3.0"
-  checksum: 10c0/6a67e46aefc7b882702e76878c4d317040f1ae04aefbab3a3639bcb07b255a050eaf3202ea56b80c42ba5c7140d990cf0096412ca50d6c825a2e1c57c59d1e28
+"undici@npm:^8.5.0":
+  version: 8.12.3
+  resolution: "undici@npm:8.12.3"
+  checksum: 10c0/714919e62b4160eea195fb35c7f5c4907235741e47bfde8a014ac58f6d24df13434e23400d7f48e2c455fd2b259d27f07fce514f04a5b4e99936ba62cbc4bb71
   languageName: node
   linkType: hard
 
@@ -9523,27 +9507,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"webidl-conversions@npm:^3.0.0":
-  version: 3.0.1
-  resolution: "webidl-conversions@npm:3.0.1"
-  checksum: 10c0/5612d5f3e54760a797052eb4927f0ddc01383550f542ccd33d5238cfd65aeed392a45ad38364970d0a0f4fea32e1f4d231b3d8dac4a3bdd385e5cf802ae097db
-  languageName: node
-  linkType: hard
-
 "whatwg-fetch@npm:^3.0.0":
   version: 3.6.20
   resolution: "whatwg-fetch@npm:3.6.20"
   checksum: 10c0/fa972dd14091321d38f36a4d062298df58c2248393ef9e8b154493c347c62e2756e25be29c16277396046d6eaa4b11bd174f34e6403fff6aaca9fb30fa1ff46d
-  languageName: node
-  linkType: hard
-
-"whatwg-url@npm:^5.0.0":
-  version: 5.0.0
-  resolution: "whatwg-url@npm:5.0.0"
-  dependencies:
-    tr46: "npm:~0.0.3"
-    webidl-conversions: "npm:^3.0.0"
-  checksum: 10c0/1588bed84d10b72d5eec1d0faa0722ba1962f1821e7539c535558fb5398d223b0c50d8acab950b8c488b4ba69043fd833cc2697056b167d8ad46fac3995a55d5
   languageName: node
   linkType: hard
 
